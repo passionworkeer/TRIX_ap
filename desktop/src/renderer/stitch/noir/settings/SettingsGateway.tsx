@@ -61,6 +61,8 @@ export function SettingsGateway(props: SettingsSharedState) {
   const [origins, setOrigins] = useState<string[]>([]);
   const [newOrigin, setNewOrigin] = useState('');
   const [showRestartConfirm, setShowRestartConfirm] = useState(false);
+  const gatewayToken = config?.auth?.token || '';
+  const gatewayTokenIsRedacted = gatewayToken === '__TRIX_REDACTED__';
 
   const statusColor = gatewayHealth?.status === 'healthy' ? '#4ade80'
     : gatewayHealth?.status === 'degraded' ? '#f59e0b'
@@ -131,8 +133,8 @@ export function SettingsGateway(props: SettingsSharedState) {
   const removeOrigin = (o: string) => setOrigins(prev => prev.filter(x => x !== o));
 
   const copyToken = () => {
-    if (config?.auth?.token) {
-      navigator.clipboard.writeText(config.auth.token).catch(() => {});
+    if (gatewayToken && !gatewayTokenIsRedacted) {
+      navigator.clipboard.writeText(gatewayToken).catch(() => {});
     }
   };
 
@@ -324,7 +326,7 @@ export function SettingsGateway(props: SettingsSharedState) {
             <div style={{ flex: 1, position: 'relative' }}>
               <input
                 type={showToken ? 'text' : 'password'}
-                value={config?.auth?.token || ''}
+                value={gatewayToken}
                 onChange={e => setConfig(c => ({ ...c!, auth: { ...c?.auth!, token: e.target.value } }))}
                 style={{
                   width: '100%', background: '#0e0e0e', border: '1px solid rgba(255,255,255,0.1)',
@@ -336,8 +338,9 @@ export function SettingsGateway(props: SettingsSharedState) {
                 {showToken ? <EyeOff size={14} /> : <Eye size={14} />}
               </div>
             </div>
-            <DarkButton label="复制" icon={<Copy size={11} />} onClick={copyToken} variant="ghost" size="sm" />
+            <DarkButton label="复制" icon={<Copy size={11} />} onClick={copyToken} variant="ghost" size="sm" disabled={!gatewayToken || gatewayTokenIsRedacted} />
           </div>
+          {gatewayTokenIsRedacted && <div style={{ marginTop: 6, fontSize: 11, color: '#555' }}>已隐藏现有 token；保持不变请直接保存，只有输入新值才会覆盖。</div>}
         </div>
 
         {/* Allowed Origins */}

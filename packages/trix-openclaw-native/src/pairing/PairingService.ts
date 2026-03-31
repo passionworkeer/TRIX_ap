@@ -95,7 +95,10 @@ export class PairingService {
         if (entry.expiresAt <= Date.now()) {
           throw new Error('Pairing code expired');
         }
-        if (input.secret?.trim() && entry.secret !== input.secret.trim()) {
+        if (!input.secret?.trim()) {
+          throw new Error('Pairing secret required');
+        }
+        if (entry.secret !== input.secret.trim()) {
           throw new Error('Invalid pairing secret');
         }
         if (requestedAccountId && entry.accountId !== requestedAccountId) {

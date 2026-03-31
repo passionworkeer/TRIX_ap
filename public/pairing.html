@@ -138,22 +138,44 @@
       const sessionStateKey = 'trix_native_channel_sessions_v2';
       const activeAccountKey = 'trix_native_channel_active_account';
       const legacySessionKey = 'trix_native_channel_session';
+      const sessionTokenPrefix = 'trix_native_channel_token';
 
-      function getSupabaseAccessToken() {
+      function buildSessionTokenStorageKey(resolvedAccountId, conversationId, clientId) {
+        return `${sessionTokenPrefix}:${(resolvedAccountId || 'default').trim() || 'default'}:${conversationId}:${clientId}`;
+      }
+
+      function migrateLegacySupabaseSessions() {
+        if (!window.sessionStorage) return;
         for (const key of Object.keys(window.localStorage)) {
           if (!/^sb-.*-auth-token$/.test(key)) continue;
           const rawValue = window.localStorage.getItem(key);
           if (!rawValue) continue;
-          try {
-            const parsed = JSON.parse(rawValue);
-            if (typeof parsed?.access_token === 'string') return parsed.access_token;
-            if (typeof parsed?.currentSession?.access_token === 'string') return parsed.currentSession.access_token;
-            if (typeof parsed?.session?.access_token === 'string') return parsed.session.access_token;
-            if (Array.isArray(parsed)) {
-              const candidate = parsed.find((entry) => typeof entry?.access_token === 'string');
-              if (candidate?.access_token) return candidate.access_token;
-            }
-          } catch (_) {}
+          if (!window.sessionStorage.getItem(key)) {
+            window.sessionStorage.setItem(key, rawValue);
+          }
+          window.localStorage.removeItem(key);
+        }
+      }
+
+      function getSupabaseAccessToken() {
+        migrateLegacySupabaseSessions();
+        const storages = [window.sessionStorage];
+        for (const storage of storages) {
+          for (const key of Object.keys(storage)) {
+            if (!/^sb-.*-auth-token$/.test(key)) continue;
+            const rawValue = storage.getItem(key);
+            if (!rawValue) continue;
+            try {
+              const parsed = JSON.parse(rawValue);
+              if (typeof parsed?.access_token === 'string') return parsed.access_token;
+              if (typeof parsed?.currentSession?.access_token === 'string') return parsed.currentSession.access_token;
+              if (typeof parsed?.session?.access_token === 'string') return parsed.session.access_token;
+              if (Array.isArray(parsed)) {
+                const candidate = parsed.find((entry) => typeof entry?.access_token === 'string');
+                if (candidate?.access_token) return candidate.access_token;
+              }
+            } catch (_) {}
+          }
         }
         return null;
       }
@@ -226,13 +248,7 @@
             return { response, payload, accessToken };
           };
 
-          let { response, payload, accessToken } = await runClaim(requestBody);
-          if (!response.ok && requestBody.secret && /invalid pairing secret/i.test(payload.error || '')) {
-            ({ response, payload, accessToken } = await runClaim({
-              ...requestBody,
-              secret: undefined,
-            }));
-          }
+          const { response, payload, accessToken } = await runClaim(requestBody);
 
           if (!response.ok) {
             throw new Error(payload.error || `Claim failed: ${response.status}`);
@@ -246,23 +262,30 @@
             serverUrl: payload.serverUrl || window.location.origin,
             websocketUrl,
             conversationId: payload.conversationId,
-            clientToken: payload.clientToken,
             clientId: getClientId(),
             deviceName: deviceNameInput.value.trim() || 'Web Browser',
             pairingCode: payload.pairing?.code || code,
           };
           let existingSessions = {};
           try {
-            existingSessions = JSON.parse(window.localStorage.getItem(sessionStateKey) || '{}').sessions || {};
+            const parsedState = JSON.parse(window.localStorage.getItem(sessionStateKey) || '{}').sessions || {};
+            existingSessions = Object.fromEntries(
+              Object.entries(parsedState).map(([existingAccountId, existingSession]) => [
+                existingAccountId,
+                existingSession && typeof existingSession === 'object'
+                  ? { ...existingSession, clientToken: undefined }
+                  : existingSession,
+              ]),
+            );
           } catch (_) {}
           const sessionState = {
             version: 2,
             activeAccountId: resolvedAccountId,
             sessions: {
               ...existingSessions,
-              [resolvedAccountId]: storedSession,
-            },
-          };
+                  [resolvedAccountId]: storedSession,
+                },
+              };
 
           if (accessToken) {
             await fetch('/api/client/session/bind', {
@@ -278,10 +301,17 @@
             }).catch(() => null);
           }
 
+          window.sessionStorage.setItem(
+            buildSessionTokenStorageKey(resolvedAccountId, payload.conversationId, storedSession.clientId),
+            payload.clientToken,
+          );
           window.localStorage.setItem(sessionStateKey, JSON.stringify(sessionState));
           window.localStorage.setItem(activeAccountKey, resolvedAccountId);
           window.localStorage.setItem(legacySessionKey, JSON.stringify(storedSession));
-          window.localStorage.setItem(claimStorageKey, JSON.stringify(payload));
+          window.localStorage.setItem(claimStorageKey, JSON.stringify({
+            ...payload,
+            clientToken: undefined,
+          }));
           setMessage(`配对成功。\naccountId: ${resolvedAccountId}\nconversationId: ${payload.conversationId}\npeerId: ${payload.peerId}\n现在可以回到 TRIX Web / iOS 继续。`, 'success');
           window.setTimeout(() => {
             window.location.href = '/#/chat/clawbot';

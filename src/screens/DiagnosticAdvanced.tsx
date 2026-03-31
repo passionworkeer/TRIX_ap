@@ -3,6 +3,11 @@ import { getClawbotEndpoints } from '../config/clawbotEndpoints';
 import trixNativeChannelClient from '../services/TrixNativeChannelClient';
 import { getErrorMessage } from '../utils/errorHandler';
 
+function buildUserSocketProtocols(clientToken: string): string[] {
+  const encoded = btoa(clientToken).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+  return ['trix-user', `trix-auth.${encoded}`];
+}
+
 export default function DiagnosticAdvanced() {
   const [logs, setLogs] = useState<string[]>([]);
   const [testResult, setTestResult] = useState<'idle' | 'testing' | 'success' | 'failed'>('idle');
@@ -50,7 +55,8 @@ export default function DiagnosticAdvanced() {
 
       await new Promise<void>((resolve, reject) => {
         const ws = new WebSocket(
-          `${session.websocketUrl}?role=user&conversationId=${encodeURIComponent(session.conversationId)}&clientId=${encodeURIComponent(session.clientId)}&clientToken=${encodeURIComponent(session.clientToken)}`,
+          `${session.websocketUrl}?role=user&conversationId=${encodeURIComponent(session.conversationId)}&clientId=${encodeURIComponent(session.clientId)}`,
+          buildUserSocketProtocols(session.clientToken),
         );
 
         const timeout = window.setTimeout(() => {

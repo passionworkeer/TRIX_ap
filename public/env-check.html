@@ -90,12 +90,22 @@
     <div id="testResult"></div>
 
     <script type="module">
+        const isLocalDebugPage = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+        if (!isLocalDebugPage) {
+            document.body.innerHTML = `
+                <div class="warning">
+                    此调试页面仅允许在本地开发环境访问。
+                </div>
+            `;
+            throw new Error('env-check is disabled outside local development');
+        }
+
         // 显示环境变量
         const wsUrl = import.meta.env.VITE_PC_WEBSOCKET_URL;
         const authToken = import.meta.env.VITE_PC_AUTH_TOKEN;
         
         document.getElementById('wsUrl').textContent = wsUrl || '❌ 未配置';
-        document.getElementById('authToken').textContent = authToken ? '✅ 已配置 (***' + authToken.slice(-8) + ')' : '❌ 未配置';
+        document.getElementById('authToken').textContent = authToken ? '✅ 已配置' : '❌ 未配置';
         document.getElementById('currentUrl').textContent = window.location.href;
         
         // 推荐的 WebSocket URL
@@ -103,8 +113,6 @@
         let recommendedWs;
         if (hostname === 'localhost' || hostname === '127.0.0.1') {
             recommendedWs = 'ws://localhost:18789';
-        } else {
-            recommendedWs = `ws://${hostname}:18789`;
         }
         document.getElementById('recommendedWs').textContent = recommendedWs;
         

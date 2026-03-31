@@ -1,5 +1,7 @@
 """批量下载 Canvas 项目生成结果"""
 
+from __future__ import annotations
+
 import argparse
 import json
 import sys
@@ -8,7 +10,11 @@ from pathlib import Path
 import _common
 
 
-def run(project_id: int, dest_dir: str | None = None, media_types: list[str] | None = None) -> dict:
+def run(
+    project_id: str,
+    dest_dir: str | None = None,
+    media_types: list[str] | None = None,
+) -> dict:
     files = _common.list_project_files(project_id)
     if not files:
         return {"ok": False, "error": "项目没有文件"}
@@ -18,20 +24,22 @@ def run(project_id: int, dest_dir: str | None = None, media_types: list[str] | N
     downloaded = []
 
     for file in files:
-        if media_types and file.get("mediaType") not in media_types:
+        media_type = file.get("mediaType") or file.get("media_type")
+        if media_types and media_type not in media_types:
             continue
 
-        rel_path = file.get("storedFilename") or file.get("url", "").split("/media/files/")[-1]
-        if not rel_path:
+        source = file.get("url") or file.get("storedFilename") or file.get("stored_filename")
+        if not source:
             continue
 
         try:
-            data = _common.download_media(rel_path)
+            data = _common.download_media(source)
         except Exception:
             continue
 
-        safe_name = f"{file.get('id')}_{file.get('filename') or rel_path}"
-        safe_name = safe_name.replace("/", "_")
+        file_id = file.get("id", "file")
+        filename = file.get("filename") or _common._normalize_media_identifier(source)
+        safe_name = f"{file_id}_{filename}".replace("/", "_")
         dest_path = out_dir / safe_name
         with open(dest_path, "wb") as fh:
             fh.write(data)
@@ -40,12 +48,17 @@ def run(project_id: int, dest_dir: str | None = None, media_types: list[str] | N
     if not downloaded:
         return {"ok": False, "error": "没有成功下载任何文件"}
 
-    return {"ok": True, "count": len(downloaded), "files": downloaded, "directory": str(out_dir)}
+    return {
+        "ok": True,
+        "count": len(downloaded),
+        "files": downloaded,
+        "directory": str(out_dir),
+    }
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="下载 Canvas 项目生成结果")
-    parser.add_argument("project_id", type=int, help="Canvas 项目 ID")
+    parser.add_argument("project_id", help="Canvas 项目 ID")
     parser.add_argument("--dest", help="结果保存目录")
     parser.add_argument(
         "--media-types",

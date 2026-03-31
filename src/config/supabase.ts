@@ -3,11 +3,47 @@ import { logger } from '../utils/logger';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const isBrowser = typeof window !== 'undefined';
+
+function migrateLegacySupabaseSessions(): void {
+  if (!isBrowser) {
+    return;
+  }
+
+  for (const key of Object.keys(window.localStorage)) {
+    if (!/^sb-.*-auth-token$/.test(key)) continue;
+    const rawValue = window.localStorage.getItem(key);
+    if (!rawValue) continue;
+    if (!window.sessionStorage.getItem(key)) {
+      window.sessionStorage.setItem(key, rawValue);
+    }
+    window.localStorage.removeItem(key);
+  }
+}
+
+migrateLegacySupabaseSessions();
+
+const browserSessionStorage = isBrowser
+  ? {
+      getItem(key: string) {
+        return window.sessionStorage.getItem(key);
+      },
+      setItem(key: string, value: string) {
+        window.sessionStorage.setItem(key, value);
+        window.localStorage.removeItem(key);
+      },
+      removeItem(key: string) {
+        window.sessionStorage.removeItem(key);
+        window.localStorage.removeItem(key);
+      },
+    }
+  : undefined;
 
 export const supabase = createClient(supabaseUrl, supabaseKey, {
   auth: {
     persistSession: true,
     autoRefreshToken: true,
+    ...(browserSessionStorage ? { storage: browserSessionStorage } : {}),
   },
   realtime: {
     params: {

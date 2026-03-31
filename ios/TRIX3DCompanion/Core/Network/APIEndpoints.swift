@@ -17,11 +17,33 @@ enum APISecurityConfig {
 
     /// Allow insecure connections in development only
     /// WARNING: Never set to true in production builds
-    #if DEBUG
-    static let allowInsecureInDev: Bool = true
-    #else
     static let allowInsecureInDev: Bool = false
-    #endif
+
+    static func debugOverride(_ environmentKey: String, secureFallback: String) -> String {
+        #if DEBUG
+        guard let rawValue = ProcessInfo.processInfo.environment[environmentKey]?
+            .trimmingCharacters(in: .whitespacesAndNewlines),
+              !rawValue.isEmpty
+        else {
+            return secureFallback
+        }
+
+        if rawValue.hasPrefix("https://") || rawValue.hasPrefix("wss://") {
+            return rawValue
+        }
+
+        if rawValue.hasPrefix("http://localhost")
+            || rawValue.hasPrefix("http://127.0.0.1")
+            || rawValue.hasPrefix("ws://localhost")
+            || rawValue.hasPrefix("ws://127.0.0.1") {
+            return rawValue
+        }
+
+        return secureFallback
+        #else
+        return secureFallback
+        #endif
+    }
 }
 
 /// Base URL for the API
@@ -34,9 +56,7 @@ enum APIBaseURL {
     /// Development API base URL - uses HTTPS when security is enabled
     /// For local development, use http://localhost:8765 or configure your dev server with HTTPS
     static let development: String = {
-        // Use Supabase directly for development to avoid auth issues
-        // This is for development/testing only
-        return "https://__SUPABASE_PROJECT_REF_REDACTED__.supabase.co"
+        APISecurityConfig.debugOverride("TRIX_API_BASE_URL", secureFallback: production)
     }()
 
     /// Current base URL based on build configuration
@@ -60,9 +80,7 @@ enum WebSocketURL {
     // MARK: - Development
     /// Development WebSocket URL - uses WSS when security is enabled
     static let development: String = {
-        // DEBUG mode: use direct server access to avoid production-domain TLS/caching interference
-        // This is for development/testing only
-        return "ws://TRIX_SERVER_HOST:8765"
+        APISecurityConfig.debugOverride("TRIX_WEBSOCKET_URL", secureFallback: production)
     }()
 
     /// Current WebSocket URL based on build configuration
@@ -84,9 +102,7 @@ enum TrixNativeServerURL {
 
     // MARK: - Development
     static let development: String = {
-        // For local development, use your local server
-        // Default: http://localhost:8788 or your ngrok/tailscale URL
-        return "http://TRIX_SERVER_HOST:8788"
+        APISecurityConfig.debugOverride("TRIX_NATIVE_SERVER_URL", secureFallback: production)
     }()
 
     /// Current server URL based on build configuration

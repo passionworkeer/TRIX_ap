@@ -146,12 +146,47 @@ const STORAGE_KEYS = {
   legacyClaim: 'trix_native_last_claim',
   clientId: 'trix_native_channel_client_id',
   legacyPairDeviceId: 'trix_native_pair_device_id',
+  sessionTokenPrefix: 'trix_native_channel_token',
 } as const;
+const USER_WS_PROTOCOL = 'trix-user';
+const WS_TOKEN_PROTOCOL_PREFIX = 'trix-auth.';
 
 function generateSecureRandomString(length: number): string {
   const array = new Uint8Array(length);
   crypto.getRandomValues(array);
   return Array.from(array, (value) => value.toString(16).padStart(2, '0')).join('').slice(0, length);
+}
+
+function getSessionTokenStorage(): Storage {
+  return typeof window !== 'undefined' && window.sessionStorage
+    ? window.sessionStorage
+    : localStorage;
+}
+
+function buildSessionTokenStorageKey(accountId: string, conversationId: string, clientId: string): string {
+  return `${STORAGE_KEYS.sessionTokenPrefix}:${normalizeAccountId(accountId)}:${conversationId}:${clientId}`;
+}
+
+function encodeWebSocketProtocolToken(token: string): string {
+  const base64 = typeof btoa === 'function'
+    ? btoa(token)
+    : Buffer.from(token, 'utf8').toString('base64');
+  return `${WS_TOKEN_PROTOCOL_PREFIX}${base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '')}`;
+}
+
+function buildUserWebSocketProtocols(session: Pick<StoredSession, 'clientToken'>): string[] {
+  return [USER_WS_PROTOCOL, encodeWebSocketProtocolToken(session.clientToken)];
+}
+
+function getSupabaseAuthStorages(): Storage[] {
+  const storages: Storage[] = [];
+  if (typeof window !== 'undefined' && window.sessionStorage) {
+    storages.push(window.sessionStorage);
+  }
+  else {
+    storages.push(localStorage);
+  }
+  return storages;
 }
 
 function normalizeServerUrl(serverUrl: string): string {
@@ -422,28 +457,31 @@ class TrixNativeChannelClient {
 
   private readAuthStateFromStorage(): { accessToken: string | null; userId: string | null } {
     try {
-      const authKey = Object.keys(localStorage).find((key) => key.startsWith('sb-') && key.endsWith('-auth-token'));
-      if (!authKey) {
-        return { accessToken: null, userId: null };
-      }
+      for (const storage of getSupabaseAuthStorages()) {
+        const authKey = Object.keys(storage).find((key) => key.startsWith('sb-') && key.endsWith('-auth-token'));
+        if (!authKey) {
+          continue;
+        }
+        const raw = storage.getItem(authKey);
+        if (!raw) {
+          continue;
+        }
 
-      const raw = localStorage.getItem(authKey);
-      if (!raw) {
-        return { accessToken: null, userId: null };
-      }
-
-      const parsed = JSON.parse(raw) as {
-        access_token?: unknown;
-        user?: { id?: unknown };
-      };
-      return {
-        accessToken: typeof parsed.access_token === 'string' && parsed.access_token.trim()
+        const parsed = JSON.parse(raw) as {
+          access_token?: unknown;
+          user?: { id?: unknown };
+        };
+        const accessToken = typeof parsed.access_token === 'string' && parsed.access_token.trim()
           ? parsed.access_token.trim()
-          : null,
-        userId: typeof parsed.user?.id === 'string' && parsed.user.id.trim()
+          : null;
+        const userId = typeof parsed.user?.id === 'string' && parsed.user.id.trim()
           ? parsed.user.id.trim()
-          : null,
-      };
+          : null;
+        if (accessToken || userId) {
+          return { accessToken, userId };
+        }
+      }
+      return { accessToken: null, userId: null };
     } catch (error) {
       logger.clawbot.debug('[TrixNative] failed to read auth token from local storage', error);
       return { accessToken: null, userId: null };
@@ -487,8 +525,54 @@ class TrixNativeChannelClient {
     return next;
   }
 
+  private readStoredSessionToken(parsed: Partial<StoredSession> & { clientId?: string }): string | null {
+    const accountId = normalizeAccountId(parsed.accountId);
+    if (!parsed.conversationId || !parsed.clientId) {
+      return null;
+    }
+    const stored = getSessionTokenStorage().getItem(
+      buildSessionTokenStorageKey(accountId, parsed.conversationId, parsed.clientId),
+    );
+    return stored?.trim() || null;
+  }
+
+  private persistSessionToken(session: StoredSession): void {
+    getSessionTokenStorage().setItem(
+      buildSessionTokenStorageKey(session.accountId, session.conversationId, session.clientId),
+      session.clientToken,
+    );
+  }
+
+  private synchronizePersistedSessionTokens(state: StoredSessionState): void {
+    const storage = getSessionTokenStorage();
+    const expected = new Set<string>();
+    Object.values(state.sessions).forEach((session) => {
+      this.persistSessionToken(session);
+      expected.add(buildSessionTokenStorageKey(session.accountId, session.conversationId, session.clientId));
+    });
+    for (let index = storage.length - 1; index >= 0; index -= 1) {
+      const key = storage.key(index);
+      if (!key || !key.startsWith(`${STORAGE_KEYS.sessionTokenPrefix}:`) || expected.has(key)) {
+        continue;
+      }
+      storage.removeItem(key);
+    }
+  }
+
+  private stripSessionSecrets(session: StoredSession): Omit<StoredSession, 'clientToken'> {
+    const { clientToken: _clientToken, ...rest } = session;
+    return rest;
+  }
+
   private normalizeStoredSession(parsed: Partial<StoredSession>): StoredSession | null {
-    if (!parsed.serverUrl || !parsed.conversationId || !parsed.clientToken || !parsed.clientId) {
+    const clientId = typeof parsed.clientId === 'string' && parsed.clientId.trim()
+      ? parsed.clientId
+      : this.getOrCreateClientId();
+    const clientToken = typeof parsed.clientToken === 'string' && parsed.clientToken.trim()
+      ? parsed.clientToken
+      : this.readStoredSessionToken({ ...parsed, clientId });
+
+    if (!parsed.serverUrl || !parsed.conversationId || !clientToken || !clientId) {
       return null;
     }
 
@@ -498,8 +582,8 @@ class TrixNativeChannelClient {
       serverUrl: normalizeServerUrl(parsed.serverUrl),
       websocketUrl: parsed.websocketUrl ? normalizeServerUrl(parsed.websocketUrl) : toWebSocketUrl(parsed.serverUrl),
       conversationId: parsed.conversationId,
-      clientToken: parsed.clientToken,
-      clientId: parsed.clientId,
+      clientToken,
+      clientId,
       deviceName: parsed.deviceName,
       pairingCode: parsed.pairingCode,
     };
@@ -630,12 +714,21 @@ class TrixNativeChannelClient {
   }
 
   private writeSessionState(state: StoredSessionState): void {
-    localStorage.setItem(STORAGE_KEYS.sessions, JSON.stringify(state));
+    this.synchronizePersistedSessionTokens(state);
+    localStorage.setItem(
+      STORAGE_KEYS.sessions,
+      JSON.stringify({
+        ...state,
+        sessions: Object.fromEntries(
+          Object.entries(state.sessions).map(([accountId, session]) => [accountId, this.stripSessionSecrets(session)]),
+        ),
+      }),
+    );
     localStorage.setItem(STORAGE_KEYS.activeAccountId, state.activeAccountId);
 
     const activeSession = state.sessions[state.activeAccountId];
     if (activeSession) {
-      localStorage.setItem(STORAGE_KEYS.legacySession, JSON.stringify(activeSession));
+      localStorage.setItem(STORAGE_KEYS.legacySession, JSON.stringify(this.stripSessionSecrets(activeSession)));
       localStorage.setItem(STORAGE_KEYS.clientId, activeSession.clientId);
       localStorage.setItem(STORAGE_KEYS.legacyPairDeviceId, activeSession.clientId);
     } else {
@@ -699,6 +792,7 @@ class TrixNativeChannelClient {
       localStorage.removeItem(STORAGE_KEYS.sessions);
       localStorage.removeItem(STORAGE_KEYS.activeAccountId);
       localStorage.removeItem(STORAGE_KEYS.legacySession);
+      localStorage.removeItem(STORAGE_KEYS.legacyClaim);
     }
   }
 
@@ -736,7 +830,8 @@ class TrixNativeChannelClient {
 
     await new Promise<void>((resolve, reject) => {
       const socket = new WebSocket(
-        `${session.websocketUrl}?role=user&conversationId=${encodeURIComponent(session.conversationId)}&clientId=${encodeURIComponent(session.clientId)}&clientToken=${encodeURIComponent(session.clientToken)}`,
+        `${session.websocketUrl}?role=user&conversationId=${encodeURIComponent(session.conversationId)}&clientId=${encodeURIComponent(session.clientId)}`,
+        buildUserWebSocketProtocols(session),
       );
       this.socket = socket;
       this.socketSessionKey = nextSocketSessionKey;
@@ -831,21 +926,9 @@ class TrixNativeChannelClient {
       return response;
     };
 
-    let response = await runClaim(requestBody);
+    const response = await runClaim(requestBody);
     if (!response.ok) {
-      const message = await readErrorPayload(response, params.fallbackError);
-      const shouldRetryWithoutSecret = Boolean(params.secret) && /invalid pairing secret/i.test(message);
-      if (!shouldRetryWithoutSecret) {
-        throw new Error(message);
-      }
-
-      response = await runClaim({
-        ...requestBody,
-        secret: undefined,
-      });
-      if (!response.ok) {
-        throw new Error(await readErrorPayload(response, params.fallbackError));
-      }
+      throw new Error(await readErrorPayload(response, params.fallbackError));
     }
 
     return await response.json() as ClaimResponse;

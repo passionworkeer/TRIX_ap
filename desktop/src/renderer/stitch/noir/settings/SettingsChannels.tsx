@@ -189,7 +189,7 @@ export function SettingsChannels(_props: SettingsSharedState) {
             </div>
             <div>
               <label style={{ fontSize: 11, color: '#919191', display: 'block', marginBottom: 3 }}>App Secret</label>
-              <input value={newAppSecret} onChange={e => setNewAppSecret(e.target.value)} placeholder="App Secret"
+              <input type="password" value={newAppSecret} onChange={e => setNewAppSecret(e.target.value)} placeholder="App Secret"
                 style={{ width: '100%', background: '#0e0e0e', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, padding: '6px 10px', color: '#e5e2e1', fontSize: 12, outline: 'none', boxSizing: 'border-box' }} />
             </div>
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
@@ -229,17 +229,17 @@ export function SettingsChannels(_props: SettingsSharedState) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <div>
             <label style={{ fontSize: 11, color: '#919191', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: 4 }}>Server URL</label>
-            <input value={trixServerUrl} onChange={e => setTrixServerUrl(e.target.value)} placeholder="http://TRIX_SERVER_HOST:8788"
+            <input value={trixServerUrl} onChange={e => setTrixServerUrl(e.target.value)} placeholder="https://trix.love"
               style={{ width: '100%', background: '#0e0e0e', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, padding: '7px 10px', color: '#e5e2e1', fontSize: 13, outline: 'none', boxSizing: 'border-box' }} />
           </div>
           <div>
             <label style={{ fontSize: 11, color: '#919191', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: 4 }}>Admin Token</label>
-            <input value={trixAdminToken} onChange={e => setTrixAdminToken(e.target.value)} placeholder="Admin Token"
+            <input type="password" value={trixAdminToken} onChange={e => setTrixAdminToken(e.target.value)} placeholder="Admin Token"
               style={{ width: '100%', background: '#0e0e0e', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, padding: '7px 10px', color: '#e5e2e1', fontSize: 12, fontFamily: 'monospace', outline: 'none', boxSizing: 'border-box' }} />
           </div>
           <div>
             <label style={{ fontSize: 11, color: '#919191', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: 4 }}>Service Token</label>
-            <input value={trixServiceToken} onChange={e => setTrixServiceToken(e.target.value)} placeholder="Service Token（可选）"
+            <input type="password" value={trixServiceToken} onChange={e => setTrixServiceToken(e.target.value)} placeholder="Service Token（可选）"
               style={{ width: '100%', background: '#0e0e0e', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, padding: '7px 10px', color: '#e5e2e1', fontSize: 12, fontFamily: 'monospace', outline: 'none', boxSizing: 'border-box' }} />
           </div>
           <div style={{ display: 'flex', justifyContent: 'flex-end' }}>

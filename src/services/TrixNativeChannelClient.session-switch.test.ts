@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const localStorageStore: Record<string, string> = {};
+const sessionStorageStore: Record<string, string> = {};
 const mockFetch = vi.fn();
 
 class MockWebSocket {
@@ -11,6 +12,7 @@ class MockWebSocket {
   static instances: MockWebSocket[] = [];
 
   readonly url: string;
+  readonly protocols?: string | string[];
   readyState = MockWebSocket.CONNECTING;
   onopen: ((ev: Event) => void) | null = null;
   onmessage: ((ev: MessageEvent) => void) | null = null;
@@ -21,8 +23,9 @@ class MockWebSocket {
     this.readyState = MockWebSocket.CLOSING;
   });
 
-  constructor(url: string) {
+  constructor(url: string, protocols?: string | string[]) {
     this.url = url;
+    this.protocols = protocols;
     MockWebSocket.instances.push(this);
     queueMicrotask(() => {
       this.readyState = MockWebSocket.OPEN;
@@ -94,6 +97,9 @@ describe('TrixNativeChannelClient session switching', () => {
     Object.keys(localStorageStore).forEach((key) => {
       delete localStorageStore[key];
     });
+    Object.keys(sessionStorageStore).forEach((key) => {
+      delete sessionStorageStore[key];
+    });
 
     vi.stubGlobal('fetch', mockFetch);
     vi.stubGlobal('WebSocket', MockWebSocket as unknown as typeof WebSocket);
@@ -115,6 +121,24 @@ describe('TrixNativeChannelClient session switching', () => {
         return Object.keys(localStorageStore).length;
       },
     });
+    vi.stubGlobal('sessionStorage', {
+      getItem: vi.fn((key: string) => sessionStorageStore[key] ?? null),
+      setItem: vi.fn((key: string, value: string) => {
+        sessionStorageStore[key] = value;
+      }),
+      removeItem: vi.fn((key: string) => {
+        delete sessionStorageStore[key];
+      }),
+      clear: vi.fn(() => {
+        Object.keys(sessionStorageStore).forEach((key) => {
+          delete sessionStorageStore[key];
+        });
+      }),
+      key: vi.fn((index: number) => Object.keys(sessionStorageStore)[index] ?? null),
+      get length() {
+        return Object.keys(sessionStorageStore).length;
+      },
+    });
     vi.stubGlobal('window', globalThis);
 
     localStorage.setItem(
@@ -129,7 +153,6 @@ describe('TrixNativeChannelClient session switching', () => {
             serverUrl: 'http://127.0.0.1:8788',
             websocketUrl: 'ws://127.0.0.1:8788/ws',
             conversationId: 'conv_old',
-            clientToken: 'token_old',
             clientId: 'web_client_1',
             deviceName: 'TRIX-Test',
             pairingCode: 'OLD111',
@@ -139,6 +162,7 @@ describe('TrixNativeChannelClient session switching', () => {
     );
     localStorage.setItem('trix_native_channel_active_account', 'default');
     localStorage.setItem('trix_native_channel_client_id', 'web_client_1');
+    sessionStorage.setItem('trix_native_channel_token:default:conv_old:web_client_1', 'token_old');
   });
 
   afterEach(async () => {
@@ -182,6 +206,8 @@ describe('TrixNativeChannelClient session switching', () => {
 
     expect(MockWebSocket.instances).toHaveLength(1);
     expect(MockWebSocket.instances[0]?.url).toContain('conversationId=conv_old');
+    expect(MockWebSocket.instances[0]?.url).not.toContain('clientToken=');
+    expect(MockWebSocket.instances[0]?.protocols).toEqual(expect.arrayContaining(['trix-user']));
 
     const staleSocket = MockWebSocket.instances[0];
     await client.pairWithCode('ABC123', 'TRIX-Test');
@@ -190,6 +216,7 @@ describe('TrixNativeChannelClient session switching', () => {
     expect(MockWebSocket.instances).toHaveLength(2);
     expect(staleSocket?.close).toHaveBeenCalledTimes(1);
     expect(MockWebSocket.instances[1]?.url).toContain('conversationId=conv_new');
+    expect(MockWebSocket.instances[1]?.url).not.toContain('clientToken=');
     expect(client.isConnected()).toBe(true);
 
     staleSocket?.emitClose(1006);

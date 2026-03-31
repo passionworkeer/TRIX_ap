@@ -44,6 +44,8 @@ type SocketMeta = {
 const ATTACHMENT_URL_TTL_MS = 24 * 60 * 60 * 1000;
 const LEGACY_AGENT_WS_ENV = 'TRIX_NATIVE_ENABLE_LEGACY_AGENT_WS';
 const SERVICE_ALLOWLIST_ENV = 'TRIX_NATIVE_SERVICE_ALLOWLIST';
+const USER_WS_PROTOCOL = 'trix-user';
+const WS_TOKEN_PROTOCOL_PREFIX = 'trix-auth.';
 
 const RATE_LIMIT_ENV_KEYS: Record<ServerRateLimitName, { max: string; windowMs: string }> = {
   claim: {
@@ -129,7 +131,15 @@ export class TrixNativeServer {
     this.pairingService = new PairingService(this.stateStore);
     this.attachmentStore = new AttachmentStore(this.storageDir, this.publicBaseUrl);
     this.server = http.createServer(this.handleRequest.bind(this));
-    this.wss = new WebSocketServer({ noServer: true });
+    this.wss = new WebSocketServer({
+      noServer: true,
+      handleProtocols: (protocols) => {
+        if (protocols.has(USER_WS_PROTOCOL)) {
+          return USER_WS_PROTOCOL;
+        }
+        return false;
+      },
+    });
 
     this.server.on('upgrade', (request, socket, head) => {
       const url = parseUrl(request);
@@ -197,6 +207,7 @@ export class TrixNativeServer {
   private serializePairingForCreate(pairing: PairingCreatedResponse) {
     return {
       code: pairing.code,
+      secret: pairing.secret,
       accountId: pairing.accountId,
       label: pairing.label,
       createdAt: pairing.createdAt,
@@ -251,6 +262,32 @@ export class TrixNativeServer {
     }
     const match = authorization.match(/^Bearer\s+(.+)$/i);
     return match?.[1]?.trim();
+  }
+
+  private readWebSocketProtocols(request: http.IncomingMessage): string[] {
+    const raw = request.headers['sec-websocket-protocol'];
+    const value = Array.isArray(raw) ? raw.join(',') : raw ?? '';
+    return String(value)
+      .split(',')
+      .map((entry) => entry.trim())
+      .filter(Boolean);
+  }
+
+  private readUserSocketClientToken(request: http.IncomingMessage, searchParams: URLSearchParams): string | undefined {
+    const protocolToken = this.readWebSocketProtocols(request)
+      .find((entry) => entry.startsWith(WS_TOKEN_PROTOCOL_PREFIX));
+    if (protocolToken) {
+      const encoded = protocolToken.slice(WS_TOKEN_PROTOCOL_PREFIX.length);
+      try {
+        const decoded = Buffer.from(encoded, 'base64url').toString('utf8').trim();
+        if (decoded) {
+          return decoded;
+        }
+      } catch {
+        // Fall back to legacy query-string token handling below.
+      }
+    }
+    return searchParams.get('clientToken') ?? undefined;
   }
 
   private async resolveAuthenticatedAppUser(request: http.IncomingMessage): Promise<{ id: string } | null> {
@@ -1715,7 +1752,7 @@ export class TrixNativeServer {
       if (!conversationId) {
         throw new HttpError(400, 'conversationId required');
       }
-      await this.assertClientToken(conversationId, searchParams.get('clientToken') ?? undefined);
+      await this.assertClientToken(conversationId, this.readUserSocketClientToken(request, searchParams));
     }
 
     this.sockets.set(socket, {

@@ -1,16 +1,18 @@
 import express from 'express';
 import { createServer } from 'http';
+import { lookup } from 'dns/promises';
+import { randomBytes, timingSafeEqual } from 'crypto';
 import {
   existsSync,
   mkdirSync,
   readFileSync,
   readdirSync,
   rmSync,
-  sendFileSync,
   statSync,
   unlinkSync,
   writeFileSync,
 } from 'fs';
+import { isIP } from 'net';
 import { basename, dirname, extname, join, resolve } from 'path';
 import { fileURLToPath } from 'url';
 import { spawnSync } from 'child_process';
@@ -23,6 +25,13 @@ dotenv.config();
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.CANVAS_PORT || 8789);
 const APP_ORIGIN = process.env.CANVAS_BASE_URL || `http://localhost:${PORT}`;
+const CANVAS_REQUIRE_AUTH = /^(1|true|yes)$/i.test(process.env.CANVAS_REQUIRE_AUTH || '');
+const CANVAS_ACCESS_TOKEN = (
+  process.env.CANVAS_ACCESS_TOKEN
+  || (CANVAS_REQUIRE_AUTH ? randomBytes(24).toString('hex') : '')
+).trim();
+const CANVAS_AUTH_COOKIE = 'trix_canvas_auth';
+const CANVAS_ALLOWED_ORIGINS = parseOriginList(process.env.CANVAS_ALLOWED_ORIGINS || '');
 const DATA_ROOT = resolve(process.env.CANVAS_DATA_DIR || join(__dirname, 'data'));
 const EXPORT_ROOT = resolve(process.env.CANVAS_EXPORT_DIR || join(__dirname, 'exports'));
 
@@ -38,6 +47,12 @@ const AI_GENERATE_PATH = process.env.AI_GENERATE_PATH || '/generate';
 const AI_TASK_PATH_TEMPLATE = process.env.AI_TASK_PATH_TEMPLATE || '/tasks/:taskId';
 const AI_API_KEY = process.env.AI_API_KEY || '';
 const AI_EXTRA_HEADERS = parseHeaderLines(process.env.AI_EXTRA_HEADERS || '');
+const MAX_REMOTE_DOWNLOAD_BYTES = Number(
+  process.env.CANVAS_MAX_REMOTE_DOWNLOAD_BYTES || 200 * 1024 * 1024,
+);
+const ALLOW_PRIVATE_REMOTE_URLS = /^true$/i.test(
+  process.env.CANVAS_ALLOW_PRIVATE_REMOTE_URLS || '',
+);
 
 const EXPORT_ASPECTS = new Map([
   ['origin', null],
@@ -66,11 +81,24 @@ const app = express();
 app.use(express.json({ limit: '50mb' }));
 app.use(express.static(join(__dirname, 'public')));
 app.use((req, res, next) => {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PATCH, DELETE, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  const origin = typeof req.headers.origin === 'string' ? req.headers.origin.trim() : '';
+  if (origin) {
+    appendVaryHeader(res, 'Origin');
+  }
+  if (origin && CANVAS_ALLOWED_ORIGINS.has(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PATCH, DELETE, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  }
   if (req.method === 'OPTIONS') {
+    if (origin && !CANVAS_ALLOWED_ORIGINS.has(origin)) {
+      return res.sendStatus(403);
+    }
     return res.sendStatus(204);
+  }
+  if ((req.path.startsWith('/api/') || req.path.startsWith('/media/')) && !isCanvasAuthExemptPath(req.path)) {
+    assertCanvasAuthenticated(req);
   }
   return next();
 });
@@ -94,8 +122,129 @@ function parseHeaderLines(raw) {
   return headers;
 }
 
+function parseOriginList(raw) {
+  return new Set(
+    raw
+      .split(',')
+      .map((value) => value.trim())
+      .filter(Boolean),
+  );
+}
+
+function appendVaryHeader(res, value) {
+  const current = res.getHeader('Vary');
+  if (!current) {
+    res.setHeader('Vary', value);
+    return;
+  }
+  const next = new Set(String(current).split(',').map((item) => item.trim()).filter(Boolean));
+  next.add(value);
+  res.setHeader('Vary', Array.from(next).join(', '));
+}
+
+function isCanvasAuthExemptPath(pathname) {
+  return pathname === '/health'
+    || pathname === '/api/auth/status'
+    || pathname === '/api/auth/login'
+    || pathname === '/api/auth/logout';
+}
+
+function parseCookies(request) {
+  const raw = request.headers.cookie || '';
+  return Object.fromEntries(
+    raw
+      .split(';')
+      .map((entry) => entry.trim())
+      .filter(Boolean)
+      .map((entry) => {
+        const separator = entry.indexOf('=');
+        if (separator <= 0) {
+          return [entry, ''];
+        }
+        return [entry.slice(0, separator), decodeURIComponent(entry.slice(separator + 1))];
+      }),
+  );
+}
+
+function serializeCookie(name, value, options = {}) {
+  const parts = [`${name}=${encodeURIComponent(value)}`];
+  parts.push(`Path=${options.path || '/'}`);
+  if (options.httpOnly !== false) {
+    parts.push('HttpOnly');
+  }
+  if (options.sameSite) {
+    parts.push(`SameSite=${options.sameSite}`);
+  }
+  if (options.secure) {
+    parts.push('Secure');
+  }
+  if (typeof options.maxAge === 'number') {
+    parts.push(`Max-Age=${Math.max(0, Math.floor(options.maxAge))}`);
+  }
+  return parts.join('; ');
+}
+
+function matchesCanvasAccessToken(candidate) {
+  if (!CANVAS_REQUIRE_AUTH) {
+    return true;
+  }
+  if (!candidate) {
+    return false;
+  }
+  const received = Buffer.from(String(candidate));
+  const expected = Buffer.from(CANVAS_ACCESS_TOKEN);
+  if (received.length !== expected.length) {
+    return false;
+  }
+  return timingSafeEqual(received, expected);
+}
+
+function getCanvasPresentedToken(request) {
+  const authorization = request.headers.authorization;
+  const bearer = Array.isArray(authorization) ? authorization[0] : authorization;
+  const match = typeof bearer === 'string' ? bearer.match(/^Bearer\s+(.+)$/i) : null;
+  if (match?.[1]) {
+    return match[1].trim();
+  }
+  const cookies = parseCookies(request);
+  return cookies[CANVAS_AUTH_COOKIE];
+}
+
+function assertCanvasAuthenticated(request) {
+  if (!CANVAS_REQUIRE_AUTH) {
+    return;
+  }
+  if (!matchesCanvasAccessToken(getCanvasPresentedToken(request))) {
+    throw httpError('Canvas authentication required', 401, 'CANVAS_AUTH_REQUIRED');
+  }
+}
+
+function isSafeCanvasMediaUrl(rawUrl) {
+  if (typeof rawUrl !== 'string' || !rawUrl.trim()) {
+    return null;
+  }
+  try {
+    const parsed = new URL(rawUrl, APP_ORIGIN);
+    if (!['http:', 'https:'].includes(parsed.protocol)) {
+      return null;
+    }
+    return parsed.toString();
+  } catch {
+    return null;
+  }
+}
+
 function nowIso() {
   return new Date().toISOString();
+}
+
+function httpError(message, statusCode = 400, code = '') {
+  const error = new Error(message);
+  error.statusCode = statusCode;
+  if (code) {
+    error.code = code;
+  }
+  return error;
 }
 
 function recordPath(dir, id) {
@@ -287,7 +436,8 @@ function serializeNode(node, fileMap = new Map()) {
     return null;
   }
   const linkedFile = node.file_id ? fileMap.get(node.file_id) : null;
-  const previewUrl = linkedFile?.url || node.result_url || null;
+  const safeResultUrl = isSafeCanvasMediaUrl(node.result_url);
+  const previewUrl = isSafeCanvasMediaUrl(linkedFile?.url || safeResultUrl || null);
   return {
     ...node,
     projectId: node.project_id,
@@ -296,7 +446,7 @@ function serializeNode(node, fileMap = new Map()) {
     parentNodeId: node.parent_node_id,
     sceneId: node.scene_id,
     mediaType: node.media_type,
-    resultUrl: node.result_url,
+    resultUrl: safeResultUrl,
     previewUrl,
     createdAt: node.created_at,
     updatedAt: node.updated_at,
@@ -650,13 +800,126 @@ function buildGeneratePayload(session) {
 }
 
 async function downloadRemoteAsset(url) {
-  const response = await fetch(url);
+  const safeUrl = await assertSafeRemoteUrl(url);
+  const response = await fetch(safeUrl);
   if (!response.ok) {
     throw new Error(`下载结果失败: ${response.status}`);
   }
   const mimeType = response.headers.get('content-type') || inferMimeType(url);
-  const bytes = Buffer.from(await response.arrayBuffer());
-  return { bytes, mimeType };
+  const bytes = await readResponseBuffer(response);
+  return { bytes, mimeType, sourceUrl: safeUrl };
+}
+
+function isPrivateIpAddress(address) {
+  if (!address) {
+    return false;
+  }
+
+  const normalized = address.toLowerCase();
+  if (normalized.startsWith('::ffff:')) {
+    return isPrivateIpAddress(normalized.slice(7));
+  }
+
+  const version = isIP(normalized);
+  if (version === 4) {
+    const octets = normalized.split('.').map((part) => Number(part));
+    return (
+      octets[0] === 0
+      || octets[0] === 10
+      || octets[0] === 127
+      || (octets[0] === 169 && octets[1] === 254)
+      || (octets[0] === 172 && octets[1] >= 16 && octets[1] <= 31)
+      || (octets[0] === 192 && octets[1] === 168)
+    );
+  }
+
+  if (version === 6) {
+    return (
+      normalized === '::1'
+      || normalized.startsWith('fc')
+      || normalized.startsWith('fd')
+      || normalized.startsWith('fe80:')
+    );
+  }
+
+  return false;
+}
+
+async function assertSafeRemoteUrl(rawUrl) {
+  let parsed;
+  try {
+    parsed = new URL(rawUrl);
+  } catch {
+    throw httpError('remote url 非法', 400, 'REMOTE_URL_INVALID');
+  }
+
+  if (!['http:', 'https:'].includes(parsed.protocol)) {
+    throw httpError('remote url 只允许 http/https 协议', 400, 'REMOTE_URL_INVALID');
+  }
+  if (parsed.username || parsed.password) {
+    throw httpError('remote url 不允许内嵌认证信息', 400, 'REMOTE_URL_INVALID');
+  }
+
+  if (ALLOW_PRIVATE_REMOTE_URLS) {
+    return parsed.toString();
+  }
+
+  const hostname = parsed.hostname.toLowerCase();
+  if (hostname === 'localhost' || hostname.endsWith('.local')) {
+    throw httpError('禁止访问本地或局域网 remote url', 400, 'REMOTE_URL_BLOCKED');
+  }
+  if (isPrivateIpAddress(hostname)) {
+    throw httpError('禁止访问私有地址 remote url', 400, 'REMOTE_URL_BLOCKED');
+  }
+
+  try {
+    const resolved = await lookup(hostname, { all: true, verbatim: true });
+    if (!resolved.length) {
+      throw httpError('remote url 主机解析失败', 400, 'REMOTE_URL_INVALID');
+    }
+    if (resolved.some((entry) => isPrivateIpAddress(entry.address))) {
+      throw httpError('禁止访问私有地址 remote url', 400, 'REMOTE_URL_BLOCKED');
+    }
+  } catch (error) {
+    if (error?.statusCode) {
+      throw error;
+    }
+    throw httpError('remote url 主机解析失败', 400, 'REMOTE_URL_INVALID');
+  }
+
+  return parsed.toString();
+}
+
+async function readResponseBuffer(response) {
+  const contentLength = Number(response.headers.get('content-length') || 0);
+  if (contentLength > MAX_REMOTE_DOWNLOAD_BYTES) {
+    throw httpError('远程文件过大', 413, 'REMOTE_URL_TOO_LARGE');
+  }
+
+  const reader = response.body?.getReader?.();
+  if (!reader) {
+    const bytes = Buffer.from(await response.arrayBuffer());
+    if (bytes.length > MAX_REMOTE_DOWNLOAD_BYTES) {
+      throw httpError('远程文件过大', 413, 'REMOTE_URL_TOO_LARGE');
+    }
+    return bytes;
+  }
+
+  const chunks = [];
+  let total = 0;
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) {
+      break;
+    }
+    const chunk = Buffer.from(value);
+    total += chunk.length;
+    if (total > MAX_REMOTE_DOWNLOAD_BYTES) {
+      throw httpError('远程文件过大', 413, 'REMOTE_URL_TOO_LARGE');
+    }
+    chunks.push(chunk);
+  }
+  return Buffer.concat(chunks);
 }
 
 function storeFileBuffer({
@@ -730,10 +993,13 @@ async function storeSessionResult(session, node, payload) {
         node_id: node.id,
         prompt: session.message,
         scene_id: node.scene_id,
-        source_url: remoteUrl,
+        source_url: downloaded.sourceUrl,
       });
       publicUrl = storedFile.url;
     } catch (error) {
+      if (String(error?.code || '').startsWith('REMOTE_')) {
+        throw error;
+      }
       publicUrl = remoteUrl;
     }
   } else if (base64Results.length > 0) {
@@ -850,10 +1116,6 @@ async function createGenerationSession({
     created_at: timestamp,
     updated_at: timestamp,
   };
-  writeRecord(SESSIONS_DIR, session.id, session);
-  addUnique(project.session_ids, session.id);
-  saveProject(project);
-
   if (parent_node_id) {
     createEdge({
       project_id,
@@ -862,6 +1124,11 @@ async function createGenerationSession({
       edge_type: media_type === 'video' ? 'image_to_video' : 'story_branch',
     });
   }
+
+  const currentProject = requireProject(project_id);
+  writeRecord(SESSIONS_DIR, session.id, session);
+  addUnique(currentProject.session_ids, session.id);
+  saveProject(currentProject);
 
   if (!AI_API_BASE) {
     await failSession(session, 'AI_API_BASE 未配置');
@@ -1038,7 +1305,9 @@ function orderedNodes(project) {
 }
 
 function exportSubtitle(project) {
-  const nodes = orderedNodes(project);
+  const sortedNodes = orderedNodes(project);
+  const videoNodes = sortedNodes.filter((node) => node.media_type === 'video' && node.file?.stored_filename);
+  const nodes = videoNodes.length > 0 ? videoNodes : sortedNodes;
   if (nodes.length === 0) {
     const error = new Error('项目没有节点');
     error.statusCode = 400;
@@ -1086,6 +1355,8 @@ function exportSubtitle(project) {
   return {
     srt: srtPath,
     script: scriptPath,
+    srt_url: `/media/exports/${basename(srtPath)}`,
+    script_url: `/media/exports/${basename(scriptPath)}`,
     total_duration: Number(currentTime.toFixed(2)),
     scenes: rows.length,
   };
@@ -1109,7 +1380,11 @@ function exportVideo(project, aspect) {
   const tempRoot = join(tmpdir(), `trix-canvas-${uuidv4()}`);
   mkdirSync(tempRoot, { recursive: true });
   const concatPath = join(tempRoot, 'concat.txt');
-  const outPath = join(EXPORT_ROOT, `${sanitizeFilename(project.name || project.id)}_${aspect}.mp4`);
+  const safeAspect = String(aspect || 'origin').replace(/[^a-zA-Z0-9_-]/g, '_');
+  const outPath = join(
+    EXPORT_ROOT,
+    `${sanitizeFilename(project.name || project.id)}_${safeAspect}.mp4`,
+  );
 
   try {
     const segmentPaths = [];
@@ -1171,6 +1446,7 @@ function exportVideo(project, aspect) {
 
     return {
       path: outPath,
+      url: `/media/exports/${basename(outPath)}`,
       aspect,
       segments: segmentPaths.length,
       size: statSync(outPath).size,
@@ -1197,6 +1473,44 @@ app.get('/', (_req, res) => {
 app.get('/canvas', (_req, res) => {
   const html = join(__dirname, 'public', 'canvas.html');
   res.type('html').send(readFileSync(html, 'utf8'));
+});
+
+app.get('/api/auth/status', (req, res) => {
+  res.json({
+    authenticated: matchesCanvasAccessToken(getCanvasPresentedToken(req)),
+    requiresAuth: CANVAS_REQUIRE_AUTH,
+  });
+});
+
+app.post('/api/auth/login', (req, res) => {
+  const token = String(req.body?.token || '').trim();
+  if (!matchesCanvasAccessToken(token)) {
+    return res.status(401).json({ error: '访问令牌无效' });
+  }
+  const secureCookie = /^https:/i.test(APP_ORIGIN);
+  res.setHeader(
+    'Set-Cookie',
+    serializeCookie(CANVAS_AUTH_COOKIE, CANVAS_ACCESS_TOKEN, {
+      httpOnly: true,
+      sameSite: 'Strict',
+      secure: secureCookie,
+      maxAge: 7 * 24 * 60 * 60,
+    }),
+  );
+  return res.json({ success: true });
+});
+
+app.post('/api/auth/logout', (_req, res) => {
+  res.setHeader(
+    'Set-Cookie',
+    serializeCookie(CANVAS_AUTH_COOKIE, '', {
+      httpOnly: true,
+      sameSite: 'Strict',
+      secure: /^https:/i.test(APP_ORIGIN),
+      maxAge: 0,
+    }),
+  );
+  return res.json({ success: true });
 });
 
 app.get('/api/projects', (_req, res) => {
@@ -1304,7 +1618,7 @@ app.post(['/api/upload', '/api/file/upload'], async (req, res, next) => {
       bytes = downloaded.bytes;
       body.mime_type = body.mime_type || body.mimeType || downloaded.mimeType;
       body.filename = body.filename || fileNameFromUrl(remoteUrl);
-      body.source_url = remoteUrl;
+      body.source_url = downloaded.sourceUrl;
     }
 
     if (!bytes || bytes.length === 0) {
@@ -1351,7 +1665,7 @@ app.post('/api/nodes', (req, res, next) => {
       aspect: req.body?.aspect || 'origin',
       style: req.body?.style || '',
       task_id: req.body?.task_id || req.body?.taskId || '',
-      result_url: req.body?.result_url || req.body?.resultUrl || null,
+      result_url: null,
       error: req.body?.error || null,
     });
     res.status(201).json(serializeNode(node));
@@ -1391,7 +1705,6 @@ app.patch('/api/nodes/:nodeId', (req, res, next) => {
       ['aspect', body.aspect],
       ['style', body.style],
       ['task_id', body.task_id ?? body.taskId],
-      ['result_url', body.result_url ?? body.resultUrl],
       ['error', body.error],
     ].forEach(([key, value]) => {
       if (value !== undefined) {
@@ -1534,6 +1847,15 @@ app.get('/media/files/:filename', (req, res) => {
   return res.sendFile(filePath);
 });
 
+app.get('/media/exports/:filename', (req, res) => {
+  const filename = basename(req.params.filename).replace(/[^a-zA-Z0-9._-]/g, '');
+  const filePath = join(EXPORT_ROOT, filename);
+  if (!existsSync(filePath)) {
+    return res.status(404).json({ error: '导出文件不存在' });
+  }
+  return res.sendFile(filePath);
+});
+
 app.use((error, _req, res, _next) => {
   const statusCode = error?.statusCode || 500;
   res.status(statusCode).json({
@@ -1549,6 +1871,10 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log(`  Health:    ${APP_ORIGIN}/health`);
   console.log(`  Data dir:  ${DATA_ROOT}`);
   console.log(`  Export dir:${EXPORT_ROOT}`);
+  console.log(`  Auth:      ${CANVAS_REQUIRE_AUTH ? 'enabled' : 'disabled'}`);
+  if (CANVAS_REQUIRE_AUTH && !process.env.CANVAS_ACCESS_TOKEN) {
+    console.log(`  Access token (generated): ${CANVAS_ACCESS_TOKEN}`);
+  }
   if (!AI_API_BASE) {
     console.warn('⚠ AI_API_BASE 未配置，生成接口会返回错误状态');
   }

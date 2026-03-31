@@ -7,21 +7,24 @@ import _common
 
 
 def run(
-    project_id: int, source_id: int, target_id: int, edge_type: str = "scene_order"
+    project_id: str,
+    source_id: str,
+    target_id: str,
+    edge_type: str = "scene_order",
 ) -> dict:
     return _common.create_edge(project_id, source_id, target_id, edge_type)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="创建 Canvas 连线")
-    parser.add_argument("project_id", type=int)
-    parser.add_argument("source_id", type=int)
-    parser.add_argument("target_id", type=int)
+    parser.add_argument("project_id")
+    parser.add_argument("source_id")
+    parser.add_argument("target_id")
     parser.add_argument(
         "--type",
         dest="edge_type",
         default="scene_order",
-        choices=["scene_order", "image_to_video", "reference"],
+        choices=["scene_order", "image_to_video", "reference", "story_branch"],
     )
     args = parser.parse_args()
 

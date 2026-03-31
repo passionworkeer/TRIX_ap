@@ -371,28 +371,64 @@ export function setupIpcHandlers(): void {
 
   const SUPABASE_URL = process.env.SUPABASE_URL as string | undefined;
   const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY as string | undefined;
-
-  const authStore = new Store<{ session: unknown }>({ name: 'auth', defaults: { session: null } });
-
-  const preferencesStore = new Store<Record<string, unknown>>({
-    name: 'preferences',
-    defaults: {
-      theme: 'auto',
-      language: 'zh',
-      autoStart: false,
-      showFloatWindow: true,
-      notificationEnabled: true,
-    },
-  });
+  type AuthUser = {
+    id?: string;
+    email?: string;
+    created_at?: string;
+    [key: string]: unknown;
+  };
+  type AuthSession = {
+    access_token?: string;
+    refresh_token?: string;
+    expires_in?: number;
+    expires_at?: number;
+    token_type?: string;
+    user?: AuthUser;
+    [key: string]: unknown;
+  };
+  type PublicAuthSession = {
+    expires_at?: number;
+    token_type?: string;
+    user?: Pick<AuthUser, 'id' | 'email' | 'created_at'>;
+  };
+  let currentAuthSession: AuthSession | null = null;
 
   function isSupabaseConfigured(): boolean {
     return Boolean(SUPABASE_URL && SUPABASE_URL.startsWith('http') && SUPABASE_ANON_KEY);
   }
 
-  function getSession(): { access_token?: string; refresh_token?: string; user?: { id?: string; email?: string; created_at?: string } } | null {
-    const session = authStore.get('session');
-    if (session && typeof session === 'object' && session !== null) return session as ReturnType<typeof getSession>;
-    return null;
+  function getSession(): AuthSession | null {
+    return currentAuthSession;
+  }
+
+  function setSession(session: unknown): AuthSession | null {
+    if (!session || typeof session !== 'object') {
+      currentAuthSession = null;
+      return null;
+    }
+    currentAuthSession = session as AuthSession;
+    return currentAuthSession;
+  }
+
+  function clearSession(): void {
+    currentAuthSession = null;
+  }
+
+  function sanitizeSession(session: AuthSession | null): PublicAuthSession | null {
+    if (!session) {
+      return null;
+    }
+    return {
+      expires_at: session.expires_at,
+      token_type: session.token_type,
+      user: session.user
+        ? {
+            id: session.user.id,
+            email: session.user.email,
+            created_at: session.user.created_at,
+          }
+        : undefined,
+    };
   }
 
   // ── Supabase Auth IPC Handlers ─────────────────────────────────────────────
@@ -401,7 +437,7 @@ export function setupIpcHandlers(): void {
     if (!isSupabaseConfigured()) return { success: false, error: 'not_configured' };
     const session = getSession();
     if (!session) return { success: false, error: 'not_authenticated' };
-    return { success: true, data: session };
+    return { success: true, data: sanitizeSession(session) };
   });
 
   ipcMain.handle('auth:sign-in', async (_event, email: string, password: string) => {
@@ -425,9 +461,9 @@ export function setupIpcHandlers(): void {
           : '登录失败，请检查邮箱和密码';
         return { success: false, error: msg, data: null };
       }
-      authStore.set('session', data);
-      log.info('User signed in:', data.user?.email);
-      return { success: true, data };
+      const session = setSession(data);
+      log.info('User signed in:', session?.user?.email);
+      return { success: true, data: sanitizeSession(session) };
     } catch (e: unknown) {
       log.error('auth:sign-in error:', e);
       return { success: false, error: String(e), data: null };
@@ -435,11 +471,11 @@ export function setupIpcHandlers(): void {
   });
 
   ipcMain.handle('auth:sign-out', async () => {
-    authStore.delete('session');
+    clearSession();
     return { success: true };
   });
 
-  ipcMain.handle('auth:sign-up', async (_event, email: string, password: string, username?: string) => {
+  ipcMain.handle('auth:sign-up', async (_event, email: string, password: string) => {
     if (!isSupabaseConfigured()) return { success: false, error: 'not_configured', data: null };
     const url = `${SUPABASE_URL}/auth/v1/signup`;
     try {
@@ -450,11 +486,7 @@ export function setupIpcHandlers(): void {
           'Content-Type': 'application/json',
           'apikey': SUPABASE_ANON_KEY!,
         },
-        body: JSON.stringify({
-          email,
-          password,
-          options: username ? { data: { username } } : {},
-        }),
+        body: JSON.stringify({ email, password }),
       });
       const data = JSON.parse(res.body);
       if (res.statusCode !== 200) {
@@ -463,7 +495,7 @@ export function setupIpcHandlers(): void {
           : '注册失败';
         return { success: false, error: msg, data: null };
       }
-      return { success: true, data };
+      return { success: true, data: null };
     } catch (e: unknown) {
       log.error('auth:sign-up error:', e);
       return { success: false, error: String(e), data: null };
@@ -493,7 +525,7 @@ export function setupIpcHandlers(): void {
         return { success: true, data: Array.isArray(data) ? data : [] };
       }
       if (res.statusCode === 401 || res.statusCode === 403) {
-        authStore.delete('session');
+        clearSession();
         return { success: false, error: 'not_authenticated', data: [] };
       }
       return { success: false, error: `Server returned ${res.statusCode}`, data: [] };
@@ -528,7 +560,7 @@ export function setupIpcHandlers(): void {
         return { success: true, data: { id: item?.id, title: item?.title, completed: false, priority: item?.priority } };
       }
       if (res.statusCode === 401 || res.statusCode === 403) {
-        authStore.delete('session');
+        clearSession();
         return { success: false, error: 'not_authenticated' };
       }
       return { success: false, error: `Server returned ${res.statusCode}` };
@@ -556,7 +588,7 @@ export function setupIpcHandlers(): void {
       });
       if (res.statusCode === 204 || res.statusCode === 200) return { success: true };
       if (res.statusCode === 401 || res.statusCode === 403) {
-        authStore.delete('session');
+        clearSession();
         return { success: false, error: 'not_authenticated' };
       }
       return { success: false, error: `Server returned ${res.statusCode}` };
@@ -582,7 +614,7 @@ export function setupIpcHandlers(): void {
       });
       if (res.statusCode === 204 || res.statusCode === 200) return { success: true };
       if (res.statusCode === 401 || res.statusCode === 403) {
-        authStore.delete('session');
+        clearSession();
         return { success: false, error: 'not_authenticated' };
       }
       return { success: false, error: `Server returned ${res.statusCode}` };
@@ -624,7 +656,7 @@ export function setupIpcHandlers(): void {
         return { success: true, data: { id: item?.id } };
       }
       if (res.statusCode === 401 || res.statusCode === 403) {
-        authStore.delete('session');
+        clearSession();
         return { success: false, error: 'not_authenticated' };
       }
       return { success: false, error: `Server returned ${res.statusCode}` };
@@ -656,7 +688,7 @@ export function setupIpcHandlers(): void {
       });
       if (res.statusCode === 204 || res.statusCode === 200) return { success: true };
       if (res.statusCode === 401 || res.statusCode === 403) {
-        authStore.delete('session');
+        clearSession();
         return { success: false, error: 'not_authenticated' };
       }
       return { success: false, error: `Server returned ${res.statusCode}` };
@@ -716,7 +748,7 @@ export function setupIpcHandlers(): void {
         };
       }
       if (res.statusCode === 401 || res.statusCode === 403) {
-        authStore.delete('session');
+        clearSession();
         return { success: false, error: 'not_authenticated', data: { todayMinutes: 0, weekMinutes: 0, totalMinutes: 0, sessionCount: 0 } };
       }
       return { success: false, error: `Server returned ${res.statusCode}`, data: { todayMinutes: 0, weekMinutes: 0, totalMinutes: 0, sessionCount: 0 } };
@@ -745,7 +777,7 @@ export function setupIpcHandlers(): void {
         return { success: true, data: Array.isArray(data) ? data : [] };
       }
       if (res.statusCode === 401 || res.statusCode === 403) {
-        authStore.delete('session');
+        clearSession();
         return { success: false, error: 'not_authenticated', data: [] };
       }
       return { success: false, error: `Server returned ${res.statusCode}`, data: [] };
@@ -792,80 +824,6 @@ export function setupIpcHandlers(): void {
     } catch (e: unknown) {
       return { success: false, error: String(e), data: { displayName: 'TRIX 用户', points: 0, streak: 0, level: 1, totalStudyMinutes: 0 } };
     }
-  });
-
-  /** Update user profile (display_name, bio) */
-  ipcMain.handle('profile:update', async (_event, updates: Record<string, unknown>) => {
-    if (!isSupabaseConfigured()) return { success: false, error: 'not_configured' };
-    const session = getSession();
-    if (!session?.access_token) return { success: false, error: 'not_authenticated' };
-    const userId = (session.user as { id?: string } | undefined)?.id;
-    if (!userId) return { success: false, error: 'not_authenticated' };
-    try {
-      const res = await httpRequest({
-        method: 'PATCH',
-        url: `${SUPABASE_URL}/rest/v1/profiles?id=eq.${encodeURIComponent(userId)}`,
-        headers: {
-          'Content-Type': 'application/json',
-          'apikey': SUPABASE_ANON_KEY!,
-          'Authorization': `Bearer ${session.access_token}`,
-          'Prefer': 'return=representation',
-        },
-        body: JSON.stringify(updates),
-      });
-      if (res.statusCode === 200 || res.statusCode === 204) {
-        const data = res.body && res.body !== '' ? JSON.parse(res.body) : null;
-        return { success: true, data };
-      }
-      if (res.statusCode === 401 || res.statusCode === 403) {
-        authStore.delete('session');
-        return { success: false, error: 'not_authenticated' };
-      }
-      return { success: false, error: `Server returned ${res.statusCode}` };
-    } catch (e: unknown) {
-      return { success: false, error: String(e) };
-    }
-  });
-
-  /** Refresh the current session tokens */
-  ipcMain.handle('auth:refresh-session', async () => {
-    if (!isSupabaseConfigured()) return { success: false, error: 'not_configured' };
-    const session = getSession();
-    if (!session?.refresh_token) return { success: false, error: 'not_authenticated' };
-    try {
-      const res = await httpRequest({
-        method: 'POST',
-        url: `${SUPABASE_URL}/auth/v1/token?grant_type=refresh`,
-        headers: {
-          'Content-Type': 'application/json',
-          'apikey': SUPABASE_ANON_KEY!,
-          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-        },
-        body: JSON.stringify({ refresh_token: session.refresh_token }),
-      });
-      const data = JSON.parse(res.body);
-      if (res.statusCode !== 200) {
-        const msg = typeof data?.msg === 'string' ? data.msg
-          : typeof data?.error === 'string' ? data.error
-          : '会话刷新失败';
-        return { success: false, error: msg };
-      }
-      authStore.set('session', data);
-      return { success: true, data };
-    } catch (e: unknown) {
-      return { success: false, error: String(e) };
-    }
-  });
-
-  /** Set session from renderer (Supabase SDK in renderer → main process electron-store) */
-  ipcMain.handle('auth:set-session', async (_event, sessionData: unknown) => {
-    if (!sessionData || typeof sessionData !== 'object') {
-      authStore.delete('session');
-      return { success: true };
-    }
-    authStore.set('session', sessionData);
-    log.info('Session synced from renderer');
-    return { success: true };
   });
 
   type NativeChannelStateSnapshot = {
@@ -1365,34 +1323,8 @@ export function setupIpcHandlers(): void {
   });
 
   /** Send a reaction emoji to a message */
-  ipcMain.handle('trixnative:send-reaction', async (_event, messageId: string, emoji: string) => {
-    try {
-      const config = getTrixNativeServerConfig();
-      if (!config) {
-        return { success: false, error: 'TRIX Native channel not configured' };
-      }
-
-      const headers = {
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-        Authorization: `Bearer ${config.adminToken}`,
-      };
-
-      const res = await httpRequest({
-        method: 'POST',
-        url: `${config.serverUrl}/api/messages/${messageId}/reactions`,
-        headers,
-        body: JSON.stringify({ emoji }),
-      });
-
-      if (res.statusCode !== 200 && res.statusCode !== 201) {
-        return { success: false, isSupported: false, error: `Server returned ${res.statusCode}: ${res.body}` };
-      }
-
-      return { success: true };
-    } catch (err) {
-      return { success: false, isSupported: false, error: String(err) };
-    }
+  ipcMain.handle('trixnative:send-reaction', async () => {
+    return { success: false, error: 'Message reactions are not supported by the current TRIX Native server' };
   });
 
   // === Study Room (TrixNativeServer) ===
@@ -2690,21 +2622,12 @@ export function setupIpcHandlers(): void {
         const webhookUrl = cfg['webhookUrl'];
         if (!webhookUrl) return { success: false, error: 'Webhook URL not configured' };
         startWebhookPoll(channelId as string, webhookUrl);
-        return {
-          success: true,
-          message: 'started',
-          experimental: true,
-          pollingInterval: 30000,
-          statusNote: 'Experimental (30s polling)',
-        };
+        return { success: true, message: 'started (experimental, 30s polling)' };
       }
 
       if (channelId === 'whatsapp') {
-        return {
-          success: false,
-          error: 'WhatsApp Business API requires a paid Meta business account with Webhooks access. Free/standard WhatsApp does not support inbound message webhooks.',
-          code: 'WHATSAPP_PAID_REQUIRED',
-        };
+        pushStatusToRenderer('whatsapp', 'connected', 'experimental: manual refresh only');
+        return { success: true, message: 'WhatsApp — paid API required for listening' };
       }
 
       return { success: false, error: 'Unsupported channel' };
@@ -2833,53 +2756,120 @@ export function setupIpcHandlers(): void {
   });
 
   // ── Config Read/Write ──────────────────────────────────────────────────────
-  // Reads the raw openclaw.json file
+  const CONFIG_ALLOWED_SECTIONS = new Set(['agents', 'browser', 'channels', 'gateway', 'models', 'plugins']);
+  const REDACTED_CONFIG_VALUE = '__TRIX_REDACTED__';
+
+  function getOpenClawConfigPath(): string {
+    return path.join(os.homedir(), '.openclaw', 'openclaw.json');
+  }
+
+  function assertAllowedConfigSection(section: string): void {
+    if (!CONFIG_ALLOWED_SECTIONS.has(section)) {
+      throw new Error(`Config section '${section}' is not exposed to the renderer`);
+    }
+  }
+
+  function isSensitiveConfigKey(key: string): boolean {
+    const normalized = key.toLowerCase();
+    return normalized.includes('token')
+      || normalized.includes('secret')
+      || normalized.includes('password')
+      || normalized === 'apikey'
+      || normalized.endsWith('apikey')
+      || normalized.endsWith('appkey')
+      || normalized.endsWith('privatekey')
+      || normalized.endsWith('signingkey')
+      || normalized === 'webhook'
+      || normalized === 'webhookurl';
+  }
+
+  function redactConfigValue(value: unknown, key?: string): unknown {
+    if (Array.isArray(value)) {
+      return value.map((entry) => redactConfigValue(entry));
+    }
+    if (value && typeof value === 'object') {
+      return Object.fromEntries(
+        Object.entries(value as Record<string, unknown>).map(([childKey, childValue]) => [
+          childKey,
+          redactConfigValue(childValue, childKey),
+        ]),
+      );
+    }
+    if (typeof value === 'string' && key && isSensitiveConfigKey(key) && value.trim()) {
+      return REDACTED_CONFIG_VALUE;
+    }
+    return value;
+  }
+
+  function mergeConfigValue(existing: unknown, incoming: unknown, key?: string): unknown {
+    if (typeof incoming === 'string' && key && isSensitiveConfigKey(key) && incoming === REDACTED_CONFIG_VALUE) {
+      return typeof existing === 'string' ? existing : '';
+    }
+    if (Array.isArray(incoming)) {
+      return incoming.map((entry, index) =>
+        mergeConfigValue(Array.isArray(existing) ? existing[index] : undefined, entry),
+      );
+    }
+    if (incoming && typeof incoming === 'object') {
+      const existingObject = existing && typeof existing === 'object' && !Array.isArray(existing)
+        ? existing as Record<string, unknown>
+        : {};
+      const merged: Record<string, unknown> = { ...existingObject };
+      for (const [childKey, childValue] of Object.entries(incoming as Record<string, unknown>)) {
+        merged[childKey] = mergeConfigValue(existingObject[childKey], childValue, childKey);
+      }
+      return merged;
+    }
+    return incoming;
+  }
+
+  async function readOpenClawConfig(): Promise<Record<string, unknown>> {
+    try {
+      const raw = await fs.promises.readFile(getOpenClawConfigPath(), 'utf-8');
+      const parsed = JSON.parse(raw);
+      return parsed && typeof parsed === 'object' ? parsed as Record<string, unknown> : {};
+    } catch (err: unknown) {
+      if ((err as NodeJS.ErrnoException)?.code === 'ENOENT') {
+        return {};
+      }
+      throw err;
+    }
+  }
+
+  async function writeOpenClawConfig(config: Record<string, unknown>): Promise<void> {
+    const cfgPath = getOpenClawConfigPath();
+    await fs.promises.mkdir(path.dirname(cfgPath), { recursive: true });
+    await fs.promises.writeFile(cfgPath, JSON.stringify(config, null, 2), 'utf-8');
+  }
+
   ipcMain.handle('config:read', async () => {
-    try {
-      const cfgPath = path.join(os.homedir(), '.openclaw', 'openclaw.json');
-      const raw = await fs.promises.readFile(cfgPath, 'utf-8');
-      return { success: true, data: JSON.parse(raw) };
-    } catch (err: unknown) {
-      return { success: false, error: String(err) };
-    }
+    return { success: false, error: 'config:read is disabled; use config:read-section' };
   });
 
-  // Writes the raw openclaw.json file (full replacement)
   ipcMain.handle('config:write', async (_event, data: unknown) => {
-    try {
-      if (typeof data !== 'object' || data === null) return { success: false, error: 'Expected object' };
-      const cfgPath = path.join(os.homedir(), '.openclaw', 'openclaw.json');
-      await fs.promises.writeFile(cfgPath, JSON.stringify(data, null, 2), 'utf-8');
-      return { success: true };
-    } catch (err: unknown) {
-      return { success: false, error: String(err) };
-    }
+    void data;
+    return { success: false, error: 'config:write is disabled; use config:write-section' };
   });
 
-  // Reads a single top-level section from openclaw.json
   ipcMain.handle('config:read-section', async (_event, section: unknown) => {
     try {
       const s = isSafeString(section, 64);
-      const cfgPath = path.join(os.homedir(), '.openclaw', 'openclaw.json');
-      const raw = await fs.promises.readFile(cfgPath, 'utf-8');
-      const cfg = JSON.parse(raw);
-      if (cfg[s] === undefined) return { success: false, error: `Section '${s}' not found` };
-      return { success: true, data: cfg[s] };
+      assertAllowedConfigSection(s);
+      const cfg = await readOpenClawConfig();
+      return { success: true, data: redactConfigValue(cfg[s] ?? {}) };
     } catch (err: unknown) {
       return { success: false, error: String(err) };
     }
   });
 
-  // Writes a single top-level section into openclaw.json (deep merge)
   ipcMain.handle('config:write-section', async (_event, section: unknown, value: unknown) => {
     try {
       const s = isSafeString(section, 64);
+      assertAllowedConfigSection(s);
       if (typeof value !== 'object' || value === null) return { success: false, error: 'Expected object value' };
-      const cfgPath = path.join(os.homedir(), '.openclaw', 'openclaw.json');
-      const raw = await fs.promises.readFile(cfgPath, 'utf-8');
-      const cfg = JSON.parse(raw);
-      cfg[s] = value;
-      await fs.promises.writeFile(cfgPath, JSON.stringify(cfg, null, 2), 'utf-8');
+      const cfg = await readOpenClawConfig();
+      cfg[s] = mergeConfigValue(cfg[s], value, s);
+      await writeOpenClawConfig(cfg);
       return { success: true };
     } catch (err: unknown) {
       return { success: false, error: String(err) };
@@ -3080,170 +3070,6 @@ export function setupIpcHandlers(): void {
       app.setLoginItemSettings({ openAtLogin: enabled });
       return { success: true };
     } catch (err: unknown) {
-      return { success: false, error: String(err) };
-    }
-  });
-
-  // ── Preferences ────────────────────────────────────────────────────────────
-
-  ipcMain.handle('preferences:get', () => ({
-    success: true,
-    data: {
-      theme: preferencesStore.get('theme'),
-      language: preferencesStore.get('language'),
-      autoStart: preferencesStore.get('autoStart'),
-      showFloatWindow: preferencesStore.get('showFloatWindow'),
-      notificationEnabled: preferencesStore.get('notificationEnabled'),
-    },
-  }));
-
-  ipcMain.handle('preferences:set', async (_event, prefs: Record<string, unknown>) => {
-    try {
-      Object.entries(prefs).forEach(([k, v]) => preferencesStore.set(k, v));
-      return { success: true, data: preferencesStore.store };
-    } catch (err) {
-      return { success: false, error: String(err) };
-    }
-  });
-
-  // ── Friends ─────────────────────────────────────────────────────────────────
-
-  ipcMain.handle('friends:list', async () => {
-    const session = authStore.get('session') as { access_token?: string; user?: { id?: string } } | null;
-    if (!session?.access_token) return { success: false, error: 'not_authenticated' };
-    try {
-      const res = await httpRequest({
-        method: 'GET',
-        url: `${SUPABASE_URL}/rest/v1/friends?user_id=eq.${encodeURIComponent(session.user?.id ?? '')}&select=*`,
-        headers: {
-          'apikey': SUPABASE_ANON_KEY!,
-          'Authorization': `Bearer ${session.access_token}`,
-        },
-      });
-      const data = JSON.parse(res.body);
-      return { success: true, data: Array.isArray(data) ? data : [] };
-    } catch (err) {
-      return { success: false, error: String(err) };
-    }
-  });
-
-  ipcMain.handle('friends:add', async (_, { friendUserId }: { friendUserId: string }) => {
-    const session = authStore.get('session') as { access_token?: string; user?: { id?: string } } | null;
-    if (!session?.access_token) return { success: false, error: 'not_authenticated' };
-    try {
-      const res = await httpRequest({
-        method: 'POST',
-        url: `${SUPABASE_URL}/rest/v1/friends`,
-        headers: {
-          'apikey': SUPABASE_ANON_KEY!,
-          'Authorization': `Bearer ${session.access_token}`,
-          'Content-Type': 'application/json',
-          'Prefer': 'return=representation',
-        },
-        body: JSON.stringify({ user_id: session.user?.id, friend_user_id: friendUserId, status: 'pending' }),
-      });
-      const data = res.body ? JSON.parse(res.body) : null;
-      return { success: true, data };
-    } catch (err) {
-      return { success: false, error: String(err) };
-    }
-  });
-
-  ipcMain.handle('friends:accept', async (_, { friendId }: { friendId: string }) => {
-    const session = authStore.get('session') as { access_token?: string } | null;
-    if (!session?.access_token) return { success: false, error: 'not_authenticated' };
-    try {
-      await httpRequest({
-        method: 'PATCH',
-        url: `${SUPABASE_URL}/rest/v1/friends?id=eq.${encodeURIComponent(friendId)}`,
-        headers: {
-          'apikey': SUPABASE_ANON_KEY!,
-          'Authorization': `Bearer ${session.access_token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ status: 'accepted' }),
-      });
-      return { success: true };
-    } catch (err) {
-      return { success: false, error: String(err) };
-    }
-  });
-
-  ipcMain.handle('friends:remove', async (_, { friendId }: { friendId: string }) => {
-    const session = authStore.get('session') as { access_token?: string } | null;
-    if (!session?.access_token) return { success: false, error: 'not_authenticated' };
-    try {
-      await httpRequest({
-        method: 'DELETE',
-        url: `${SUPABASE_URL}/rest/v1/friends?id=eq.${encodeURIComponent(friendId)}`,
-        headers: {
-          'apikey': SUPABASE_ANON_KEY!,
-          'Authorization': `Bearer ${session.access_token}`,
-        },
-      });
-      return { success: true };
-    } catch (err) {
-      return { success: false, error: String(err) };
-    }
-  });
-
-  // ── Notifications ───────────────────────────────────────────────────────────
-
-  ipcMain.handle('notifications:list', async () => {
-    const session = authStore.get('session') as { access_token?: string; user?: { id?: string } } | null;
-    if (!session?.access_token) return { success: false, error: 'not_authenticated' };
-    try {
-      const res = await httpRequest({
-        method: 'GET',
-        url: `${SUPABASE_URL}/rest/v1/notifications?user_id=eq.${encodeURIComponent(session.user?.id ?? '')}&order=created_at.desc&limit=50`,
-        headers: {
-          'apikey': SUPABASE_ANON_KEY!,
-          'Authorization': `Bearer ${session.access_token}`,
-        },
-      });
-      const data = JSON.parse(res.body);
-      return { success: true, data: Array.isArray(data) ? data : [] };
-    } catch (err) {
-      return { success: false, error: String(err) };
-    }
-  });
-
-  ipcMain.handle('notifications:mark-read', async (_, { notificationId }: { notificationId: string }) => {
-    const session = authStore.get('session') as { access_token?: string } | null;
-    if (!session?.access_token) return { success: false, error: 'not_authenticated' };
-    try {
-      await httpRequest({
-        method: 'PATCH',
-        url: `${SUPABASE_URL}/rest/v1/notifications?id=eq.${encodeURIComponent(notificationId)}`,
-        headers: {
-          'apikey': SUPABASE_ANON_KEY!,
-          'Authorization': `Bearer ${session.access_token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ read: true }),
-      });
-      return { success: true };
-    } catch (err) {
-      return { success: false, error: String(err) };
-    }
-  });
-
-  ipcMain.handle('notifications:mark-all-read', async () => {
-    const session = authStore.get('session') as { access_token?: string; user?: { id?: string } } | null;
-    if (!session?.access_token) return { success: false, error: 'not_authenticated' };
-    try {
-      await httpRequest({
-        method: 'PATCH',
-        url: `${SUPABASE_URL}/rest/v1/notifications?user_id=eq.${encodeURIComponent(session.user?.id ?? '')}&read=eq.false`,
-        headers: {
-          'apikey': SUPABASE_ANON_KEY!,
-          'Authorization': `Bearer ${session.access_token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ read: true }),
-      });
-      return { success: true };
-    } catch (err) {
       return { success: false, error: String(err) };
     }
   });

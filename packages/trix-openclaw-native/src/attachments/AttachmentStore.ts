@@ -1,4 +1,6 @@
+import { lookup } from 'node:dns/promises';
 import fs from 'node:fs/promises';
+import { isIP } from 'node:net';
 import path from 'node:path';
 import { randomId, sha256Hex } from '../utils/ids.js';
 import type {
@@ -12,6 +14,72 @@ import type {
 const IMAGE_PREFIXES = ['image/'];
 const AUDIO_PREFIXES = ['audio/'];
 const VIDEO_PREFIXES = ['video/'];
+const MAX_REMOTE_ATTACHMENT_BYTES = Number(process.env.TRIX_NATIVE_MAX_REMOTE_ATTACHMENT_BYTES || 25 * 1024 * 1024);
+const ALLOW_LOCAL_ATTACHMENT_PATHS = process.env.TRIX_NATIVE_ALLOW_LOCAL_ATTACHMENT_PATHS === '1';
+
+function isPrivateIpAddress(address: string): boolean {
+  const normalized = address.toLowerCase();
+  if (normalized.startsWith('::ffff:')) {
+    return isPrivateIpAddress(normalized.slice(7));
+  }
+
+  const version = isIP(normalized);
+  if (version === 4) {
+    const octets = normalized.split('.').map((part) => Number(part));
+    const firstOctet = octets[0];
+    const secondOctet = octets[1];
+    return (
+      firstOctet === 0
+      || firstOctet === 10
+      || firstOctet === 127
+      || (firstOctet === 169 && secondOctet === 254)
+      || (firstOctet === 172 && secondOctet !== undefined && secondOctet >= 16 && secondOctet <= 31)
+      || (firstOctet === 192 && secondOctet === 168)
+    );
+  }
+
+  if (version === 6) {
+    return (
+      normalized === '::1'
+      || normalized.startsWith('fc')
+      || normalized.startsWith('fd')
+      || normalized.startsWith('fe80:')
+    );
+  }
+
+  return false;
+}
+
+async function assertSafeRemoteUrl(rawUrl: string): Promise<string> {
+  let parsed: URL;
+  try {
+    parsed = new URL(rawUrl);
+  } catch {
+    throw new Error('Attachment URL is invalid');
+  }
+
+  if (!['http:', 'https:'].includes(parsed.protocol)) {
+    throw new Error('Attachment URL must use http or https');
+  }
+  if (parsed.username || parsed.password) {
+    throw new Error('Attachment URL must not include credentials');
+  }
+
+  const hostname = parsed.hostname.toLowerCase();
+  if (hostname === 'localhost' || hostname.endsWith('.local')) {
+    throw new Error('Attachment URL must not target local/private hosts');
+  }
+  if (isPrivateIpAddress(hostname)) {
+    throw new Error('Attachment URL must not target private IPs');
+  }
+
+  const resolved = await lookup(hostname, { all: true, verbatim: true });
+  if (!resolved.length || resolved.some((entry) => isPrivateIpAddress(entry.address))) {
+    throw new Error('Attachment URL resolves to a private address');
+  }
+
+  return parsed.toString();
+}
 
 function inferKind(mimeType: string | undefined, fileName: string | undefined): AttachmentKind {
   const mime = mimeType?.toLowerCase() ?? '';
@@ -146,15 +214,27 @@ export class AttachmentStore {
     }
 
     if (input.localPath) {
+      if (!ALLOW_LOCAL_ATTACHMENT_PATHS) {
+        throw new Error('Local attachment paths are disabled');
+      }
       return fs.readFile(path.resolve(input.localPath));
     }
 
     if (input.url) {
-      const response = await fetch(input.url);
+      const safeUrl = await assertSafeRemoteUrl(input.url);
+      const response = await fetch(safeUrl);
       if (!response.ok) {
         throw new Error(`Failed to fetch attachment URL: ${response.status} ${response.statusText}`);
       }
-      return Buffer.from(await response.arrayBuffer());
+      const contentLength = Number(response.headers.get('content-length') || 0);
+      if (contentLength > MAX_REMOTE_ATTACHMENT_BYTES) {
+        throw new Error('Attachment URL content is too large');
+      }
+      const buffer = Buffer.from(await response.arrayBuffer());
+      if (buffer.length > MAX_REMOTE_ATTACHMENT_BYTES) {
+        throw new Error('Attachment URL content is too large');
+      }
+      return buffer;
     }
 
     throw new Error('Attachment input requires contentBase64, localPath, or url');

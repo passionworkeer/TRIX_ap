@@ -540,11 +540,10 @@ export async function startGateway(): Promise<void> {
   const openclawBin = getOpenClawPath();
   const localBinExists = fs.existsSync(openclawBin);
   const userDataDir = app.getPath('userData');
-  const cmd = localBinExists ? openclawBin : (process.platform === 'win32' ? 'openclaw' : 'openclaw');
+  const cmd = localBinExists ? openclawBin : (process.platform === 'win32' ? 'openclaw.cmd' : 'openclaw');
   const args = ['gateway', '--port', String(GATEWAY_PORT)];
 
   gatewayProcess = spawn(cmd, args, {
-    shell: true,
     detached: false,
     stdio: ['ignore', 'pipe', 'pipe'],
     env: {

@@ -11,6 +11,10 @@ const execAsync = promisify(exec);
 const LOCAL_OPENCLAW_PATH = () =>
   path.join(app.getPath('userData'), 'openclaw');
 
+function getCommandBinary(command: 'npm' | 'pnpm' | 'npx' | 'openclaw'): string {
+  return process.platform === 'win32' ? `${command}.cmd` : command;
+}
+
 function getOpenClawBin(): string {
   if (process.platform === 'win32') {
     return path.join(LOCAL_OPENCLAW_PATH(), 'openclaw.cmd');
@@ -101,12 +105,12 @@ export async function installOpenClaw(
   const args = packageManager === 'pnpm'
     ? ['add', '-g', 'openclaw']
     : ['install', '-g', 'openclaw'];
+  const packageManagerBin = getCommandBinary(packageManager === 'pnpm' ? 'pnpm' : 'npm');
 
   onProgress(`正在安装 OpenClaw (${packageManager})...`);
 
   return new Promise((resolve, reject) => {
-    const proc = spawn(packageManager, args, {
-      shell: true,
+    const proc = spawn(packageManagerBin, args, {
       env: { ...process.env },
     });
 
@@ -147,7 +151,7 @@ export async function runCommand(cmd: string): Promise<{
   // Find openclaw binary
   let openclawBin = getOpenClawBin();
   if (!fs.existsSync(openclawBin)) {
-    openclawBin = process.platform === 'win32' ? 'openclaw.cmd' : 'openclaw';
+    openclawBin = getCommandBinary('openclaw');
   }
 
   const parts = cmd.trim().split(/\s+/);
@@ -156,14 +160,12 @@ export async function runCommand(cmd: string): Promise<{
 
   try {
     const { spawn } = await import('child_process');
-    // Use a short timeout since the trix-native plugin hangs when the remote
-    // server (TRIX_SERVER_HOST:8788) is unreachable. 10s is enough for local
+    // Use a short timeout since the trix-native plugin can hang when its
+    // upstream server is unreachable. 10s is enough for local
     // commands and avoids blocking the renderer for a full minute.
     const COMMAND_TIMEOUT = 10_000;
 
-    const proc = spawn(openclawBin, [subcommand, ...subArgs], {
-      shell: process.platform === 'win32',
-    });
+    const proc = spawn(openclawBin, [subcommand, ...subArgs]);
 
     let stdout = '';
     let stderr = '';
@@ -322,8 +324,7 @@ function parseClawHubExplore(stdout: string): ClawHubSkill[] {
 
 function execClawhub(args: string[]): Promise<{ stdout: string; stderr: string; timedOut?: boolean }> {
   return new Promise((resolve) => {
-    const proc = spawn('npx', ['clawhub@latest', ...args], {
-      shell: true,
+    const proc = spawn(getCommandBinary('npx'), ['clawhub@latest', ...args], {
       env: { ...process.env },
     });
     let stdout = '';
@@ -373,8 +374,7 @@ export async function clawhubExplore(): Promise<{ success: boolean; data: ClawHu
 
 export async function clawhubInstall(slug: string): Promise<{ success: boolean; stdout: string; stderr: string }> {
   return new Promise((resolve) => {
-    const proc = spawn('npx', ['clawhub@latest', 'install', slug], {
-      shell: true,
+    const proc = spawn(getCommandBinary('npx'), ['clawhub@latest', 'install', slug], {
       env: { ...process.env },
     });
     let stdout = '';

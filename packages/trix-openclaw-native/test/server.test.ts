@@ -7,6 +7,11 @@ import type { ServerConfig } from '../src/types.js';
 
 const servers: TrixNativeServer[] = [];
 const authServers: http.Server[] = [];
+type TestPairing = {
+  code: string;
+  secret: string;
+  conversationId?: string;
+};
 
 function createTestServer(port: number, config: ServerConfig = {}): TrixNativeServer {
   return new TrixNativeServer({
@@ -71,13 +76,14 @@ describe('TrixNativeServer', () => {
       body: JSON.stringify({ label: 'Browser' }),
     });
 
-    const pairing = await createResponse.json() as { code: string; conversationId: string };
+    const pairing = await createResponse.json() as TestPairing & { conversationId: string };
     expect(pairing.code).toHaveLength(6);
 
     const claimResponse = await fetch(`http://127.0.0.1:8799/api/pairings/${pairing.code}/claim`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
+        secret: pairing.secret,
         clientId: 'browser-1',
         deviceName: 'Browser',
       }),
@@ -120,12 +126,13 @@ describe('TrixNativeServer', () => {
       },
       body: JSON.stringify({ label: 'Browser' }),
     });
-    const pairing = await createResponse.json() as { code: string };
+    const pairing = await createResponse.json() as TestPairing;
 
     const claimResponse = await fetch(`http://127.0.0.1:8800/api/pairings/${pairing.code}/claim`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
+        secret: pairing.secret,
         clientId: 'browser-2',
         deviceName: 'Browser',
       }),
@@ -179,12 +186,13 @@ describe('TrixNativeServer', () => {
         authorization: `Bearer ${state.serviceTokens.default}`,
       },
       body: JSON.stringify({ accountId: 'default', label: 'Browser' }),
-    }).then((response) => response.json()) as { code: string };
+    }).then((response) => response.json()) as TestPairing;
 
     const claim = await fetch(`http://127.0.0.1:8804/api/pairings/${pairing.code}/claim`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
+        secret: pairing.secret,
         clientId: 'browser-attachments-1',
         deviceName: 'Browser',
       }),
@@ -272,12 +280,13 @@ describe('TrixNativeServer', () => {
         authorization: `Bearer ${state.serviceTokens.default}`,
       },
       body: JSON.stringify({ accountId: 'default', label: 'Replay Browser' }),
-    }).then((response) => response.json()) as { code: string };
+    }).then((response) => response.json()) as TestPairing;
 
     const claim = await fetch(`http://127.0.0.1:8805/api/pairings/${pairing.code}/claim`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
+        secret: pairing.secret,
         clientId: 'browser-replay-1',
         deviceName: 'Replay Browser',
       }),
@@ -367,12 +376,13 @@ describe('TrixNativeServer', () => {
         authorization: `Bearer ${state.serviceTokens.default}`,
       },
       body: JSON.stringify({ accountId: 'default', label: 'iPhone' }),
-    }).then((response) => response.json()) as { code: string };
+    }).then((response) => response.json()) as TestPairing;
 
     const claim = await fetch(`http://127.0.0.1:8802/api/pairings/${pairing.code}/claim`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
+        secret: pairing.secret,
         clientId: 'ios-device-1',
         deviceName: 'iPhone',
       }),
@@ -404,12 +414,13 @@ describe('TrixNativeServer', () => {
         authorization: `Bearer ${state.serviceTokens.default}`,
       },
       body: JSON.stringify({ accountId: 'default', label: 'Browser' }),
-    }).then((response) => response.json()) as { code: string };
+    }).then((response) => response.json()) as TestPairing;
 
     const claim = await fetch(`http://127.0.0.1:8803/api/pairings/${pairing.code}/claim`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
+        secret: pairing.secret,
         clientId: 'browser-study-1',
         deviceName: 'Browser',
       }),
@@ -458,12 +469,16 @@ describe('TrixNativeServer', () => {
         authorization: `Bearer ${state.serviceTokens.default}`,
       },
       body: JSON.stringify({ accountId: 'default', label: 'Browser' }),
-    }).then((r) => r.json()) as { code: string };
+    }).then((r) => r.json()) as TestPairing;
 
     const claim = await fetch(`http://127.0.0.1:8810/api/pairings/${pairing.code}/claim`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ clientId: 'browser-study-lookup', deviceName: 'Browser' }),
+      body: JSON.stringify({
+        secret: pairing.secret,
+        clientId: 'browser-study-lookup',
+        deviceName: 'Browser',
+      }),
     }).then((r) => r.json()) as { conversationId: string; clientToken: string };
 
     const headers = {
@@ -532,12 +547,16 @@ describe('TrixNativeServer', () => {
         authorization: `Bearer ${state.serviceTokens.default}`,
       },
       body: JSON.stringify({ accountId: 'default', label: 'Browser' }),
-    }).then((r) => r.json()) as { code: string };
+    }).then((r) => r.json()) as TestPairing;
 
     const claim = await fetch(`http://127.0.0.1:8811/api/pairings/${pairing.code}/claim`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ clientId: 'browser-lookup-empty', deviceName: 'Browser' }),
+      body: JSON.stringify({
+        secret: pairing.secret,
+        clientId: 'browser-lookup-empty',
+        deviceName: 'Browser',
+      }),
     }).then((r) => r.json()) as { conversationId: string; clientToken: string };
 
     const headers = {
@@ -570,12 +589,13 @@ describe('TrixNativeServer', () => {
         authorization: `Bearer ${state.serviceTokens.default}`,
       },
       body: JSON.stringify({ accountId: 'default', label: 'Browser' }),
-    }).then((response) => response.json()) as { code: string };
+    }).then((response) => response.json()) as TestPairing;
 
     const claim = await fetch(`http://127.0.0.1:8801/api/pairings/${pairing.code}/claim`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
+        secret: pairing.secret,
         clientId: 'browser-3',
         deviceName: 'Browser',
       }),
@@ -672,12 +692,13 @@ describe('TrixNativeServer', () => {
         authorization: `Bearer ${state.serviceTokens.default}`,
       },
       body: JSON.stringify({ accountId: 'default', label: 'Reply Browser' }),
-    }).then((response) => response.json()) as { code: string };
+    }).then((response) => response.json()) as TestPairing;
 
     const claim = await fetch(`http://127.0.0.1:8812/api/pairings/${pairing.code}/claim`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
+        secret: pairing.secret,
         clientId: 'browser-reply-1',
         deviceName: 'Reply Browser',
       }),
@@ -737,12 +758,13 @@ describe('TrixNativeServer', () => {
         authorization: `Bearer ${state.serviceTokens.default}`,
       },
       body: JSON.stringify({ accountId: 'default', label: 'Concurrent Reply Browser' }),
-    }).then((response) => response.json()) as { code: string };
+    }).then((response) => response.json()) as TestPairing;
 
     const claim = await fetch(`http://127.0.0.1:8814/api/pairings/${pairing.code}/claim`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
+        secret: pairing.secret,
         clientId: 'browser-concurrent-reply-1',
         deviceName: 'Concurrent Reply Browser',
       }),
@@ -841,13 +863,14 @@ describe('TrixNativeServer', () => {
         'x-trix-admin-token': state.adminToken,
       },
       body: JSON.stringify({ accountId: 'bot-b', label: 'Bot B Device' }),
-    }).then((response) => response.json()) as { code: string };
+    }).then((response) => response.json()) as TestPairing;
 
     const claimResponse = await fetch(`http://127.0.0.1:8808/api/pairings/${pairing.code}/claim`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
         accountId: 'default',
+        secret: pairing.secret,
         clientId: 'browser-account-mismatch',
         deviceName: 'Browser',
       }),
@@ -871,12 +894,13 @@ describe('TrixNativeServer', () => {
         authorization: `Bearer ${state.serviceTokens.default}`,
       },
       body: JSON.stringify({ accountId: 'default', label: 'Browser' }),
-    }).then((response) => response.json()) as { code: string };
+    }).then((response) => response.json()) as TestPairing;
 
     const claim = await fetch(`http://127.0.0.1:8805/api/pairings/${pairing.code}/claim`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
+        secret: pairing.secret,
         clientId: 'browser-auth-1',
         deviceName: 'Browser',
       }),
@@ -965,13 +989,13 @@ describe('TrixNativeServer', () => {
       method: 'POST',
       headers,
       body: JSON.stringify({ accountId: 'default', label: 'First Browser' }),
-    }).then((response) => response.json()) as { code: string };
+    }).then((response) => response.json()) as TestPairing;
 
     const pairingTwo = await fetch('http://127.0.0.1:8806/api/pairings', {
       method: 'POST',
       headers,
       body: JSON.stringify({ accountId: 'default', label: 'Second Browser' }),
-    }).then((response) => response.json()) as { code: string };
+    }).then((response) => response.json()) as TestPairing;
 
     const firstClaim = await fetch(`http://127.0.0.1:8806/api/pairings/${pairingOne.code}/claim`, {
       method: 'POST',
@@ -980,6 +1004,7 @@ describe('TrixNativeServer', () => {
         'x-forwarded-for': '198.51.100.20',
       },
       body: JSON.stringify({
+        secret: pairingOne.secret,
         clientId: 'browser-rate-1',
         deviceName: 'Browser One',
       }),
@@ -993,6 +1018,7 @@ describe('TrixNativeServer', () => {
         'x-forwarded-for': '198.51.100.20',
       },
       body: JSON.stringify({
+        secret: pairingTwo.secret,
         clientId: 'browser-rate-2',
         deviceName: 'Browser Two',
       }),
@@ -1052,7 +1078,7 @@ describe('TrixNativeServer', () => {
         authorization: `Bearer ${state.serviceTokens.default}`,
       },
       body: JSON.stringify({ accountId: 'default', label: 'Browser' }),
-    }).then((response) => response.json()) as { code: string };
+    }).then((response) => response.json()) as TestPairing;
 
     const claim = await fetch(`http://127.0.0.1:8812/api/pairings/${pairing.code}/claim`, {
       method: 'POST',
@@ -1061,6 +1087,7 @@ describe('TrixNativeServer', () => {
         authorization: 'Bearer valid-user-a',
       },
       body: JSON.stringify({
+        secret: pairing.secret,
         clientId: 'browser-user-a-1',
         deviceName: 'Browser A',
       }),
@@ -1127,12 +1154,13 @@ describe('TrixNativeServer', () => {
         authorization: `Bearer ${state.serviceTokens.default}`,
       },
       body: JSON.stringify({ accountId: 'default', label: 'Browser' }),
-    }).then((response) => response.json()) as { code: string };
+    }).then((response) => response.json()) as TestPairing;
 
     const claim = await fetch(`http://127.0.0.1:8813/api/pairings/${pairing.code}/claim`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
+        secret: pairing.secret,
         clientId: 'legacy-browser',
         deviceName: 'Legacy Browser',
       }),

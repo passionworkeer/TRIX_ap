@@ -205,9 +205,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
     return () => ipcRenderer.removeListener('openclaw:install-progress', handler);
   },
 
-  // OpenClaw Config
-  configRead: () => ipcRenderer.invoke('config:read'),
-  configWrite: (data) => ipcRenderer.invoke('config:write', data),
   configReadSection: (section) => ipcRenderer.invoke('config:read-section', section),
   configWriteSection: (section, value) => ipcRenderer.invoke('config:write-section', section, value),
 

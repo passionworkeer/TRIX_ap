@@ -1,36 +1,38 @@
 # TRIX Canvas Service
 
-AI 生成结果展示服务 — 画布页面 + 会话 API。
+TRIX Canvas Service 提供画布界面、项目/节点管理和会话 API。它本身不绑定任何固定 AI 厂商，使用者可以将环境变量指向任意自选的图片/视频生成服务，然后通过 Canvas Skill 或手动脚本向其提交 prompt。
 
-## 快速开始
+## 快速启动
 
 ```bash
 cd packages/trix-canvas-service
-
-# 1. 安装
 npm install
-
-# 2. 配置（复制并编辑 .env）
 cp .env.example .env
-
-# 3. 启动
+# 方式 1：直接让 server.js 调你的上游
+# 编辑 .env，填入 AI_API_BASE / AI_API_KEY / AI_GENERATE_PATH / AI_TASK_PATH_TEMPLATE
 npm start
+
+# 方式 2：本地 proxy 适配上游厂商，再让 server.js 调 proxy
+# 先配置 AI_API_KEY 或 MINIMAX_API_KEY（也支持回退读取 ~/.openclaw/openclaw.json）
+npm run start:all
 ```
 
-访问 `http://localhost:8789/canvas`
+画布地址: `http://localhost:8789/canvas`
 
 ## 目录结构
 
 ```
 packages/trix-canvas-service/
-├── server.js           # Express 服务端（API + 静态文件）
+├── server.js             # 主 API 服务（项目/节点/会话 + 静态页面）
+├── relay.js              # 可选的通用边车：将 Canvas /generate 转换至任意厂商
+├── proxy.js              # MiniMax 代理示例：/generate + /tasks/:id
+├── start-all.js          # 一键启动 proxy + canvas
 ├── public/
-│   └── canvas.html    # 画布 SPA 页面
-├── data/              # 项目/会话 JSON 数据（gitignore）
-├── outputs/           # 生成文件（gitignore）
-├── .env.example       # 环境变量模板
-└── scripts/
-    └── setup.js       # 安装向导
+│   └── canvas.html      # 画布 SPA
+├── data/                # 运行时目录，存放 JSON 数据
+├── outputs/             # 导出文件（字幕/视频）
+├── .env.example         # 环境变量模板
+└── trix-canvas.service   # systemd 单元（参考）
 ```
 
 ## API 端点
@@ -39,54 +41,85 @@ packages/trix-canvas-service/
 |------|------|------|
 | POST | /api/session | 创建会话 / 提交生成任务 |
 | GET  | /api/session/:id | 查询会话状态 |
-| POST | /api/session/change-project | 切换/创建项目 |
-| POST | /api/file/upload | 上传文件 |
-| GET  | /api/project/:id | 获取项目详情 |
-| GET  | /api/projects | 列出所有项目 |
+| POST | /api/session/change-project | 创建或切换项目 |
+| POST | /api/file/upload | 上传 base64 或 OSS 文件 |
+| POST | /api/projects | 创建项目（Skill 直接调用） |
+| GET  | /api/projects/:projectId | 项目详情（包含 nodes/edges/files/sessions） |
+| GET  | /api/projects | 项目列表 |
+| GET  | /api/projects/:projectId/export/subtitle | 导出 SRT+脚本 |
+| GET  | /api/projects/:projectId/export/video | 拼接视频（需 FFmpeg 可用） |
+| GET  | /media/files/:filename | 下载存储的图片/视频 |
 | GET  | /health | 健康检查 |
 
-## 服务器部署
+## 运行策略
 
-```bash
-# 1. 将整个目录复制到服务器
-scp -r packages/trix-canvas-service/ root@TRIX_SERVER_HOST:/var/www/canvas
+1. 先准备好 AI 生成端点（如你自己的 APIs 或第三方服务），确保它们能接收 `prompt` + `model` 等字段并返回 `url` 或 `base64`。
+2. 在 `.env` 里设置 `AI_API_BASE` + `AI_API_KEY` 供 Canvas 服务向外部生成。若你的上游协议不兼容，也可以启动 `proxy.js` 或 `relay.js` 作为本地适配层。
+3. 运行 `npm start` 即可启动 Canvas API；运行 `npm run proxy` 或 `npm run start:all` 可附带本地适配服务。  
+4. 安装 Python Skill 或用 `curl` 调 `/api/session` 提交 prompt，随后 Canvas 会在 `/canvas?projectId=...` 显示结果。
 
-# 2. SSH 进去配置
-ssh root@TRIX_SERVER_HOST
-cd /var/www/canvas
+## start-all 约定
 
-# 3. 安装并配置
-npm install
-cp .env.example .env
-nano .env  # 填入 AI_API_BASE / AI_API_KEY
+`npm run start:all` 会：
 
-# 4. 注册 systemd 服务
-cp trix-canvas.service /etc/systemd/system/
-systemctl daemon-reload
-systemctl enable trix-canvas
-systemctl start trix-canvas
+1. 启动 `proxy.js`（默认端口 `8788`）
+2. 自动把 Canvas 服务的 `AI_API_BASE` 指向 `http://127.0.0.1:8788`
+3. 将 Canvas 生成接口固定为 `/generate` + `/tasks/:taskId`
 
-# 5. 配置 Nginx 代理到 8789 端口
-# （见 deploy workflow 中的 nginx 配置片段）
-```
+它优先读取这些环境变量：
 
-## 与 SKILL 对接
+- `AI_API_KEY` / `MINIMAX_API_KEY` / `PROXY_UPSTREAM_KEY`
+- `PROXY_UPSTREAM_BASE`
+- `PROXY_IMAGE_PATH`
+- `PROXY_IMAGE_MODEL`
+- `PROXY_GENERATE_PATH`
+- `PROXY_MODEL`
 
-Python Skill 位于 `skills/trix-gen-skill/`，会自动调用 Canvas 服务的 API。
+如果这些都没配，会尝试回退读取 `~/.openclaw/openclaw.json` 里的 `MINIMAX_API_KEY`。
 
-1. 将 `skills/trix-gen-skill/` 目录放到 Agent 可识别的 skills 路径
-2. 在 Agent 环境变量中设置 `AI_API_BASE`、`AI_API_KEY`、`CANVAS_BASE_URL`
-3. Agent 即可通过自然语言调用生成任务
+## Relay 配置（可选）
 
-## 环境变量
+`relay.js` 是一个轻量适配器，用来把 `/generate` 和 `/tasks/:id` 请求转发到任意厂商。只需设置以下环境变量（见 `.env.example`），然后用 `node relay.js` 启动即可：
 
-| 变量 | 必填 | 默认值 | 说明 |
-|------|------|--------|------|
-| AI_API_BASE | ✅ | — | AI 生成服务基础地址 |
-| AI_API_KEY | ✅ | — | Bearer 鉴权 Token |
-| CANVAS_BASE_URL | — | http://localhost:8789 | 画布访问基础 URL |
-| CANVAS_PORT | — | 8789 | 服务监听端口 |
-| CANVAS_DATA_DIR | — | ./data | 项目数据目录 |
-| CANVAS_OUTPUT_DIR | — | ./outputs | 输出文件目录 |
-| UPLOAD_API_URL | — | — | OSS 上传地址 |
-| UPLOAD_API_KEY | — | — | OSS 鉴权 Token |
+- `RELAY_PORT`：监听端口（默认 8788）
+- `IMAGE_API_URL`, `IMAGE_API_METHOD`, `IMAGE_API_KEY`, `IMAGE_API_MODEL`
+- `VIDEO_API_URL`, `VIDEO_API_METHOD`, `VIDEO_API_KEY`, `VIDEO_API_MODEL`
+- `RELAY_OUTPUT_PREFIX`：如果仓库需要本地 assets，可把 base64 写入 outputs 并用 `http://localhost:8788/outputs/...` 访问
+
+## 授权与开放
+
+因为本服务是开源的，所以不再嵌入任何第三方 key。请把实际的 AI 供应商密钥存放在环境变量，并确保 `.env` 写入内容不会纳入 Git（本项目已在 `.gitignore` 默认排除 `.env`、`data/`、`outputs/`）。
+
+## 环境变量概览
+
+| 变量 | 默认 | 说明 |
+|------|------|------|
+| `CANVAS_PORT` | `8789` | HTTP 服务监听端口（canvas UI + API） |
+| `CANVAS_BASE_URL` | `http://localhost:8789` | Canvas UI 的公共地址 |
+| `CANVAS_DATA_DIR` | `./data` | JSON 数据目录 |
+| `CANVAS_EXPORT_DIR` | `./exports` | 导出字幕/视频目录 |
+| `CANVAS_MAX_REMOTE_DOWNLOAD_BYTES` | `209715200` | 远程下载大小上限（默认 200MB） |
+| `CANVAS_ALLOW_PRIVATE_REMOTE_URLS` | `false` | 是否允许 `external_url`/上游结果访问内网地址 |
+| `CANVAS_REQUIRE_AUTH` | `false` | 是否开启 Canvas API / media 访问令牌鉴权 |
+| `CANVAS_ACCESS_TOKEN` | 自动生成 | 开启鉴权后使用的访问令牌 |
+| `CANVAS_ALLOWED_ORIGINS` |  | 开启鉴权时允许携带 cookie 的跨域来源，逗号分隔 |
+| `AI_API_BASE` | (必填) | upstream AI 生成服务（canvas 会向 `/api/session` 直接请求） |
+| `AI_API_KEY` | (必填) | Bearer 鉴权 |
+| `AI_EXTRA_HEADERS` |  | 附加 Headers，换行分隔 |
+| `AI_GENERATE_PATH` | `/generate` | 创建任务路径 |
+| `AI_TASK_PATH_TEMPLATE` | `/tasks/:taskId` | 轮询路径模板 |
+| `PROXY_UPSTREAM_BASE` | `https://api.minimaxi.com` | `proxy.js` 上游 base URL |
+| `PROXY_UPSTREAM_KEY` |  | `proxy.js` 上游鉴权 |
+| `PROXY_HOST` | `127.0.0.1` | `proxy.js` 监听地址 |
+| `PROXY_IMAGE_PATH` | `/v1/image_generation` | `proxy.js` 图片接口 |
+| `PROXY_IMAGE_MODEL` | `image-01` | `proxy.js` 图片模型 |
+| `PROXY_GENERATE_PATH` | `/anthropic/v1/messages` | `proxy.js` 非图片生成接口 |
+| `PROXY_MODEL` | `MiniMax-M2.7` | `proxy.js` 非图片模型 |
+| `IMAGE_API_URL` |  | Relay 发送图片 prompt 的供应商地址 |
+| `IMAGE_API_KEY` |  | 图片供应商鉴权 |
+| `IMAGE_API_MODEL` | `image-01` | 可选模型标识 |
+| `VIDEO_API_URL` |  | Relay 发送视频 prompt 的供应商地址 |
+| `VIDEO_API_KEY` |  | 视频供应商鉴权 |
+| `VIDEO_API_MODEL` | `veo-3.1-fast` | 可选模型标识 |
+| `RELAY_OUTPUT_PREFIX` | `http://localhost:8788/outputs` | base64 输出归属 URL |
+| `RELAY_PORT` | `8788` | Relay 监听端口 |

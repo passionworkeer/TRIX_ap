@@ -50,13 +50,13 @@ describe('PairingService', () => {
     expect(reread?.pairedClientId).toBe('phone-1');
   });
 
-  it('accepts code-only claim without the pairing secret', async () => {
+  it('rejects code-only claim without the pairing secret', async () => {
     const dir = await createTempDir();
     const store = new JsonStateStore(dir);
     const service = new PairingService(store);
 
     const created = await service.create({ publicBaseUrl: 'http://127.0.0.1:8788', label: 'Phone' });
-    const claimed = await service.claim({
+    await expect(service.claim({
       code: created.code,
       clientId: 'phone-2',
       deviceName: 'Manual Device',
@@ -64,11 +64,7 @@ describe('PairingService', () => {
       websocketUrl: 'ws://127.0.0.1:8788/ws',
       uploadUrl: 'http://127.0.0.1:8788/api/uploads',
       messagesUrl: 'http://127.0.0.1:8788/api/messages',
-    });
-
-    expect(claimed.conversationId).toBe(created.conversationId);
-    expect(claimed.accountId).toBe('default');
-    expect(claimed.peerId).toMatch(/^user_/);
+    })).rejects.toThrow('Pairing secret required');
   });
 
   it('rejects claims when the requested account does not match the pairing account', async () => {
@@ -85,6 +81,7 @@ describe('PairingService', () => {
     await expect(service.claim({
       code: created.code,
       accountId: 'default',
+      secret: created.secret,
       clientId: 'phone-3',
       deviceName: 'Wrong Account Device',
     }, {

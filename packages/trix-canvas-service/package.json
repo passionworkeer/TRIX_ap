@@ -7,11 +7,14 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js",
-    "setup": "node scripts/setup.js"
+    "proxy": "node proxy.js",
+    "start:all": "node start-all.js",
+    "test:smoke": "node --test ../../tests/smoke/trix-canvas-smoke.test.mjs",
+    "check": "node --check server.js && node --check proxy.js && node --check start-all.js"
   },
   "dependencies": {
+    "dotenv": "^16.3.1",
     "express": "^4.18.2",
-    "uuid": "^9.0.0",
-    "dotenv": "^16.3.1"
+    "uuid": "^9.0.1"
   }
 }

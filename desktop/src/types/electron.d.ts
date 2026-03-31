@@ -398,9 +398,7 @@ export interface ElectronAPI {
   /** Fired when a third-party channel connection status changes */
   onChannelStatusUpdate: (callback: (data: ChannelStatusUpdate) => void) => () => void;
 
-  // OpenClaw Config Read/Write
-  configRead: () => Promise<ApiResult<Record<string, unknown>>>;
-  configWrite: (data: Record<string, unknown>) => Promise<ApiResult<void>>;
+  // OpenClaw Config Sections
   configReadSection: (section: string) => Promise<ApiResult<unknown>>;
   configWriteSection: (section: string, value: unknown) => Promise<ApiResult<void>>;
 
@@ -512,10 +510,8 @@ export interface ChannelStatusUpdate {
   error?: string;
 }
 
-/** Supabase auth session data stored in electron-store */
-export interface SupabaseSession {
-  access_token?: string;
-  refresh_token?: string;
+/** Sanitized auth session data exposed to renderer */
+export interface DesktopAuthSession {
   expires_in?: number;
   expires_at?: number;
   token_type?: string;
@@ -530,7 +526,7 @@ export interface SupabaseSession {
 /** Result envelope for auth operations */
 export interface AuthResult {
   success: boolean;
-  data?: SupabaseSession | null;
+  data?: DesktopAuthSession | null;
   error?: string;
 }
 

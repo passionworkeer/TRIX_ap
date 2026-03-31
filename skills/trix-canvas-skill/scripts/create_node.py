@@ -1,16 +1,17 @@
 """创建节点（封装 Canvas API）"""
 
+from __future__ import annotations
+
 import argparse
 import json
-import sys
 
 import _common
 
 
 def run(
-    project_id: int,
-    file_id: int = None,
-    scene_id: int = None,
+    project_id: str,
+    file_id: str | None = None,
+    scene_id: int | None = None,
     media_type: str = "image",
     x: float = 0,
     y: float = 0,
@@ -31,8 +32,8 @@ def run(
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="创建 Canvas 节点")
-    parser.add_argument("project_id", type=int)
-    parser.add_argument("--file-id", type=int, default=None)
+    parser.add_argument("project_id")
+    parser.add_argument("--file-id", default=None)
     parser.add_argument("--scene-id", type=int, default=None)
     parser.add_argument("--type", choices=["image", "video"], default="image")
     parser.add_argument("--x", type=float, default=0)
