@@ -162,3 +162,4 @@ packages/skills/
 # Local E2E/runtime artifacts
 .trix-local-e2e/
 ios/TRIX3DCompanion/docs_backup/
+.artifacts/

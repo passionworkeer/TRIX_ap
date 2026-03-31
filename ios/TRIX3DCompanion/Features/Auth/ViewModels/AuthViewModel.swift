@@ -122,6 +122,9 @@ final class AuthViewModel {
     /// Registration success
     var isRegisterSuccess: Bool = false
 
+    /// Success copy shown after registration completes
+    var registerSuccessMessage: String?
+
     // MARK: - Initialization
 
     init(
@@ -322,6 +325,7 @@ final class AuthViewModel {
         registerValidationError = nil
         registerApiError = nil
         isRegisterSuccess = false
+        registerSuccessMessage = nil
 
         // Validate all fields
         if let usernameError = validateRegisterUsername() {
@@ -361,8 +365,14 @@ final class AuthViewModel {
         switch result {
         case .success:
             isRegisterSuccess = true
+            registerSuccessMessage = NSLocalizedString("auth.register.success.message", comment: "Registration success message")
         case .failure(let error):
-            registerApiError = error.localizedDescription
+            if case .emailConfirmationRequired(let email) = error {
+                isRegisterSuccess = true
+                registerSuccessMessage = makeEmailConfirmationMessage(email: email)
+            } else {
+                registerApiError = error.localizedDescription
+            }
         }
 
         return result
@@ -389,6 +399,7 @@ final class AuthViewModel {
         registerApiError = nil
         isRegisterLoading = false
         isRegisterSuccess = false
+        registerSuccessMessage = nil
     }
 
     /// Clears all errors
@@ -398,5 +409,22 @@ final class AuthViewModel {
         registerValidationError = nil
         registerApiError = nil
         authService.clearError()
+    }
+
+    private func makeEmailConfirmationMessage(email: String?) -> String {
+        if let email, !email.isEmpty {
+            return String(
+                format: NSLocalizedString(
+                    "auth.register.success.message.verify_email_with_email",
+                    comment: "Registration verification message with email"
+                ),
+                email
+            )
+        }
+
+        return NSLocalizedString(
+            "auth.register.success.message.verify_email",
+            comment: "Registration verification message"
+        )
     }
 }

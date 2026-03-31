@@ -385,6 +385,12 @@ function httpError(message, statusCode = 400, code = '') {
   return error;
 }
 
+function internalServerError(message, internalDetail, code = 'INTERNAL_SERVER_ERROR') {
+  const error = httpError(message, 500, code);
+  error.internalDetail = internalDetail;
+  return error;
+}
+
 function assertSafeRecordId(id, label = 'record id') {
   const normalized = String(id || '').trim();
   if (!SAFE_RECORD_ID_RE.test(normalized)) {
@@ -1055,6 +1061,20 @@ async function invokeAi(path, body, method = 'POST') {
 }
 
 function buildGeneratePayload(session) {
+  const parentNode = session.parent_node_id
+    ? readRecord(NODES_DIR, session.parent_node_id)
+    : null;
+  const parentFile = parentNode?.file_id
+    ? readRecord(FILES_DIR, parentNode.file_id)
+    : null;
+  const parentResultUrl = parentNode?.result_url || parentFile?.url || '';
+  const absoluteParentResultUrl = parentResultUrl
+    ? (
+      /^https?:\/\//i.test(parentResultUrl)
+        ? parentResultUrl
+        : `${APP_ORIGIN}${parentResultUrl.startsWith('/') ? '' : '/'}${parentResultUrl}`
+    )
+    : '';
   return {
     prompt: session.message,
     message: session.message,
@@ -1068,6 +1088,10 @@ function buildGeneratePayload(session) {
     sessionId: session.id,
     parent_node_id: session.parent_node_id,
     parentNodeId: session.parent_node_id,
+    parent_source_url: parentFile?.source_url || '',
+    parentSourceUrl: parentFile?.source_url || '',
+    parent_result_url: absoluteParentResultUrl,
+    parentResultUrl: absoluteParentResultUrl,
   };
 }
 
@@ -1988,9 +2012,11 @@ async function exportVideo(project, aspect, { outputToken = '' } = {}) {
         );
         const result = await runCommand('ffmpeg', args, { timeoutMs: 5 * 60_000 });
         if (result.status !== 0) {
-          const error = new Error(`片段转码失败: ${result.stderr || result.stdout}`);
-          error.statusCode = 500;
-          throw error;
+          throw internalServerError(
+            '片段转码失败，请稍后重试',
+            result.stderr || result.stdout || 'ffmpeg exited with a non-zero status during segment transcode',
+            'CANVAS_SEGMENT_TRANSCODE_FAILED',
+          );
         }
         segmentPaths.push(segmentPath);
       }
@@ -2008,9 +2034,11 @@ async function exportVideo(project, aspect, { outputToken = '' } = {}) {
         { timeoutMs: 5 * 60_000 },
       );
       if (result.status !== 0) {
-        const error = new Error(`视频拼接失败: ${result.stderr || result.stdout}`);
-        error.statusCode = 500;
-        throw error;
+        throw internalServerError(
+          '视频拼接失败，请稍后重试',
+          result.stderr || result.stdout || 'ffmpeg exited with a non-zero status during concat',
+          'CANVAS_VIDEO_CONCAT_FAILED',
+        );
       }
 
       return {
@@ -2570,11 +2598,28 @@ app.get('/media/exports/:filename', (req, res) => {
   return res.sendFile(filePath);
 });
 
-app.use((error, _req, res, _next) => {
+app.use((error, req, res, _next) => {
   const statusCode = error?.statusCode || 500;
+  if (statusCode >= 500) {
+    console.error('[trix-canvas-service] request failed', {
+      method: req.method,
+      path: req.originalUrl || req.url,
+      statusCode,
+      code: error?.code || 'INTERNAL_SERVER_ERROR',
+      message: error?.message || '服务异常',
+      detail: error?.internalDetail || null,
+      stack: error?.stack || null,
+    });
+    return res.status(statusCode).json({
+      error: '服务异常，请稍后重试',
+      detail: 'internal_error',
+    });
+  }
+
+  const safeMessage = error?.message || '服务异常';
   res.status(statusCode).json({
-    error: error?.message || '服务异常',
-    detail: error?.message || '服务异常',
+    error: safeMessage,
+    detail: safeMessage,
   });
 });
 

@@ -85,13 +85,13 @@ struct LoginView: View {
         } message: {
             Text(errorMessage)
         }
-        .onChange(of: viewModel.loginValidationError) { newError in
+        .onChange(of: viewModel.loginValidationError) { _, newError in
             if let error = newError {
                 errorMessage = error
                 showingError = true
             }
         }
-        .onChange(of: viewModel.loginApiError) { newError in
+        .onChange(of: viewModel.loginApiError) { _, newError in
             if let error = newError {
                 errorMessage = error
                 showingError = true

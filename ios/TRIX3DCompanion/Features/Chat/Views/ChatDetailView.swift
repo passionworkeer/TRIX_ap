@@ -138,7 +138,7 @@ struct ChatDetailView: View {
                     scrollToBottom(proxy: proxy)
                 }
             }
-            .onChange(of: chatService.currentMessages.count) { newCount in
+            .onChange(of: chatService.currentMessages.count) { _, newCount in
                 // 如果消息数增加了，滚动到底部
                 if newCount > previousMessageCount {
                     scrollToBottom(proxy: proxy)

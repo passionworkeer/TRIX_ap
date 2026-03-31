@@ -110,10 +110,10 @@ struct TrixBotChatView: View {
             applyUITestAttachmentIfNeeded()
             scheduleUITestAutoSendIfNeeded()
         }
-        .onChange(of: displayMessages.count) { _ in
+        .onChange(of: displayMessages.count) { _, _ in
             scrollToBottom = true
         }
-        .onChange(of: clawbotChannel.isPaired) { _ in
+        .onChange(of: clawbotChannel.isPaired) { _, _ in
             scheduleUITestFocusIfNeeded()
             scheduleUITestAutoSendIfNeeded()
         }
@@ -155,7 +155,7 @@ struct TrixBotChatView: View {
                 scrollToBottom = true
                 scheduleUITestFocusIfNeeded()
             }
-            .onChange(of: scrollToBottom) { shouldScroll in
+            .onChange(of: scrollToBottom) { _, shouldScroll in
                 guard shouldScroll else { return }
 
                 withAnimation(.easeOut(duration: 0.2)) {

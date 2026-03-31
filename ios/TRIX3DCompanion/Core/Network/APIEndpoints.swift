@@ -21,7 +21,7 @@ enum APISecurityConfig {
 
     static func debugOverride(_ environmentKey: String, secureFallback: String) -> String {
         #if DEBUG
-        guard let rawValue = ProcessInfo.processInfo.environment[environmentKey]?
+        guard let rawValue = environmentValue(for: environmentKey)?
             .trimmingCharacters(in: .whitespacesAndNewlines),
               !rawValue.isEmpty
         else {
@@ -43,6 +43,21 @@ enum APISecurityConfig {
         #else
         return secureFallback
         #endif
+    }
+
+    private static func environmentValue(for key: String) -> String? {
+        let environment = ProcessInfo.processInfo.environment
+        if let value = environment[key] ?? environment["SIMCTL_CHILD_\(key)"] {
+            return value
+        }
+
+        let fileURL = URL(fileURLWithPath: "/tmp/\(key)")
+        guard let value = try? String(contentsOf: fileURL, encoding: .utf8) else {
+            return nil
+        }
+
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
     }
 }
 
@@ -660,6 +675,8 @@ struct User: Codable, Identifiable {
     let id: String
     let username: String?
     let email: String?
+    let phone: String?
+    let role: String?
     let avatarUrl: String?
     let avatarConfig: [String: AnyCodable]?
     let fullName: String?
@@ -671,12 +688,16 @@ struct User: Codable, Identifiable {
     let companionId: String?
     let totalStudyTime: Int?
     let lastActiveAt: Date?
+    let lastSignInAt: Date?
     let currentStreak: Int?
     let daysActive: Int?
     let interactionCount: Int?
     let showOnlineStatus: Bool?
     let school: String?
     let grade: String?
+    let confirmationSentAt: Date?
+    let confirmedAt: Date?
+    let emailConfirmedAt: Date?
     let createdAt: Date?
     let updatedAt: Date?
 
@@ -684,6 +705,8 @@ struct User: Codable, Identifiable {
         case id
         case username
         case email
+        case phone
+        case role
         case avatarUrl = "avatar_url"
         case avatarConfig = "avatar_config"
         case fullName = "full_name"
@@ -695,14 +718,78 @@ struct User: Codable, Identifiable {
         case companionId = "companion_id"
         case totalStudyTime = "total_study_time"
         case lastActiveAt = "last_active_at"
+        case lastSignInAt = "last_sign_in_at"
         case currentStreak = "current_streak"
         case daysActive = "days_active"
         case interactionCount = "interaction_count"
         case showOnlineStatus = "show_online_status"
         case school
         case grade
+        case confirmationSentAt = "confirmation_sent_at"
+        case confirmedAt = "confirmed_at"
+        case emailConfirmedAt = "email_confirmed_at"
         case createdAt = "created_at"
         case updatedAt = "updated_at"
+    }
+
+    init(
+        id: String,
+        username: String? = nil,
+        email: String? = nil,
+        phone: String? = nil,
+        role: String? = nil,
+        avatarUrl: String? = nil,
+        avatarConfig: [String: AnyCodable]? = nil,
+        fullName: String? = nil,
+        displayName: String? = nil,
+        bio: String? = nil,
+        website: String? = nil,
+        points: Int? = nil,
+        isStudying: Bool? = nil,
+        companionId: String? = nil,
+        totalStudyTime: Int? = nil,
+        lastActiveAt: Date? = nil,
+        lastSignInAt: Date? = nil,
+        currentStreak: Int? = nil,
+        daysActive: Int? = nil,
+        interactionCount: Int? = nil,
+        showOnlineStatus: Bool? = nil,
+        school: String? = nil,
+        grade: String? = nil,
+        confirmationSentAt: Date? = nil,
+        confirmedAt: Date? = nil,
+        emailConfirmedAt: Date? = nil,
+        createdAt: Date? = nil,
+        updatedAt: Date? = nil
+    ) {
+        self.id = id
+        self.username = username
+        self.email = email
+        self.phone = phone
+        self.role = role
+        self.avatarUrl = avatarUrl
+        self.avatarConfig = avatarConfig
+        self.fullName = fullName
+        self.displayName = displayName
+        self.bio = bio
+        self.website = website
+        self.points = points
+        self.isStudying = isStudying
+        self.companionId = companionId
+        self.totalStudyTime = totalStudyTime
+        self.lastActiveAt = lastActiveAt
+        self.lastSignInAt = lastSignInAt
+        self.currentStreak = currentStreak
+        self.daysActive = daysActive
+        self.interactionCount = interactionCount
+        self.showOnlineStatus = showOnlineStatus
+        self.school = school
+        self.grade = grade
+        self.confirmationSentAt = confirmationSentAt
+        self.confirmedAt = confirmedAt
+        self.emailConfirmedAt = emailConfirmedAt
+        self.createdAt = createdAt
+        self.updatedAt = updatedAt
     }
 }
 
@@ -748,9 +835,63 @@ struct LoginRequest: Codable {
 }
 
 struct RegisterRequest: Codable {
-    let username: String
     let email: String
     let password: String
+    let data: Metadata
+
+    struct Metadata: Codable {
+        let username: String
+    }
+
+    init(username: String, email: String, password: String) {
+        self.email = email
+        self.password = password
+        self.data = Metadata(username: username)
+    }
+}
+
+struct RegisterResponse: Codable {
+    let user: User
+    let accessToken: String?
+    let refreshToken: String?
+    let expiresIn: Int?
+    let confirmationSentAt: Date?
+    let confirmedAt: Date?
+    let emailConfirmedAt: Date?
+    let sessionlessSignup: Bool
+
+    var requiresEmailConfirmation: Bool {
+        guard accessToken == nil && refreshToken == nil else {
+            return false
+        }
+        if confirmationSentAt != nil {
+            return true
+        }
+        if emailConfirmedAt != nil || confirmedAt != nil {
+            return false
+        }
+        return sessionlessSignup
+    }
+
+    init(
+        user: User,
+        accessToken: String?,
+        refreshToken: String?,
+        expiresIn: Int?,
+        confirmationSentAt: Date?,
+        confirmedAt: Date? = nil,
+        emailConfirmedAt: Date? = nil,
+        sessionlessSignup: Bool = false
+    ) {
+        self.user = user
+        self.accessToken = accessToken
+        self.refreshToken = refreshToken
+        self.expiresIn = expiresIn
+        self.confirmationSentAt = confirmationSentAt
+        self.confirmedAt = confirmedAt
+        self.emailConfirmedAt = emailConfirmedAt
+        self.sessionlessSignup = sessionlessSignup
+    }
 }
 
 struct AuthResponse: Codable {

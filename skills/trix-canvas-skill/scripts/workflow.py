@@ -30,6 +30,27 @@ def _poll_job(job: dict, timeout: int = 300) -> dict:
     return {**job, "result": payload}
 
 
+def _normalize_scene_media_type(scene: dict) -> str:
+    media_type = str(scene.get("media_type") or scene.get("mediaType") or "image").strip().lower()
+    return media_type if media_type in {"image", "video"} else "image"
+
+
+def _should_retry_failure(failure: dict) -> bool:
+    payload = failure.get("result") if isinstance(failure, dict) else None
+    error = str(
+        (payload or {}).get("error")
+        or (failure or {}).get("error")
+        or ""
+    ).lower()
+    non_retryable_markers = (
+        "plan not support",
+        "does not support",
+        "invalid params",
+        "missing parent image node",
+    )
+    return not any(marker in error for marker in non_retryable_markers)
+
+
 def _queue_media_sessions(
     project_id: str,
     scenes: list[dict],
@@ -144,12 +165,154 @@ def _wait_jobs(jobs: list[dict], concurrent: int) -> tuple[list[dict], list[dict
     return completed, failed
 
 
+def _create_scene_job(
+    project_id: str,
+    scene: dict,
+    aspect: str,
+    style: str,
+    last_image_node_id: str | None,
+) -> dict:
+    media_type = _normalize_scene_media_type(scene)
+    parent_node_id = last_image_node_id if media_type == "video" else None
+    if media_type == "video" and not parent_node_id:
+        return {
+            "scene_index": scene["index"],
+            "scene_text": scene["text"],
+            "media_type": media_type,
+            "session_id": "",
+            "node_id": "",
+            "status": "error",
+            "error": "missing parent image node",
+        }
+
+    try:
+        payload = _common.create_session(
+            message=scene["text"],
+            project_id=project_id,
+            media_type=media_type,
+            aspect=aspect,
+            style=style,
+            parent_node_id=parent_node_id,
+        )
+        data = _unwrap_payload_data(payload)
+        job = {
+            "scene_index": scene["index"],
+            "scene_text": scene["text"],
+            "media_type": media_type,
+            "session_id": str(data.get("sessionId") or ""),
+            "node_id": str(data.get("nodeId") or ""),
+            "status": data.get("status", "queued"),
+        }
+        if not job["session_id"]:
+            job["status"] = "error"
+            job["error"] = "sessionId missing from response"
+        return job
+    except Exception as exc:  # noqa: BLE001
+        return {
+            "scene_index": scene["index"],
+            "scene_text": scene["text"],
+            "media_type": media_type,
+            "session_id": "",
+            "node_id": "",
+            "status": "error",
+            "error": str(exc),
+        }
+
+
+def _run_scene_jobs(
+    project_id: str,
+    scenes: list[dict],
+    aspect: str,
+    style: str,
+    skip_video: bool,
+    retries: int,
+) -> tuple[list[dict], list[dict], list[dict], list[dict]]:
+    image_completed = []
+    image_failed = []
+    video_completed = []
+    video_failed = []
+    last_image_node_id = None
+
+    for scene in scenes:
+        media_type = _normalize_scene_media_type(scene)
+        if media_type == "video" and skip_video:
+            print(f"  [SKIP] video scene {scene['index']}: video generation skipped")
+            continue
+
+        final_failure = None
+        for attempt in range(retries + 1):
+            job = _create_scene_job(
+                project_id=project_id,
+                scene=scene,
+                aspect=aspect,
+                style=style,
+                last_image_node_id=last_image_node_id,
+            )
+            print(
+                f"  [QUEUED] {job['media_type']} scene {job['scene_index']} -> "
+                f"node={job.get('node_id', '')} session={job.get('session_id', '')}"
+            )
+
+            if not job.get("session_id"):
+                error = job.get("error") or "sessionId missing from response"
+                final_failure = {**job, "result": {"status": "error", "error": error}}
+                print(f"  [FAIL] [queue] {job['media_type']} scene {job['scene_index']}: {error}")
+            else:
+                try:
+                    result = _poll_job(job)
+                except Exception as exc:  # noqa: BLE001
+                    result = {
+                        **job,
+                        "result": {"status": "error", "error": str(exc)},
+                    }
+
+                payload = result["result"]
+                status = str(payload.get("status", "")).lower()
+                if status == "completed":
+                    if job["media_type"] == "image":
+                        image_completed.append(result)
+                        last_image_node_id = job.get("node_id") or None
+                    else:
+                        video_completed.append(result)
+                    print(f"  [OK] {job['media_type']} scene {job['scene_index']} completed")
+                    final_failure = None
+                    break
+
+                final_failure = result
+                print(
+                    f"  [FAIL] {job['media_type']} scene {job['scene_index']}: "
+                    f"{payload.get('error', 'unknown error')}"
+                )
+
+            if attempt < retries and final_failure and _should_retry_failure(final_failure):
+                print(
+                    f"  [RETRY] {media_type} scene {scene['index']} "
+                    f"({attempt + 1}/{retries})"
+                )
+                continue
+            if final_failure:
+                break
+
+        if final_failure is None:
+            continue
+
+        if media_type == "image":
+            image_failed.append(final_failure)
+            last_image_node_id = None
+        else:
+            video_failed.append(final_failure)
+
+    return image_completed, image_failed, video_completed, video_failed
+
+
 def run_workflow(
     script_text: str,
     project_name: str = "",
     concurrent: int = 3,
     skip_video: bool = False,
     skip_subtitle: bool = False,
+    skip_final_video: bool = False,
+    retries: int = 1,
     batch: int = 1,
     aspect: str = "origin",
     style: str = "",
@@ -177,6 +340,7 @@ def run_workflow(
     total_image_failures = 0
     total_video_failures = 0
     total_subtitle_failures = 0
+    total_final_video_failures = 0
     for batch_index in range(batch):
         batch_name = (
             f"{project_name or 'Short Drama'}#{batch_index + 1}"
@@ -191,52 +355,22 @@ def run_workflow(
         all_projects.append(project_id)
         print(f"  [OK] Project created: {project_id}")
 
-        print("\n[4/6] Queueing image sessions...")
-        image_jobs = _queue_media_sessions(
+        print("\n[4/6] Rendering scenes in script order...")
+        image_completed, image_failed, video_completed, video_failed = _run_scene_jobs(
             project_id=project_id,
             scenes=scenes,
-            media_type="image",
             aspect=aspect,
             style=style,
+            skip_video=skip_video,
+            retries=retries,
         )
-        for job in image_jobs:
-            print(
-                f"  [QUEUED] image scene {job['scene_index']} -> "
-                f"node={job['node_id']} session={job['session_id']}"
-            )
-
-        print("\n[5/6] Waiting for image sessions...")
-        image_completed, image_failed = _wait_jobs(image_jobs, concurrent)
-        image_node_lookup = {
-            job["scene_index"]: job["node_id"] for job in image_completed if job.get("node_id")
-        }
-
-        video_completed = []
-        video_failed = []
-        if not skip_video:
-            print("\n[5.5/6] Queueing video sessions...")
-            video_jobs = _queue_media_sessions(
-                project_id=project_id,
-                scenes=scenes,
-                media_type="video",
-                aspect=aspect,
-                style=style,
-                parent_lookup=image_node_lookup,
-            )
-            for job in video_jobs:
-                print(
-                    f"  [QUEUED] video scene {job['scene_index']} -> "
-                    f"node={job['node_id']} session={job['session_id']}"
-                )
-            print("\n[5.6/6] Waiting for video sessions...")
-            video_completed, video_failed = _wait_jobs(video_jobs, concurrent)
-        else:
-            print("\n[5.5/6] Skipping video generation")
 
         subtitle_result = None
         subtitle_failed = False
-        if not skip_subtitle:
-            print("\n[6/6] Exporting subtitles...")
+        if skip_subtitle:
+            print("\n[5/6] Skipping subtitle export")
+        else:
+            print("\n[5/6] Exporting subtitles...")
             from export_subtitle import export
 
             subtitle_result = export(project_id)
@@ -246,28 +380,57 @@ def run_workflow(
             else:
                 subtitle_failed = True
                 print(f"  [FAIL] Subtitle export: {subtitle_result.get('error', 'unknown error')}")
+
+        video_scene_count = sum(1 for scene in scenes if _normalize_scene_media_type(scene) == "video")
+        final_video_result = None
+        final_video_failed = False
+        if skip_final_video:
+            print("\n[6/6] Skipping final video export")
+        elif skip_video:
+            print("\n[6/6] Skipping final video export because video generation was skipped")
+        elif video_scene_count == 0:
+            print("\n[6/6] Skipping final video export because the script has no video scenes")
+        elif video_failed:
+            print("\n[6/6] Skipping final video export because one or more video scenes failed")
+        elif not video_completed:
+            print("\n[6/6] Skipping final video export because no video scenes completed")
         else:
-            print("\n[6/6] Skipping subtitle export")
+            print("\n[6/6] Exporting final video...")
+            from export_video import export as export_final_video
+
+            final_video_result = export_final_video(project_id, aspect=aspect)
+            if final_video_result["ok"]:
+                print(f"  [OK] Final video: {final_video_result['path']}")
+            else:
+                final_video_failed = True
+                print(
+                    f"  [FAIL] Final video export: "
+                    f"{final_video_result.get('error', 'unknown error')}"
+                )
 
         canvas_url = f"{os.environ.get('CANVAS_BASE_URL', 'http://localhost:8789')}/canvas?projectId={project_id}"
         print("\nProject summary")
         print(f"  Images: {len(image_completed)} completed / {len(image_failed)} failed")
         print(f"  Videos: {len(video_completed)} completed / {len(video_failed)} failed")
+        if isinstance(final_video_result, dict) and final_video_result.get("ok"):
+            print(f"  Final video: {final_video_result['path']}")
         print(f"  Canvas: {canvas_url}")
         total_image_failures += len(image_failed)
         total_video_failures += len(video_failed)
         total_subtitle_failures += 1 if subtitle_failed else 0
+        total_final_video_failures += 1 if final_video_failed else 0
+        image_scene_count = sum(1 for scene in scenes if _normalize_scene_media_type(scene) == "image")
         project_summaries.append(
             {
                 "project_id": project_id,
                 "canvas_url": canvas_url,
                 "images": {
-                    "queued": len(image_jobs),
+                    "queued": image_scene_count,
                     "completed": len(image_completed),
                     "failed": len(image_failed),
                 },
                 "videos": {
-                    "queued": 0 if skip_video else len(video_completed) + len(video_failed),
+                    "queued": 0 if skip_video else video_scene_count,
                     "completed": len(video_completed),
                     "failed": len(video_failed),
                 },
@@ -275,10 +438,28 @@ def run_workflow(
                     "ok": False if subtitle_failed else True,
                     "error": subtitle_result.get("error", "") if isinstance(subtitle_result, dict) else "",
                 },
+                "final_video": {
+                    "ok": isinstance(final_video_result, dict) and bool(final_video_result.get("ok")),
+                    "path": final_video_result.get("path", "") if isinstance(final_video_result, dict) else "",
+                    "url": final_video_result.get("url", "") if isinstance(final_video_result, dict) else "",
+                    "error": final_video_result.get("error", "") if isinstance(final_video_result, dict) else "",
+                    "skipped": (
+                        skip_final_video
+                        or skip_video
+                        or video_scene_count == 0
+                        or bool(video_failed)
+                        or not video_completed
+                    ),
+                },
             }
         )
 
-    total_failures = total_image_failures + total_video_failures + total_subtitle_failures
+    total_failures = (
+        total_image_failures
+        + total_video_failures
+        + total_subtitle_failures
+        + total_final_video_failures
+    )
     return {
         "ok": total_failures == 0,
         "projects": all_projects,
@@ -288,6 +469,7 @@ def run_workflow(
         "image_failures": total_image_failures,
         "video_failures": total_video_failures,
         "subtitle_failures": total_subtitle_failures,
+        "final_video_failures": total_final_video_failures,
         "failed_jobs": total_failures,
     }
 
@@ -299,6 +481,8 @@ if __name__ == "__main__":
     parser.add_argument("--concurrent", type=int, default=3, help="Session polling concurrency")
     parser.add_argument("--skip-video", action="store_true", help="Skip video generation")
     parser.add_argument("--skip-subtitle", action="store_true", help="Skip subtitle export")
+    parser.add_argument("--skip-final-video", action="store_true", help="Skip final video export")
+    parser.add_argument("--retries", type=int, default=1, help="Retries per failed scene")
     parser.add_argument(
         "--batch",
         type=int,
@@ -326,6 +510,8 @@ if __name__ == "__main__":
         concurrent=args.concurrent,
         skip_video=args.skip_video,
         skip_subtitle=args.skip_subtitle,
+        skip_final_video=args.skip_final_video,
+        retries=args.retries,
         batch=args.batch,
         aspect=args.aspect,
         style=args.style,

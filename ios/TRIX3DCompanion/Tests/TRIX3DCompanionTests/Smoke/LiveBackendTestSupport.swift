@@ -1,6 +1,21 @@
 import XCTest
 @testable import TRIX3DCompanion
 
+func smokeEnvironmentValue(for key: String) -> String? {
+    let environment = ProcessInfo.processInfo.environment
+    if let value = environment[key] ?? environment["SIMCTL_CHILD_\(key)"] {
+        return value
+    }
+
+    let fileURL = URL(fileURLWithPath: "/tmp/\(key)")
+    guard let value = try? String(contentsOf: fileURL, encoding: .utf8) else {
+        return nil
+    }
+
+    let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+    return trimmed.isEmpty ? nil : trimmed
+}
+
 struct LiveBackendTestConfig: Decodable {
     let email: String?
     let password: String?
@@ -8,9 +23,8 @@ struct LiveBackendTestConfig: Decodable {
     static let defaultPath = "/tmp/trix-ui-config.json"
 
     static func load() -> LiveBackendTestConfig {
-        let environment = ProcessInfo.processInfo.environment
-
-        if let configPath = environment["TRIX_UI_CONFIG_PATH"] ?? environment["UITEST_CONFIG_PATH"],
+        if let configPath = smokeEnvironmentValue(for: "TRIX_UI_CONFIG_PATH")
+            ?? smokeEnvironmentValue(for: "UITEST_CONFIG_PATH"),
            let config = load(from: configPath) {
             return config
         }
@@ -20,8 +34,8 @@ struct LiveBackendTestConfig: Decodable {
         }
 
         return LiveBackendTestConfig(
-            email: environment["TRIX_TEST_EMAIL"],
-            password: environment["TRIX_TEST_PASSWORD"]
+            email: smokeEnvironmentValue(for: "TRIX_TEST_EMAIL"),
+            password: smokeEnvironmentValue(for: "TRIX_TEST_PASSWORD")
         )
     }
 
@@ -47,13 +61,11 @@ class LiveBackendSmokeTestCase: XCTestCase {
     }
 
     func requireCredentials() throws -> (email: String, password: String) {
-        let environment = ProcessInfo.processInfo.environment
-
         let email = config.email
-            ?? environment["TRIX_TEST_EMAIL"]
+            ?? smokeEnvironmentValue(for: "TRIX_TEST_EMAIL")
             ?? credentialValue(for: "TRIX_TEST_EMAIL")
         let password = config.password
-            ?? environment["TRIX_TEST_PASSWORD"]
+            ?? smokeEnvironmentValue(for: "TRIX_TEST_PASSWORD")
             ?? credentialValue(for: "TRIX_TEST_PASSWORD")
 
         guard let email, !email.isEmpty, let password, !password.isEmpty else {
@@ -105,8 +117,9 @@ class LiveBackendSmokeTestCase: XCTestCase {
     }
 
     private func isLiveBackendSmokeEnabled() -> Bool {
-        let environment = ProcessInfo.processInfo.environment
-        if let value = environment["TRIX_RUN_LIVE_SMOKE"]?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() {
+        if let value = smokeEnvironmentValue(for: "TRIX_RUN_LIVE_SMOKE")?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased() {
             return ["1", "true", "yes", "on"].contains(value)
         }
 

@@ -66,11 +66,11 @@ struct MainTabView: View {
         }
         .accessibilityIdentifier(MainNavigationAccessibilityIdentifiers.mainTabView)
         .uiTestMarker(MainNavigationAccessibilityIdentifiers.selectedTab(for: appState.selectedTab))
-        .onChange(of: appState.selectedTab) { newTab in
+        .onChange(of: appState.selectedTab) { _, newTab in
             UITestEventLogger.log("MainTabView observed selectedTab -> \(newTab.rawValue)")
             handleTabChange(to: newTab)
         }
-        .onChange(of: appState.pendingCompanionRoute) { route in
+        .onChange(of: appState.pendingCompanionRoute) { _, route in
             UITestEventLogger.log("MainTabView mirrored companion route -> \(route?.id ?? "nil")")
             presentedCompanionRoute = route == .pairing ? route : nil
         }

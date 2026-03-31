@@ -219,6 +219,7 @@
 		AEB6D862F171E23624C1553F /* NetworkLogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = D7E9164A6BFA1FE90C6288F9 /* NetworkLogger.swift */; };
 		AED322D8B5411F31D9E35D18 /* PrivacySettingsScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9EA15FE5236179D0935B344 /* PrivacySettingsScreen.swift */; };
 		AF14745CA5C484BC881D416A /* AuthLiveLoginSmokeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 626A2E7FDA9EC5E084EBCF31 /* AuthLiveLoginSmokeTests.swift */; };
+		AF14745DA5C484BC881D416A /* AuthLiveRegistrationSmokeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 626A2E80DA9EC5E084EBCF31 /* AuthLiveRegistrationSmokeTests.swift */; };
 		B0019182E2CB501E0721DBD9 /* Location.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5AB0D33EE6D1C31B98C64D95 /* Location.swift */; };
 		B1C1879DCA690A4256AD4708 /* StatsSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = E78B62495FF850D8FF49FD69 /* StatsSection.swift */; };
 		B1F27890FB8DEDBD936DEFEA /* idle.mp4 in Resources */ = {isa = PBXBuildFile; fileRef = F073907B3C49102899D1AC40 /* idle.mp4 */; };
@@ -481,6 +482,7 @@
 		61562858985BAB8B39A52F53 /* AvatarHead.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = AvatarHead.png; sourceTree = "<group>"; };
 		6183C6252E3EDD8B6D218140 /* OnlineStatusIndicator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnlineStatusIndicator.swift; sourceTree = "<group>"; };
 		626A2E7FDA9EC5E084EBCF31 /* AuthLiveLoginSmokeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthLiveLoginSmokeTests.swift; sourceTree = "<group>"; };
+		626A2E80DA9EC5E084EBCF31 /* AuthLiveRegistrationSmokeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthLiveRegistrationSmokeTests.swift; sourceTree = "<group>"; };
 		63CC5560654FE5E331D0128C /* TodoFormView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodoFormView.swift; sourceTree = "<group>"; };
 		63DE9EDB9E59B7050D9BBF05 /* TTSServiceProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TTSServiceProtocol.swift; sourceTree = "<group>"; };
 		6537F20DC9F0A7CEF8900FE4 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
@@ -825,6 +827,7 @@
 				0C05D876754A6EA827228194 /* AuthenticatedBackendSmokeTests.swift */,
 				2AB7C0C91667E7B903EFBAB5 /* AuthFormPaletteTests.swift */,
 				626A2E7FDA9EC5E084EBCF31 /* AuthLiveLoginSmokeTests.swift */,
+				626A2E80DA9EC5E084EBCF31 /* AuthLiveRegistrationSmokeTests.swift */,
 				8EED4A884D04D8F181CE5C13 /* FriendErrorPresentationSmokeTests.swift */,
 				56886B73B4BCA992C7BEC5A9 /* InputValidatorSmokeTests.swift */,
 				9A390D541E8E81AD4FA59CB5 /* LiveBackendTestSupport.swift */,
@@ -1918,6 +1921,7 @@
 				1D11E7F9AEE27F31B77BB3CE /* AuthFormPaletteTests.swift in Sources */,
 				5D07031F2BA663D37FE0CB46 /* AuthIntegrationTests.swift in Sources */,
 				AF14745CA5C484BC881D416A /* AuthLiveLoginSmokeTests.swift in Sources */,
+				AF14745DA5C484BC881D416A /* AuthLiveRegistrationSmokeTests.swift in Sources */,
 				2D2B29789A79FA4B3FED0381 /* AuthServiceTests.swift in Sources */,
 				207479EE3B23A038BFB55BBE /* AuthViewModelTests.swift in Sources */,
 				3324665C82287CCCE87EDFD0 /* AuthenticatedBackendSmokeTests.swift in Sources */,

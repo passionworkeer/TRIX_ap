@@ -2151,10 +2151,10 @@ function stripTokenParamFromUrl() {
   window.history.replaceState({}, '', url.toString());
 }
 
-function readTokenFromHash() {
+function hasTokenInHash() {
   const url = new URL(window.location.href);
   const hashParams = new URLSearchParams(url.hash.replace(/^#/, ''));
-  return hashParams.get('token') || '';
+  return hashParams.has('token');
 }
 
 async function refreshAuthStatus() {
@@ -2200,26 +2200,21 @@ async function loginCanvasWithToken(token) {
 async function ensureAuthenticated() {
   const url = new URL(window.location.href);
   const legacyTokenInQuery = url.searchParams.get('token') || '';
-  const tokenFromHash = readTokenFromHash();
-  if (legacyTokenInQuery) {
+  const tokenInHash = hasTokenInHash();
+  const unsafeTokenLinkDetected = Boolean(legacyTokenInQuery || tokenInHash);
+  if (unsafeTokenLinkDetected) {
     stripTokenParamFromUrl();
-    setAuthStatus('检测到不安全的 ?token= 链接，已忽略。请改用页面输入或 #token=。', true);
   }
   await refreshAuthStatus();
   if (!state.auth.requiresAuth || state.auth.authenticated) {
-    if (tokenFromHash) stripTokenParamFromUrl();
     return;
   }
-  if (tokenFromHash) {
-    elements.authTokenInput.value = tokenFromHash;
-    try {
-      await loginCanvasWithToken(tokenFromHash);
-      return;
-    } catch {
-      // Fall through to manual entry after the inline error is shown.
-    }
+
+  if (unsafeTokenLinkDetected) {
+    setAuthStatus('检测到不安全的 token 链接，已忽略。请在页面内手动输入访问令牌。', true);
+  } else {
+    setAuthStatus('需要访问令牌后才能读取项目与媒体。');
   }
-  setAuthStatus('需要访问令牌后才能读取项目与媒体。');
   throw new Error('Canvas authentication required');
 }
 

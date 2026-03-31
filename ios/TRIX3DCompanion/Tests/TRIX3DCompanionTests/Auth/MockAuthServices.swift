@@ -20,7 +20,9 @@ final class MockAuthService: AuthServiceProtocol {
     var isLoadingValue: Bool = false
     var currentUserValue: User?
     var shouldFailLogin: Bool = false
+    var loginFailure: AuthError?
     var shouldFailRegister: Bool = false
+    var shouldRequireEmailConfirmationOnRegister: Bool = false
     var shouldFailLogout: Bool = false
     var shouldFailRefresh: Bool = false
     var simulatedDelayNanoseconds: UInt64 = 0
@@ -60,6 +62,11 @@ final class MockAuthService: AuthServiceProtocol {
 
         if simulatedDelayNanoseconds > 0 {
             try? await Task.sleep(nanoseconds: simulatedDelayNanoseconds)
+        }
+
+        if let loginFailure {
+            isLoadingValue = false
+            return .failure(loginFailure)
         }
 
         if shouldFailLogin {
@@ -112,6 +119,13 @@ final class MockAuthService: AuthServiceProtocol {
         if shouldFailRegister {
             isLoadingValue = false
             return .failure(.emailAlreadyExists)
+        }
+
+        if shouldRequireEmailConfirmationOnRegister {
+            isLoadingValue = false
+            isLoggedInValue = false
+            currentUserValue = nil
+            return .failure(.emailConfirmationRequired(email: email))
         }
 
         let user = User(
@@ -217,7 +231,9 @@ final class MockAuthService: AuthServiceProtocol {
         isLoadingValue = false
         currentUserValue = nil
         shouldFailLogin = false
+        loginFailure = nil
         shouldFailRegister = false
+        shouldRequireEmailConfirmationOnRegister = false
         shouldFailLogout = false
         shouldFailRefresh = false
         simulatedDelayNanoseconds = 0

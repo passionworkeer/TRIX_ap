@@ -838,6 +838,104 @@ extension APIClientTests {
 // MARK: - HTTP Method Tests
 
 extension APIClientTests {
+    func testRegisterRequestEncodesUsernameInMetadata() throws {
+        let request = RegisterRequest(
+            username: "newuser",
+            email: "newuser@example.com",
+            password: "password123"
+        )
+
+        let data = try JSONEncoder().encode(request)
+        let json = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+
+        XCTAssertEqual(json["email"] as? String, "newuser@example.com")
+        XCTAssertEqual(json["password"] as? String, "password123")
+        XCTAssertNil(json["username"])
+
+        let metadata = try XCTUnwrap(json["data"] as? [String: Any])
+        XCTAssertEqual(metadata["username"] as? String, "newuser")
+    }
+
+    func testDecodeRegisterResponseFromTopLevelUserMarksEmailConfirmationRequired() throws {
+        let data = """
+        {
+          "id": "859f402d-b3de-4105-a1b9-932836d9193b",
+          "aud": "authenticated",
+          "role": "authenticated",
+          "email": "guilherme@grds.dev",
+          "phone": "",
+          "confirmation_sent_at": "2022-04-09T11:57:01.710600634Z",
+          "created_at": "2022-04-09T11:23:45.874827Z",
+          "updated_at": "2022-04-09T11:57:01.720803Z"
+        }
+        """.data(using: .utf8)!
+
+        let response = try APIClient.shared.decodeRegisterResponse(data)
+
+        XCTAssertEqual(response.user.email, "guilherme@grds.dev")
+        XCTAssertNil(response.accessToken)
+        XCTAssertTrue(response.sessionlessSignup)
+        XCTAssertNotNil(response.confirmationSentAt)
+        XCTAssertTrue(response.requiresEmailConfirmation)
+    }
+
+    func testDecodeRegisterResponseFromUserEnvelopeWithoutConfirmationTimestampStillMarksEmailConfirmationRequired() throws {
+        let data = """
+        {
+          "user": {
+            "id": "859f402d-b3de-4105-a1b9-932836d9193b",
+            "aud": "authenticated",
+            "role": "authenticated",
+            "email": "guilherme@grds.dev",
+            "phone": "",
+            "confirmed_at": null,
+            "email_confirmed_at": null,
+            "created_at": "2022-04-09T11:23:45.874827Z",
+            "updated_at": "2022-04-09T11:57:01.720803Z"
+          },
+          "session": null
+        }
+        """.data(using: .utf8)!
+
+        let response = try APIClient.shared.decodeRegisterResponse(data)
+
+        XCTAssertEqual(response.user.email, "guilherme@grds.dev")
+        XCTAssertNil(response.confirmationSentAt)
+        XCTAssertNil(response.emailConfirmedAt)
+        XCTAssertNil(response.confirmedAt)
+        XCTAssertTrue(response.sessionlessSignup)
+        XCTAssertTrue(response.requiresEmailConfirmation)
+    }
+
+    func testDecodeRegisterResponseFromUserEnvelopeWithSessionPreservesSessionTokens() throws {
+        let data = """
+        {
+          "user": {
+            "id": "859f402d-b3de-4105-a1b9-932836d9193b",
+            "aud": "authenticated",
+            "role": "authenticated",
+            "email": "guilherme@grds.dev",
+            "phone": "",
+            "created_at": "2022-04-09T11:23:45.874827Z",
+            "updated_at": "2022-04-09T11:57:01.720803Z"
+          },
+          "session": {
+            "access_token": "nested-access-token",
+            "refresh_token": "nested-refresh-token",
+            "expires_in": 3600
+          }
+        }
+        """.data(using: .utf8)!
+
+        let response = try APIClient.shared.decodeRegisterResponse(data)
+
+        XCTAssertEqual(response.user.email, "guilherme@grds.dev")
+        XCTAssertEqual(response.accessToken, "nested-access-token")
+        XCTAssertEqual(response.refreshToken, "nested-refresh-token")
+        XCTAssertEqual(response.expiresIn, 3600)
+        XCTAssertFalse(response.sessionlessSignup)
+        XCTAssertFalse(response.requiresEmailConfirmation)
+    }
 
     func testHTTPMethod_Get() {
         // Then

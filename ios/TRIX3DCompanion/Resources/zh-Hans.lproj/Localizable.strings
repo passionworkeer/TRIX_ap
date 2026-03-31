@@ -445,7 +445,11 @@
 "auth.password.mismatch" = "两次密码输入不一致";
 "auth.register.success" = "成功！";
 "auth.register.success.message" = "您的账号已创建成功！";
+"auth.register.success.message.verify_email" = "账号已创建，请先查收邮件并完成邮箱验证后再登录。";
+"auth.register.success.message.verify_email_with_email" = "账号已创建，请查收 %1$@ 并完成邮箱验证后再登录。";
 "auth.register.creating" = "正在创建账号...";
+"auth.error.email.confirmation.required" = "请先完成邮箱验证后再登录。";
+"auth.error.email.confirmation.required.with.email" = "请先完成 %1$@ 的邮箱验证后再登录。";
 "auth.signin.apple" = "使用 Apple 登录";
 "auth.signin.wechat" = "使用微信登录";
 

@@ -179,7 +179,7 @@ final class SettingsViewModel: ObservableObject {
 
     /// Load current cache size
     func loadCacheSize() async {
-        cacheSize = await cacheService.totalCacheSize
+        cacheSize = cacheService.totalCacheSize
     }
 
     /// Get formatted cache size string

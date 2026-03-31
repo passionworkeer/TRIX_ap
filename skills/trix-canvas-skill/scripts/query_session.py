@@ -26,7 +26,7 @@ def _main():
         data = run(args.session_id, after_seq=args.after_seq)
         print(json.dumps(data, ensure_ascii=False, indent=2))
     except Exception as exc:
-        print(json.dumps({"error": str(exc)}), ensure_ascii=False)
+        print(json.dumps({"error": str(exc)}, ensure_ascii=False))
         sys.exit(1)
 
 

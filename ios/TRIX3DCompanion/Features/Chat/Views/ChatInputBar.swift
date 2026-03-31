@@ -208,13 +208,13 @@ struct ChatInputBar: View {
                 .lineLimit(1...6)
                 .disabled(!isConnected)
                 .accessibilityLabel("Message input")
-                .onChange(of: text) { newValue in
+                .onChange(of: text) { _, newValue in
                     // Enforce character limit
                     if newValue.count > maxCharacterLimit {
                         text = String(newValue.prefix(maxCharacterLimit))
                     }
                 }
-                .onChange(of: speechService.recognizedText) { newValue in
+                .onChange(of: speechService.recognizedText) { _, newValue in
                     // Update text when speech recognition completes
                     if !newValue.isEmpty && isListening == false {
                         if text.isEmpty {

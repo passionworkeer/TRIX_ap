@@ -101,11 +101,26 @@ const proxyEnv = buildChildEnv({
   AI_API_KEY: proxyApiKey,
   AI_IMAGE_PATH: process.env.PROXY_IMAGE_PATH || process.env.AI_IMAGE_PATH || '/v1/image_generation',
   AI_IMAGE_MODEL: process.env.PROXY_IMAGE_MODEL || process.env.AI_IMAGE_MODEL || 'image-01',
+  AI_VIDEO_PATH: process.env.PROXY_VIDEO_PATH || process.env.AI_VIDEO_PATH || '/v1/video_generation',
+  AI_VIDEO_MODEL:
+    process.env.PROXY_VIDEO_MODEL
+    || process.env.AI_VIDEO_MODEL
+    || 'MiniMax-Hailuo-2.3',
+  AI_VIDEO_I2V_MODEL:
+    process.env.PROXY_VIDEO_I2V_MODEL
+    || process.env.AI_VIDEO_I2V_MODEL
+    || 'MiniMax-Hailuo-2.3-Fast',
+  AI_VIDEO_TASK_PATH_TEMPLATE:
+    process.env.PROXY_VIDEO_TASK_PATH_TEMPLATE
+    || process.env.AI_VIDEO_TASK_PATH_TEMPLATE
+    || '/v1/query/video_generation?task_id=:taskId',
   AI_GENERATE_PATH:
     process.env.PROXY_GENERATE_PATH
     || process.env.AI_GENERATE_PATH
     || '/anthropic/v1/messages',
   AI_MODEL: process.env.PROXY_MODEL || process.env.AI_MODEL || 'MiniMax-M2.7',
+  AI_VIDEO_DURATION: process.env.AI_VIDEO_DURATION || '6',
+  AI_VIDEO_RESOLUTION: process.env.AI_VIDEO_RESOLUTION || '768P',
 });
 
 const serverEnv = buildChildEnv({

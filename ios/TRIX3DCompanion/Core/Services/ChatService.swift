@@ -168,7 +168,7 @@ final class ChatService: ObservableObject, ChatServiceProtocol {
     // MARK: - Dependencies
 
     private let apiClientImpl: APIClientProtocol
-    private let clawbotChannelServiceImpl: ClawbotChannelServiceProtocol
+    private let clawbotChannelServiceImpl: any ClawbotChannelServiceProtocol
     private let authServiceImpl: AuthServiceProtocol
 
     // MARK: - Private Properties
@@ -201,7 +201,7 @@ final class ChatService: ObservableObject, ChatServiceProtocol {
     /// Convenience init accepting protocol types (for testing)
     init(
         apiClient: APIClientProtocol,
-        clawbotChannelService: ClawbotChannelServiceProtocol,
+        clawbotChannelService: any ClawbotChannelServiceProtocol,
         authService: AuthServiceProtocol
     ) {
         self.apiClientImpl = apiClient

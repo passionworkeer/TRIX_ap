@@ -209,7 +209,11 @@
 "auth.password.mismatch" = "密碼不一致";
 "auth.register.success" = "成功！";
 "auth.register.success.message" = "您的帳戶已成功建立！";
+"auth.register.success.message.verify_email" = "帳戶已建立，請先查收郵件並完成信箱驗證後再登入。";
+"auth.register.success.message.verify_email_with_email" = "帳戶已建立，請查收 %1$@ 並完成信箱驗證後再登入。";
 "auth.register.creating" = "正在建立帳戶...";
+"auth.error.email.confirmation.required" = "請先完成信箱驗證後再登入。";
+"auth.error.email.confirmation.required.with.email" = "請先完成 %1$@ 的信箱驗證後再登入。";
 "auth.signin.apple" = "使用 Apple 登入";
 "auth.signin.wechat" = "使用微信登入";
 

@@ -64,6 +64,26 @@ test('parse_script preserves scene media types from JSON payloads', () => {
   );
 });
 
+test('parse_script reads image:: and video:: markers from plain text blocks', () => {
+  const payload = [
+    'image:: 镜头一：雨夜街口',
+    'video:: 镜头二：镜头推进到女孩侧脸',
+    '镜头三：没有前缀时默认图片',
+  ].join('\n');
+  const result = runPython([PARSE_SCRIPT, payload]);
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+
+  const scenes = JSON.parse(result.stdout);
+  assert.deepEqual(
+    scenes.map((scene) => ({ index: scene.index, media_type: scene.media_type, text: scene.text })),
+    [
+      { index: 1, media_type: 'image', text: '镜头一：雨夜街口' },
+      { index: 2, media_type: 'video', text: '镜头二：镜头推进到女孩侧脸' },
+      { index: 3, media_type: 'image', text: '镜头三：没有前缀时默认图片' },
+    ],
+  );
+});
+
 test('generate.py chooses a default file extension that matches the returned mime', async () => {
   const tempRoot = mkdtempSync(join(tmpdir(), 'trix-canvas-generate-'));
   const token = 'generate-default-ext-token';

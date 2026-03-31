@@ -44,6 +44,7 @@ type SocketMeta = {
 const ATTACHMENT_URL_TTL_MS = 24 * 60 * 60 * 1000;
 const LEGACY_AGENT_WS_ENV = 'TRIX_NATIVE_ENABLE_LEGACY_AGENT_WS';
 const SERVICE_ALLOWLIST_ENV = 'TRIX_NATIVE_SERVICE_ALLOWLIST';
+const TRUST_PROXY_ALLOWLIST_ENV = 'TRIX_NATIVE_TRUST_PROXY_ALLOWLIST';
 const USER_WS_PROTOCOL = 'trix-user';
 const WS_TOKEN_PROTOCOL_PREFIX = 'trix-auth.';
 
@@ -90,6 +91,7 @@ export class TrixNativeServer {
   private readonly attachmentSigningSecretOverride?: string;
   private readonly enableLegacyAgentWs: boolean;
   private readonly serviceAllowlist: string[];
+  private readonly trustedProxyAllowlist: string[];
   private readonly rateLimits: Record<ServerRateLimitName, ServerRateLimitRule>;
   private readonly supabaseUrl?: string;
   private readonly supabaseAnonKey?: string;
@@ -117,6 +119,7 @@ export class TrixNativeServer {
     this.attachmentSigningSecretOverride = config.attachmentSigningSecret;
     this.enableLegacyAgentWs = config.enableLegacyAgentWs ?? process.env[LEGACY_AGENT_WS_ENV] === '1';
     this.serviceAllowlist = config.serviceAllowlist ?? parseCommaSeparatedList(process.env[SERVICE_ALLOWLIST_ENV]);
+    this.trustedProxyAllowlist = config.trustedProxyAllowlist ?? parseCommaSeparatedList(process.env[TRUST_PROXY_ALLOWLIST_ENV]);
     this.rateLimits = this.resolveRateLimits(config.rateLimits);
     this.supabaseUrl = config.supabaseUrl ?? process.env.TRIX_NATIVE_SUPABASE_URL ?? process.env.VITE_SUPABASE_URL;
     this.supabaseAnonKey = config.supabaseAnonKey ?? process.env.TRIX_NATIVE_SUPABASE_ANON_KEY ?? process.env.VITE_SUPABASE_ANON_KEY;
@@ -431,12 +434,12 @@ export class TrixNativeServer {
   }
 
   private assertRateLimit(request: http.IncomingMessage, scope: ServerRateLimitName, subject = ''): void {
-    const ip = getRequestIp(request) ?? 'unknown';
+    const ip = this.getRequestIp(request) ?? 'unknown';
     const key = subject ? `${ip}:${subject}` : ip;
     if (!this.rateLimiter.consume(scope, key, this.rateLimits[scope])) {
       console.warn('[trix-native-server] rate limit exceeded', {
         scope,
-        ip: getRequestIp(request) ?? 'unknown',
+        ip: this.getRequestIp(request) ?? 'unknown',
         subject,
       });
       throw new HttpError(429, `Rate limit exceeded for ${scope}`);
@@ -448,10 +451,14 @@ export class TrixNativeServer {
       return;
     }
 
-    const requestIp = getRequestIp(request);
+    const requestIp = this.getRequestIp(request);
     if (!isIpAllowed(requestIp, this.serviceAllowlist)) {
       throw new HttpError(403, 'Service access denied for source IP');
     }
+  }
+
+  private getRequestIp(request: http.IncomingMessage): string | null {
+    return getRequestIp(request, this.trustedProxyAllowlist);
   }
 
   private async handleRequest(request: http.IncomingMessage, response: http.ServerResponse): Promise<void> {
@@ -896,7 +903,7 @@ export class TrixNativeServer {
         path: url.pathname,
         status: 404,
         durationMs: Date.now() - startTime,
-        ip: getRequestIp(request),
+        ip: this.getRequestIp(request),
       });
     } catch (error) {
       const statusCode = error instanceof HttpError ? error.statusCode : 500;
@@ -1769,7 +1776,7 @@ export class TrixNativeServer {
       accountId,
       conversationId,
       clientId,
-      ip: getRequestIp(request),
+      ip: this.getRequestIp(request),
     });
 
     // 响应客户端 ping，保持连接活跃

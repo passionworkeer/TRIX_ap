@@ -56,7 +56,7 @@ python3 skills/trix-canvas-skill/scripts/start_canvas.py \
   --with-proxy
 ```
 
-如果开启了 `CANVAS_REQUIRE_AUTH=true`，浏览器首次访问 `/canvas` 时会自动弹出令牌登录面板；CLI / Python 脚本会优先读取 `CANVAS_ACCESS_TOKEN`，未显式设置时再回退读取 `CANVAS_AUTH_TOKEN_FILE` 并自动走 `Authorization: Bearer ...`。如果你要通过 URL 带 token，只使用 `#token=...` fragment，不要使用 `?token=...` 查询参数。
+如果开启了 `CANVAS_REQUIRE_AUTH=true`，浏览器首次访问 `/canvas` 时会自动弹出令牌登录面板；CLI / Python 脚本会优先读取 `CANVAS_ACCESS_TOKEN`，未显式设置时再回退读取 `CANVAS_AUTH_TOKEN_FILE` 并自动走 `Authorization: Bearer ...`。不要通过 `?token=` 或 `#token=` 把访问令牌放进 URL。
 如果未显式设置 `CANVAS_ACCESS_TOKEN`，服务会自动把生成的 token 写到 `CANVAS_AUTH_TOKEN_FILE`（默认 `runtime/data/.canvas-access-token`）并在启动日志里打印文件路径。
 如果你要把画布服务直接暴露到非回环地址但又不启用鉴权，必须显式设置 `CANVAS_ALLOW_INSECURE_PUBLIC=true`。
 
@@ -75,7 +75,7 @@ python3 skills/trix-canvas-skill/scripts/start_canvas.py \
 | `sync_canvas_runtime.py` | 将 repo 下 `packages/trix-canvas-service` 同步回 skill 内嵌 runtime，或做一致性检查 | `--check` |
 | `start_all.js` | 兼容入口：自动补 runtime 目录、缺失依赖后，再转发到 skill runtime 的 `assets/canvas-service/start-all.js` | 透传 Node 参数 |
 | `parse_script.py` | 将剧本拆解成按镜头排序的 JSON | `script` 文本或文件路径 |
-| `workflow.py` | 一条命令自动完成解析、生成、轮询、字幕导出 | `script`, `--project-name`, `--concurrent` |
+| `workflow.py` | 一条命令自动完成解析、按镜头顺序生成、失败重试、轮询、字幕导出、最终视频导出 | `script`, `--project-name`, `--concurrent`, `--retries`, `--skip-final-video` |
 | `generate.py` | 调用 AI Adapter 生成单个 media（image/video） | `--prompt`, `--type` |
 | `create_node.py` | 手工创建备注/素材/占位节点；普通生成不要先调它 | `project_id`, `--prompt`, `--x`, `--y` |
 | `create_edge.py` | 建立节点之间的场景/转场关系 | `project_id`, `source_id`, `target_id` |
@@ -87,6 +87,18 @@ python3 skills/trix-canvas-skill/scripts/start_canvas.py \
 - 普通图片/视频生成优先用 `create_session.py`，它会自动创建生成节点并挂上 `sessionId` / `nodeId`
 - `create_node.py` 只用于手工加注释、参考素材、占位节点，不要在标准生成流里先手动建一个空节点
 - 做视频续写、图生视频或变体时，再把上一个图片节点通过 `create_session.py --parent-node-id <node_id>` 传进去
+- 混合短剧请直接在剧本文本里用 `image::` / `video::` 前缀标记每个镜头；`workflow.py` 会按镜头顺序执行，并让视频镜头自动依赖最近一个成功生成的图片镜头
+- 对 OpenClaw / Agent：混合短剧默认优先执行 `workflow.py`，不要自己并行排图片和视频；如果必须手工调用 `create_session.py`，必须先等待父图片会话 `status=completed`，再创建对应视频会话
+- 如果你要给 Agent 一个最稳的 mixed-media 输入，优先用 JSON 数组：
+
+```json
+[
+  { "text": "地铁站台，女孩回头寻找男主", "media_type": "image" },
+  { "text": "镜头穿过人群推进到女孩侧脸", "media_type": "video" },
+  { "text": "男主停下脚步望向站台尽头", "media_type": "image" },
+  { "text": "两人终于对视，站台灯光闪过", "media_type": "video" }
+]
+```
 
 ## 分发元数据
 
@@ -149,14 +161,19 @@ python3 skills/trix-canvas-skill/scripts/create_session.py \
 python3 skills/trix-canvas-skill/scripts/query_session.py <session_id>
 
 # 8. 端到端工作流（一条命令完成上面全部）
-python3 skills/trix-canvas-skill/scripts/workflow.py "第一幕：女孩在草地跳舞\n第二幕：天空下雨" --project-name "我的视频"
+python3 skills/trix-canvas-skill/scripts/workflow.py \
+  "image:: 地铁站台上女孩回头寻找男主
+video:: 镜头穿过人群推进到女孩侧脸
+image:: 男主拖着旅行包走出车门
+video:: 两人终于对视，灯光扫过站台" \
+  --project-name "Metro Reunion"
 ```
 
 ## OpenClaw 调用示例
 
 ```bash
 openclaw agent --agent trix-native --session-id trix-canvas-demo --message \
-  "Use trix-canvas-skill to create a two-shot short-drama storyboard, queue image generation only, and report the canvas URL." --json
+  "Use trix-canvas-skill to create a four-shot mixed short drama. Use image:: / video:: markers or equivalent JSON scene metadata, actually generate the assets, export subtitle and final video, and report project id, session ids, subtitle path, final video path, downloaded asset paths, and canvas URL." --json
 ```
 
 ## 环境变量
@@ -177,6 +194,8 @@ openclaw agent --agent trix-native --session-id trix-canvas-demo --message \
 | `CANVAS_ALLOW_INSECURE_PUBLIC` | `false` | 是否允许把未鉴权的 Canvas 服务直接暴露到非回环地址 |
 | `PROXY_ALLOWED_ORIGINS` | `""` | 若浏览器要直连 proxy，显式填写允许来源；默认拒绝带外部 `Origin` 的浏览器请求 |
 | `PROXY_ACCESS_TOKEN` | `""` | 当 proxy 暴露到非回环地址时必须配置的 Bearer 访问令牌 |
+| `PROXY_MAX_TASKS` | `500` | proxy 内存任务表硬上限，达到后拒绝新任务 |
+| `PROXY_MAX_SESSIONS` | `500` | proxy 内存会话表硬上限，达到后拒绝新会话 |
 | `RELAY_ALLOWED_ORIGINS` | `""` | 若浏览器要直连 relay，显式填写允许来源；默认拒绝带外部 `Origin` 的浏览器请求 |
 | `RELAY_ACCESS_TOKEN` | `""` | 当 relay 暴露到非回环地址时必须配置的 Bearer 访问令牌 |
 | `TRIX_CANVAS_ALLOW_OPENCLAW_CONFIG` | `false` | 是否允许 `start-all.js` 从 `~/.openclaw/openclaw.json` 回退读取上游 key；本机回环模式下也会自动允许 |

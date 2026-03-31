@@ -44,7 +44,7 @@ final class ProfileViewModel: ObservableObject {
     // MARK: - Dependencies
 
     private let apiClient: APIClientProtocol
-    private let imageUploadService: ImageUploadServiceProtocol
+    private let imageUploadService: any ImageUploadServiceProtocol
     private var cancellables = Set<AnyCancellable>()
 
     // MARK: - Initialization
@@ -55,7 +55,7 @@ final class ProfileViewModel: ObservableObject {
     ///   - imageUploadService: Image upload service dependency
     init(
         apiClient: APIClientProtocol? = nil,
-        imageUploadService: ImageUploadServiceProtocol? = nil
+        imageUploadService: (any ImageUploadServiceProtocol)? = nil
     ) {
         self.apiClient = apiClient ?? APIClient.shared
         self.imageUploadService = imageUploadService ?? ImageUploadService.shared

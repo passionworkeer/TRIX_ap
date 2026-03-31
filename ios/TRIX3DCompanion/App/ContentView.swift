@@ -57,7 +57,7 @@ struct ContentView: View {
             mainContent
         }
         .animation(.easeInOut(duration: 0.3), value: authService.isLoggedIn)
-        .onChange(of: authService.isLoggedIn) { isLoggedIn in
+        .onChange(of: authService.isLoggedIn) { _, isLoggedIn in
             handleAuthStateChange(isLoggedIn: isLoggedIn)
         }
         .onAppear {

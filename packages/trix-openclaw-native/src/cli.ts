@@ -101,6 +101,9 @@ async function main(): Promise<void> {
       serviceAllowlist: typeof flags.get('service-allowlist') === 'string'
         ? String(flags.get('service-allowlist')).split(',').map((entry) => entry.trim()).filter(Boolean)
         : undefined,
+      trustedProxyAllowlist: typeof flags.get('trusted-proxy-allowlist') === 'string'
+        ? String(flags.get('trusted-proxy-allowlist')).split(',').map((entry) => entry.trim()).filter(Boolean)
+        : undefined,
       enableLegacyAgentWs: flags.get('enable-legacy-agent-ws') === true,
     });
     await server.start();
@@ -153,6 +156,7 @@ async function main(): Promise<void> {
   process.stdout.write([
     'Usage:',
     '  trix-openclaw-native server start --host 0.0.0.0 --port 8788',
+    '    [--service-allowlist 203.0.113.10,10.0.0.0/24] [--trusted-proxy-allowlist 127.0.0.1,10.0.0.0/24]',
     '  trix-openclaw-native server rotate-service-token --storage-dir ./.trix-native-channel --account-id default',
     '  trix-openclaw-native pairing create --server http://127.0.0.1:8788 --service-token <token>',
   ].join('\n'));

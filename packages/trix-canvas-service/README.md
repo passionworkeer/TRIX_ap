@@ -32,7 +32,7 @@ CANVAS_REQUIRE_AUTH=true \
 npm start
 ```
 
-如果你打开了 `CANVAS_REQUIRE_AUTH=true` 但没有手动设置 `CANVAS_ACCESS_TOKEN`，服务会自动生成一个 token 并写入 `CANVAS_AUTH_TOKEN_FILE`（默认 `./data/.canvas-access-token`），启动日志会打印这个文件路径，但不会把 token 明文打印到终端。浏览器端推荐直接在登录面板粘贴 token，或使用 `#token=...` fragment；不要使用 `?token=...` 查询参数。
+如果你打开了 `CANVAS_REQUIRE_AUTH=true` 但没有手动设置 `CANVAS_ACCESS_TOKEN`，服务会自动生成一个 token 并写入 `CANVAS_AUTH_TOKEN_FILE`（默认 `./data/.canvas-access-token`），启动日志会打印这个文件路径，但不会把 token 明文打印到终端。浏览器端只应在登录面板内手动粘贴 token，不要通过 `?token=` 或 `#token=` 把访问令牌放进 URL。
 
 如果你确实要把未鉴权的 Canvas 暴露到非回环地址，必须显式设置 `CANVAS_ALLOW_INSECURE_PUBLIC=true`；否则服务会直接拒绝启动。
 
@@ -147,6 +147,8 @@ packages/trix-canvas-service/
 | `PROXY_REQUEST_TIMEOUT_MS` | `120000` | proxy 上游请求超时 |
 | `PROXY_TASK_TTL_MS` | `3600000` | proxy 内存任务保留时长 |
 | `PROXY_SESSION_TTL_MS` | `3600000` | proxy 内存会话保留时长 |
+| `PROXY_MAX_TASKS` | `500` | proxy 内存任务表硬上限，达到后拒绝新任务 |
+| `PROXY_MAX_SESSIONS` | `500` | proxy 内存会话表硬上限，达到后拒绝新会话 |
 | `PROXY_IMAGE_PATH` | `/v1/image_generation` | `proxy.js` 图片接口 |
 | `PROXY_IMAGE_MODEL` | `image-01` | `proxy.js` 图片模型 |
 | `PROXY_GENERATE_PATH` | `/anthropic/v1/messages` | `proxy.js` 非图片生成接口 |

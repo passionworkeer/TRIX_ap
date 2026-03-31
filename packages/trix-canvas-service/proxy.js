@@ -23,6 +23,15 @@ const AI_VIDEO_PATH = process.env.AI_VIDEO_PATH || process.env.PROXY_VIDEO_PATH 
 const AI_MODEL = process.env.AI_MODEL || 'MiniMax-M2.7';
 const AI_IMAGE_MODEL = process.env.AI_IMAGE_MODEL || 'image-01';
 const AI_VIDEO_MODEL = process.env.AI_VIDEO_MODEL || process.env.PROXY_VIDEO_MODEL || AI_MODEL;
+const AI_VIDEO_I2V_MODEL =
+  process.env.AI_VIDEO_I2V_MODEL
+  || process.env.PROXY_VIDEO_I2V_MODEL
+  || 'MiniMax-Hailuo-2.3-Fast';
+const AI_VIDEO_DURATION = Number(process.env.AI_VIDEO_DURATION || process.env.PROXY_VIDEO_DURATION || 6);
+const AI_VIDEO_RESOLUTION =
+  process.env.AI_VIDEO_RESOLUTION
+  || process.env.PROXY_VIDEO_RESOLUTION
+  || '768P';
 const AI_IMAGE_TASK_PATH_TEMPLATE =
   process.env.AI_IMAGE_TASK_PATH_TEMPLATE
   || process.env.PROXY_IMAGE_TASK_PATH_TEMPLATE
@@ -36,6 +45,8 @@ const REQUEST_TIMEOUT_MS = Number(process.env.PROXY_REQUEST_TIMEOUT_MS || 120000
 const TASK_TTL_MS = Number(process.env.PROXY_TASK_TTL_MS || 60 * 60 * 1000);
 const SESSION_TTL_MS = Number(process.env.PROXY_SESSION_TTL_MS || 60 * 60 * 1000);
 const TASK_POLL_INTERVAL_MS = Number(process.env.PROXY_TASK_POLL_INTERVAL_MS || 2000);
+const MAX_TASK_ENTRIES = readPositiveInteger(process.env.PROXY_MAX_TASKS, 500);
+const MAX_SESSION_ENTRIES = readPositiveInteger(process.env.PROXY_MAX_SESSIONS, 500);
 const ALLOWED_ORIGINS = parseOriginList(process.env.PROXY_ALLOWED_ORIGINS || '');
 const PROXY_ALLOW_REMOTE = /^(1|true|yes)$/i.test(process.env.PROXY_ALLOW_REMOTE || '');
 const PROXY_ACCESS_TOKEN = (process.env.PROXY_ACCESS_TOKEN || '').trim();
@@ -55,6 +66,11 @@ function parseOriginList(raw) {
       .map((value) => value.trim())
       .filter(Boolean),
   );
+}
+
+function readPositiveInteger(raw, fallback) {
+  const parsed = Number(raw);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
 }
 
 function isLoopbackHost(host) {
@@ -183,6 +199,36 @@ function cleanupExpiredEntries() {
   }
 }
 
+function isTerminalStatus(status) {
+  return status === 'completed' || status === 'failed';
+}
+
+function evictOldestTerminalEntries(store, overflowCount) {
+  if (overflowCount <= 0) {
+    return;
+  }
+  const evictableEntries = [...store.entries()]
+    .filter(([, value]) => isTerminalStatus(value?.status))
+    .sort((left, right) => (left[1]?.createdAt || 0) - (right[1]?.createdAt || 0));
+  for (const [key] of evictableEntries.slice(0, overflowCount)) {
+    store.delete(key);
+  }
+}
+
+function assertStoreCapacity(store, maxEntries, label) {
+  cleanupExpiredEntries();
+  if (store.size < maxEntries) {
+    return;
+  }
+  evictOldestTerminalEntries(store, store.size - maxEntries + 1);
+  if (store.size < maxEntries) {
+    return;
+  }
+  const error = new Error(`proxy ${label} capacity exceeded, retry later`);
+  error.status = 503;
+  throw error;
+}
+
 const cleanupTimer = setInterval(cleanupExpiredEntries, Math.min(TASK_TTL_MS, SESSION_TTL_MS));
 cleanupTimer.unref();
 
@@ -289,8 +335,10 @@ function extractUrls(body) {
     body?.data?.url,
     body?.data?.urls,
     body?.data?.image_urls,
+    body?.data?.download_url,
     body?.output?.url,
     body?.output?.urls,
+    body?.file?.download_url,
     body?.result?.url,
     body?.result?.urls,
   ];
@@ -311,6 +359,20 @@ function extractStatusUrl(body) {
     || body?.data?.poll_url
     || body?.result?.status_url
     || body?.result?.task_url
+    || ''
+  );
+}
+
+function extractFileId(body) {
+  return (
+    body?.file_id
+    || body?.fileId
+    || body?.data?.file_id
+    || body?.data?.fileId
+    || body?.file?.file_id
+    || body?.file?.fileId
+    || body?.result?.file_id
+    || body?.result?.fileId
     || ''
   );
 }
@@ -353,16 +415,39 @@ function extractMediaUrl(body, mediaType) {
   return null;
 }
 
-function finalizeAsyncResult(entry, payload) {
+async function resolveVideoDownloadUrl(fileId) {
+  if (!fileId) {
+    return '';
+  }
+  const result = await apiRequest(
+    'GET',
+    `/v1/files/retrieve?file_id=${encodeURIComponent(String(fileId))}`,
+  );
+  if (!result.ok) {
+    throw new Error(extractErrorMessage(result.body, `video file lookup failed (${result.status})`));
+  }
+  const urls = extractUrls(result.body);
+  return urls[0] || '';
+}
+
+async function finalizeAsyncResult(entry, payload) {
   const urls = extractUrls(payload);
   const status = urls.length > 0
     ? 'completed'
     : normalizeStatus(payload?.status || payload?.state || payload?.progress);
   if (status === 'completed') {
+    const completedUrls = [...urls];
+    const fileId = extractFileId(payload);
+    if (completedUrls.length === 0 && fileId) {
+      const resolvedUrl = await resolveVideoDownloadUrl(fileId);
+      if (resolvedUrl) {
+        completedUrls.push(resolvedUrl);
+      }
+    }
     return {
       status: 'completed',
-      urls,
-      output: urls[0] ? { url: urls[0] } : null,
+      urls: completedUrls,
+      output: completedUrls[0] ? { url: completedUrls[0] } : null,
       error: null,
     };
   }
@@ -394,13 +479,13 @@ async function pollTaskEntry(taskId, task) {
   }
   task.lastPolledAt = Date.now();
   const pending = apiRequest('GET', task.upstreamPollPath)
-    .then((result) => {
+    .then(async (result) => {
       if (!result.ok) {
         task.status = 'failed';
         task.error = extractErrorMessage(result.body, `HTTP ${result.status}`);
         return task;
       }
-      const next = finalizeAsyncResult(task, result.body);
+      const next = await finalizeAsyncResult(task, result.body);
       task.status = next.status;
       task.output = next.output;
       task.urls = next.urls;
@@ -431,13 +516,13 @@ async function pollSessionEntry(sessionId, session) {
   }
   session.lastPolledAt = Date.now();
   const pending = apiRequest('GET', session.upstreamPollPath)
-    .then((result) => {
+    .then(async (result) => {
       if (!result.ok) {
         session.status = 'failed';
         session.error = extractErrorMessage(result.body, `HTTP ${result.status}`);
         return session;
       }
-      const next = finalizeAsyncResult(session, result.body);
+      const next = await finalizeAsyncResult(session, result.body);
       session.status = next.status === 'processing' ? 'generating' : next.status;
       session.resultUrls = next.urls;
       session.error = next.error;
@@ -498,11 +583,18 @@ async function callAi(canvasPayload) {
   }
 
   if (AI_VIDEO_PATH) {
+    const firstFrameImage = canvasPayload.parent_source_url
+      || canvasPayload.parentSourceUrl
+      || canvasPayload.parent_result_url
+      || canvasPayload.parentResultUrl
+      || '';
+    const videoModel = firstFrameImage ? AI_VIDEO_I2V_MODEL : AI_VIDEO_MODEL;
     const result = await apiRequest('POST', AI_VIDEO_PATH, {
-      model: AI_VIDEO_MODEL,
+      model: videoModel,
       prompt,
-      aspect_ratio: aspect,
-      aspect,
+      duration: AI_VIDEO_DURATION,
+      resolution: AI_VIDEO_RESOLUTION,
+      ...(firstFrameImage ? { first_frame_image: firstFrameImage } : {}),
     });
     if (!result.ok) {
       return { ok: false, error: extractErrorMessage(result.body, `HTTP ${result.status}`) };
@@ -528,6 +620,9 @@ async function callAi(canvasPayload) {
     }
     if (extracted?.error) {
       return { ok: false, error: extracted.error };
+    }
+    if (result.body?.base_resp?.status_code !== 0) {
+      return { ok: false, error: extractErrorMessage(result.body, 'Video generation failed') };
     }
     return { ok: false, error: 'Video endpoint returned neither URL nor pollable task' };
   }
@@ -558,6 +653,7 @@ async function handle(req, url, body) {
 
   // ── Canvas service: POST /generate ────────────────────────────────────
   if (req.method === 'POST' && pathname === '/generate') {
+    assertStoreCapacity(tasks, MAX_TASK_ENTRIES, 'task');
     const task_id = `tk_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     const mediaType = body?.media_type || body?.mediaType || 'image';
     tasks.set(task_id, {
@@ -614,6 +710,7 @@ async function handle(req, url, body) {
 
   // ── TRIXAdapter (Python): POST /api/session ─────────────────────────────
   if (req.method === 'POST' && pathname === '/api/session') {
+    assertStoreCapacity(sessions, MAX_SESSION_ENTRIES, 'session');
     const sessionId = `sess_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     const task_id = `tk_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     const mediaType = body?.media_type || body?.mediaType || 'image';

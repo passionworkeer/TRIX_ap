@@ -11,6 +11,7 @@ SCENE_MARKERS = re.compile(
     r"^\s*(?:scene|shot|chapter|chapter\s+\d+|镜头|场景|第[\d一二三四五六七八九十百]+[幕场镜章节])",
     re.IGNORECASE,
 )
+MEDIA_PREFIX = re.compile(r"^\s*(image|video)\s*::\s*", re.IGNORECASE)
 
 
 def parse_script(script_text: str) -> list:
@@ -31,10 +32,12 @@ def parse_script(script_text: str) -> list:
         return json_scenes
 
     blocks = _split_blocks(text)
-    return [
-        {"index": idx, "text": block, "media_type": "image"}
-        for idx, block in enumerate(blocks, 1)
-    ]
+    scenes = []
+    for idx, block in enumerate(blocks, 1):
+        media_type, scene_text = _extract_media_type_and_text(block)
+        if scene_text:
+            scenes.append({"index": idx, "text": scene_text, "media_type": media_type})
+    return scenes
 
 
 def _try_parse_json(text: str) -> list | None:
@@ -49,11 +52,11 @@ def _try_parse_json(text: str) -> list | None:
     scenes = []
     for index, item in enumerate(payload, 1):
         if isinstance(item, str):
-            scene_text = item.strip()
-            media_type = "image"
+            media_type, scene_text = _extract_media_type_and_text(item)
         elif isinstance(item, dict):
-            scene_text = str(item.get("text") or item.get("prompt") or "").strip()
-            media_type = str(item.get("media_type") or item.get("mediaType") or "image")
+            raw_text = str(item.get("text") or item.get("prompt") or "").strip()
+            hint = item.get("media_type") or item.get("mediaType") or ""
+            media_type, scene_text = _extract_media_type_and_text(raw_text, media_type_hint=str(hint))
         else:
             continue
         if scene_text:
@@ -73,7 +76,7 @@ def _split_blocks(text: str) -> list[str]:
     blocks = []
     current = []
     for line in lines:
-        if current and SCENE_MARKERS.match(line):
+        if current and (SCENE_MARKERS.match(line) or MEDIA_PREFIX.match(line)):
             blocks.append(_collapse_whitespace(" ".join(current)))
             current = [line]
         else:
@@ -85,6 +88,21 @@ def _split_blocks(text: str) -> list[str]:
 
 def _collapse_whitespace(text: str) -> str:
     return re.sub(r"\s+", " ", text).strip()
+
+
+def _normalize_media_type(media_type: str) -> str:
+    lowered = str(media_type or "").strip().lower()
+    return lowered if lowered in {"image", "video"} else "image"
+
+
+def _extract_media_type_and_text(text: str, media_type_hint: str = "") -> tuple[str, str]:
+    scene_text = str(text or "").strip()
+    prefixed_match = MEDIA_PREFIX.match(scene_text)
+    if prefixed_match:
+        media_type = _normalize_media_type(prefixed_match.group(1))
+        scene_text = scene_text[prefixed_match.end():].strip()
+        return media_type, _collapse_whitespace(scene_text)
+    return _normalize_media_type(media_type_hint), _collapse_whitespace(scene_text)
 
 
 if __name__ == "__main__":

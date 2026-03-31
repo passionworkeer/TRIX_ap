@@ -123,19 +123,19 @@ final class ChatDetailViewModel {
     let conversation: ChatConversation
     private let _chatService: ChatService?
     private let _authService: AuthService?
-    var chatServiceProto: ChatServiceProtocol?
-    var authServiceProto: AuthServiceProtocol?
+    var chatServiceProto: (any ChatServiceProtocol)?
+    var authServiceProto: (any AuthServiceProtocol)?
 
     // UI State
     var uiState = ChatUIState()
 
     // MARK: - Private Helpers
 
-    private var chatServiceImpl: ChatServiceProtocol? {
+    private var chatServiceImpl: (any ChatServiceProtocol)? {
         _chatService ?? chatServiceProto
     }
 
-    private var authServiceImpl: AuthServiceProtocol? {
+    private var authServiceImpl: (any AuthServiceProtocol)? {
         _authService ?? authServiceProto
     }
 
@@ -167,19 +167,19 @@ final class ChatDetailViewModel {
 
     init(
         conversation: ChatConversation,
-        chatService: ChatService = .shared,
-        authService: AuthService = .shared
+        chatService: ChatService? = nil,
+        authService: AuthService? = nil
     ) {
         self.conversation = conversation
-        self._chatService = chatService
-        self._authService = authService
+        self._chatService = chatService ?? .shared
+        self._authService = authService ?? .shared
     }
 
     /// Test-only init accepting protocol conformers
     init(
         conversation: ChatConversation,
-        chatServiceProto: ChatServiceProtocol,
-        authServiceProto: AuthServiceProtocol
+        chatServiceProto: any ChatServiceProtocol,
+        authServiceProto: any AuthServiceProtocol
     ) {
         self.conversation = conversation
         self._chatService = nil

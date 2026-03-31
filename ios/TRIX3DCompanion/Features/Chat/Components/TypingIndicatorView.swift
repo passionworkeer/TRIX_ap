@@ -57,7 +57,7 @@ struct TypingIndicatorView: View {
                 isAnimatingInternal = true
             }
         }
-        .onChange(of: isAnimating) { newValue in
+        .onChange(of: isAnimating) { _, newValue in
             isAnimatingInternal = newValue
         }
     }

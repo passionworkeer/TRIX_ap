@@ -84,23 +84,26 @@ struct RegisterView: View {
             Text(errorMessage)
         }
         .alert(L("auth.register.success"), isPresented: $showingSuccess) {
-            Button(L("action.confirm")) {}
+            Button(L("action.confirm")) {
+                viewModel.clearRegisterState()
+                onSwitchToLogin()
+            }
         } message: {
-            Text(L("auth.register.success.message"))
+            Text(viewModel.registerSuccessMessage ?? L("auth.register.success.message"))
         }
-        .onChange(of: viewModel.registerValidationError) { newError in
+        .onChange(of: viewModel.registerValidationError) { _, newError in
             if let error = newError {
                 errorMessage = error
                 showingError = true
             }
         }
-        .onChange(of: viewModel.registerApiError) { newError in
+        .onChange(of: viewModel.registerApiError) { _, newError in
             if let error = newError {
                 errorMessage = error
                 showingError = true
             }
         }
-        .onChange(of: viewModel.isRegisterSuccess) { success in
+        .onChange(of: viewModel.isRegisterSuccess) { _, success in
             if success {
                 showingSuccess = true
             }

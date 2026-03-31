@@ -42,7 +42,7 @@ struct VideoBackgroundView: View {
         .onAppear {
             videoManager.loadVideo(named: videoNames[botState] ?? "idle")
         }
-        .onChange(of: botState) { newValue in
+        .onChange(of: botState) { _, newValue in
             videoManager.loadVideo(named: videoNames[newValue] ?? "idle")
         }
     }

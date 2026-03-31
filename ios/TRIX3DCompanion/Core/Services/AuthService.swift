@@ -15,6 +15,7 @@ import Supabase
 enum AuthError: Error, LocalizedError, Equatable {
     case invalidCredentials
     case emailAlreadyExists
+    case emailConfirmationRequired(email: String?)
     case networkError(underlying: Error)
     case tokenExpired
     case refreshFailed
@@ -27,6 +28,8 @@ enum AuthError: Error, LocalizedError, Equatable {
             return true
         case (.emailAlreadyExists, .emailAlreadyExists):
             return true
+        case (.emailConfirmationRequired(let lhsEmail), .emailConfirmationRequired(let rhsEmail)):
+            return lhsEmail == rhsEmail
         case (.networkError, .networkError):
             return true
         case (.tokenExpired, .tokenExpired):
@@ -48,6 +51,20 @@ enum AuthError: Error, LocalizedError, Equatable {
             return NSLocalizedString("auth.error.invalid.credentials", comment: "Invalid credentials error")
         case .emailAlreadyExists:
             return NSLocalizedString("auth.error.email.exists", comment: "Email already exists error")
+        case .emailConfirmationRequired(let email):
+            if let email, !email.isEmpty {
+                return String(
+                    format: NSLocalizedString(
+                        "auth.error.email.confirmation.required.with.email",
+                        comment: "Email confirmation required with address"
+                    ),
+                    email
+                )
+            }
+            return NSLocalizedString(
+                "auth.error.email.confirmation.required",
+                comment: "Email confirmation required"
+            )
         case .networkError(let error):
             return String(format: NSLocalizedString("error.network.description", comment: "Network error with underlying"), error.localizedDescription)
         case .tokenExpired:
@@ -310,20 +327,52 @@ final class AuthService: ObservableObject, AuthServiceProtocol {
         lastError = nil
 
         do {
-            let user = try await apiClient.register(username: username, email: email, password: password)
+            let response = try await apiClient.register(username: username, email: email, password: password)
 
-            // After registration, automatically login
+            if let accessToken = response.accessToken,
+               let refreshToken = response.refreshToken,
+               let expiresIn = response.expiresIn {
+                let session = UserSession(
+                    id: UUID().uuidString,
+                    userId: response.user.id,
+                    accessToken: accessToken,
+                    refreshToken: refreshToken,
+                    expiresAt: Date().addingTimeInterval(TimeInterval(expiresIn))
+                )
+                try saveSession(session)
+
+                currentUser = response.user
+                isLoggedIn = true
+                await upsertAndStartHeartbeat(userId: response.user.id)
+
+                isLoading = false
+                return .success(response.user)
+            }
+
+            if response.requiresEmailConfirmation {
+                let confirmationError = AuthError.emailConfirmationRequired(email: email)
+                lastError = confirmationError
+                isLoading = false
+                return .failure(confirmationError)
+            }
+
+            // If signup did not create a session, fall back to password login so
+            // non-confirmation environments can still complete registration.
             let loginResult = await login(email: email, password: password)
 
             isLoading = false
 
             switch loginResult {
             case .success:
-                return .success(user)
-            case .failure:
-                // Registration succeeded but auto-login failed
-                // Return user anyway since registration was successful
-                return .success(user)
+                return .success(response.user)
+            case .failure(let error):
+                if case .emailConfirmationRequired = error {
+                    let confirmationError = AuthError.emailConfirmationRequired(email: email)
+                    lastError = confirmationError
+                    return .failure(confirmationError)
+                }
+                lastError = error
+                return .failure(error)
             }
 
         } catch let error as NetworkError {
@@ -700,9 +749,12 @@ final class AuthService: ObservableObject, AuthServiceProtocol {
         case .custom(let message):
             let normalized = message.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
             if normalized.contains("invalid login credentials")
-                || normalized.contains("invalid email or password")
-                || normalized.contains("email not confirmed") {
+                || normalized.contains("invalid email or password") {
                 return .invalidCredentials
+            }
+            if normalized.contains("email not confirmed")
+                || normalized.contains("email_not_confirmed") {
+                return .emailConfirmationRequired(email: nil)
             }
             return .validationError(message: message)
         default:

@@ -65,7 +65,7 @@ struct HeroBackgroundView: View {
             startAnimations()
             createParticles()
         }
-        .onChange(of: batteryManager.shouldReduceMotion) { newValue in
+        .onChange(of: batteryManager.shouldReduceMotion) { _, newValue in
             if !newValue {
                 startAnimations()
                 createParticles()

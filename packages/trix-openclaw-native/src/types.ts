@@ -125,6 +125,7 @@ export interface ServerConfig {
   enableLegacyAgentWs?: boolean;
   uploadBaseUrl?: string;
   serviceAllowlist?: string[];
+  trustedProxyAllowlist?: string[];
   rateLimits?: Partial<Record<ServerRateLimitName, ServerRateLimitRule>>;
   supabaseUrl?: string;
   supabaseAnonKey?: string;

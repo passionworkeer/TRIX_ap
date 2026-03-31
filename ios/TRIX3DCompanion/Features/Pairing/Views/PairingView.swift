@@ -265,7 +265,7 @@ struct PairingView: View {
                             .stroke(Color.brandPurple.opacity(0.5), lineWidth: 2)
                     )
                     .trixSurfaceCard(cornerRadius: 16, borderOpacity: 0.16, shadowOpacity: 0.03, shadowRadius: 4)
-                    .onChange(of: codeInput) { newValue in
+                    .onChange(of: codeInput) { _, newValue in
                         codeInput = String(newValue.uppercased().prefix(6).filter { $0.isLetter || $0.isNumber })
                     }
                     .accessibilityIdentifier(PairingAccessibilityIdentifiers.codeField)

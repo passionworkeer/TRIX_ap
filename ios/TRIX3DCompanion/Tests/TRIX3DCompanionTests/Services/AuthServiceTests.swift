@@ -22,7 +22,7 @@ import Combine
 /// This allows us to create mock implementations for testing
 protocol AuthAPIProtocol {
     func login(email: String, password: String) async throws -> AuthResponse
-    func register(username: String, email: String, password: String) async throws -> User
+    func register(username: String, email: String, password: String) async throws -> RegisterResponse
     func logout() async throws
     func getCurrentUser() async throws -> User
     func post<T>(_ endpoint: APIEndpoint, body: Encodable) async throws -> T where T: Decodable
@@ -35,6 +35,7 @@ final class MockAuthAPIClient: AuthAPIProtocol {
     var shouldFailRequests = false
     var mockError: NetworkError?
     var mockAuthResponse: AuthResponse?
+    var mockRegisterResponse: RegisterResponse?
     var mockUser: User?
     var lastLoginEmail: String?
     var lastLoginPassword: String?
@@ -58,7 +59,7 @@ final class MockAuthAPIClient: AuthAPIProtocol {
         return response
     }
 
-    func register(username: String, email: String, password: String) async throws -> User {
+    func register(username: String, email: String, password: String) async throws -> RegisterResponse {
         lastRegisterUsername = username
         lastRegisterEmail = email
         lastRegisterPassword = password
@@ -67,11 +68,31 @@ final class MockAuthAPIClient: AuthAPIProtocol {
             throw mockError ?? NetworkError.custom(message: "Registration failed")
         }
 
-        guard let user = mockUser else {
-            throw NetworkError.custom(message: "No mock user configured")
+        if let response = mockRegisterResponse {
+            return response
         }
 
-        return user
+        if let authResponse = mockAuthResponse {
+            return RegisterResponse(
+                user: authResponse.user,
+                accessToken: authResponse.accessToken,
+                refreshToken: authResponse.refreshToken,
+                expiresIn: authResponse.expiresIn,
+                confirmationSentAt: nil
+            )
+        }
+
+        guard let user = mockUser else {
+            throw NetworkError.custom(message: "No mock register response configured")
+        }
+
+        return RegisterResponse(
+            user: user,
+            accessToken: "test_access_token",
+            refreshToken: "test_refresh_token",
+            expiresIn: 3600,
+            confirmationSentAt: nil
+        )
     }
 
     func logout() async throws {
@@ -313,20 +334,47 @@ final class TestableAuthService: AuthServiceProtocol {
         lastError = nil
 
         do {
-            let user = try await authAPI.register(username: username, email: email, password: password)
+            let response = try await authAPI.register(username: username, email: email, password: password)
 
-            // After registration, automatically login
+            if let accessToken = response.accessToken,
+               let refreshToken = response.refreshToken,
+               let expiresIn = response.expiresIn {
+                let session = UserSession(
+                    id: UUID().uuidString,
+                    userId: response.user.id,
+                    accessToken: accessToken,
+                    refreshToken: refreshToken,
+                    expiresAt: Date().addingTimeInterval(TimeInterval(expiresIn))
+                )
+                try saveSession(session)
+                currentUser = response.user
+                isLoggedIn = true
+                isLoading = false
+                return .success(response.user)
+            }
+
+            if response.requiresEmailConfirmation {
+                let confirmationError = AuthError.emailConfirmationRequired(email: email)
+                lastError = confirmationError
+                isLoading = false
+                return .failure(confirmationError)
+            }
+
             let loginResult = await login(email: email, password: password)
 
             isLoading = false
 
             switch loginResult {
             case .success:
-                return .success(user)
+                return .success(response.user)
             case .failure(let error):
-                // Registration succeeded but auto-login failed
-                // Return user anyway since registration was successful
-                return .success(user)
+                if case .emailConfirmationRequired = error {
+                    let confirmationError = AuthError.emailConfirmationRequired(email: email)
+                    lastError = confirmationError
+                    return .failure(confirmationError)
+                }
+                lastError = error
+                return .failure(error)
             }
 
         } catch let error as NetworkError {
@@ -495,6 +543,11 @@ final class TestableAuthService: AuthServiceProtocol {
         case .unauthorized:
             return .invalidCredentials
         case .custom(let message):
+            let normalized = message.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            if normalized.contains("email not confirmed")
+                || normalized.contains("email_not_confirmed") {
+                return .emailConfirmationRequired(email: nil)
+            }
             return .validationError(message: message)
         default:
             return .unknown(underlying: error)
@@ -633,6 +686,23 @@ extension AuthServiceTests {
         }
     }
 
+    func testLoginWithEmailNotConfirmedReturnsSpecificError() async {
+        // Given
+        mockAuthAPI.shouldFailRequests = true
+        mockAuthAPI.mockError = .custom(message: "Email not confirmed")
+
+        // When
+        let result = await sut.login(email: "test@example.com", password: "password123")
+
+        // Then
+        switch result {
+        case .success:
+            XCTFail("Should fail when email is not confirmed")
+        case .failure(let error):
+            XCTAssertEqual(error, .emailConfirmationRequired(email: nil))
+        }
+    }
+
     func testLoginWithNetworkError() async {
         // Given
         mockAuthAPI.shouldFailRequests = true
@@ -692,6 +762,83 @@ extension AuthServiceTests {
             XCTAssertEqual(mockAuthAPI.lastRegisterEmail, email, "Should call API with correct email")
         case .failure(let error):
             XCTFail("Should succeed: \(error)")
+        }
+    }
+
+    func testRegisterReturnsEmailConfirmationRequiredWhenSignupNeedsVerification() async {
+        // Given
+        mockAuthAPI.mockRegisterResponse = RegisterResponse(
+            user: createMockUser(),
+            accessToken: nil,
+            refreshToken: nil,
+            expiresIn: nil,
+            confirmationSentAt: Date()
+        )
+
+        // When
+        let result = await sut.register(username: "newuser", email: "newuser@example.com", password: "password123")
+
+        // Then
+        switch result {
+        case .success:
+            XCTFail("Should require email confirmation")
+        case .failure(let error):
+            XCTAssertEqual(error, .emailConfirmationRequired(email: "newuser@example.com"))
+            XCTAssertFalse(sut.isLoggedIn)
+        }
+    }
+
+    func testRegisterFallsBackToLoginWhenSignupReturnsNoSessionWithoutConfirmationRequirement() async {
+        // Given
+        let email = "newuser@example.com"
+        mockAuthAPI.mockRegisterResponse = RegisterResponse(
+            user: createMockUser(),
+            accessToken: nil,
+            refreshToken: nil,
+            expiresIn: nil,
+            confirmationSentAt: nil
+        )
+
+        // When
+        let result = await sut.register(username: "newuser", email: email, password: "password123")
+
+        // Then
+        switch result {
+        case .success(let user):
+            XCTAssertEqual(user.id, "test_user_id")
+            XCTAssertEqual(mockAuthAPI.lastLoginEmail, email, "Should attempt login fallback when signup returns no session")
+            XCTAssertTrue(sut.isLoggedIn)
+        case .failure(let error):
+            XCTFail("Should fall back to login successfully: \(error)")
+        }
+    }
+
+    func testRegisterFailsWhenFallbackLoginFailsForNonConfirmationReason() async {
+        // Given
+        let email = "newuser@example.com"
+        mockAuthAPI.mockRegisterResponse = RegisterResponse(
+            user: createMockUser(),
+            accessToken: nil,
+            refreshToken: nil,
+            expiresIn: nil,
+            confirmationSentAt: nil
+        )
+        mockAuthAPI.mockAuthResponse = nil
+
+        // When
+        let result = await sut.register(username: "newuser", email: email, password: "password123")
+
+        // Then
+        switch result {
+        case .success:
+            XCTFail("Should surface fallback login failure instead of reporting success")
+        case .failure(let error):
+            if case .validationError(let message) = error {
+                XCTAssertTrue(message.contains("No mock response configured"))
+            } else {
+                XCTFail("Unexpected error: \(error)")
+            }
+            XCTAssertFalse(sut.isLoggedIn)
         }
     }
 

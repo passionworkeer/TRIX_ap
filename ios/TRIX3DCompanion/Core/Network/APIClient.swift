@@ -521,6 +521,13 @@ final class APIClient: APIClientProtocol, @unchecked Sendable {
     }
 
     private func decodeResponse<T: Codable>(_ data: Data, as type: T.Type) throws -> T {
+        if type == RegisterResponse.self {
+            let response = try decodeRegisterResponse(data)
+            if let typed = response as? T {
+                return typed
+            }
+        }
+
         // 1) Try direct decoding first
         if let direct = try? decoder.decode(T.self, from: data) {
             return direct
@@ -569,6 +576,47 @@ final class APIClient: APIClientProtocol, @unchecked Sendable {
             code: -1001,
             userInfo: [NSLocalizedDescriptionKey: "Failed to decode response"]
         ))
+    }
+
+    func decodeRegisterResponse(_ data: Data) throws -> RegisterResponse {
+        if let auth = try? authDecoder.decode(AuthResponse.self, from: data) {
+            return RegisterResponse(
+                user: auth.user,
+                accessToken: auth.accessToken,
+                refreshToken: auth.refreshToken,
+                expiresIn: auth.expiresIn,
+                confirmationSentAt: auth.user.confirmationSentAt,
+                confirmedAt: auth.user.confirmedAt,
+                emailConfirmedAt: auth.user.emailConfirmedAt
+            )
+        }
+
+        if let envelope = try? authDecoder.decode(RegisterUserEnvelope.self, from: data) {
+            return RegisterResponse(
+                user: envelope.user,
+                accessToken: envelope.session?.accessToken,
+                refreshToken: envelope.session?.refreshToken,
+                expiresIn: envelope.session?.expiresIn,
+                confirmationSentAt: envelope.confirmationSentAt ?? envelope.user.confirmationSentAt,
+                confirmedAt: envelope.user.confirmedAt,
+                emailConfirmedAt: envelope.user.emailConfirmedAt,
+                sessionlessSignup: envelope.session == nil
+            )
+        }
+
+        let user = try authDecoder.decode(User.self, from: data)
+        let confirmationEnvelope = try? authDecoder.decode(RegisterConfirmationEnvelope.self, from: data)
+
+        return RegisterResponse(
+            user: user,
+            accessToken: nil,
+            refreshToken: nil,
+            expiresIn: nil,
+            confirmationSentAt: confirmationEnvelope?.confirmationSentAt ?? user.confirmationSentAt,
+            confirmedAt: user.confirmedAt,
+            emailConfirmedAt: user.emailConfirmedAt,
+            sessionlessSignup: true
+        )
     }
 
     private func parseUploadResponse(from json: [String: Any]) -> UploadResponse? {
@@ -709,7 +757,7 @@ extension APIClient {
         return try await post(.authLogin, body: request)
     }
 
-    func register(username: String, email: String, password: String) async throws -> User {
+    func register(username: String, email: String, password: String) async throws -> RegisterResponse {
         let request = RegisterRequest(username: username, email: email, password: password)
         return try await post(.authRegister, body: request)
     }
@@ -1339,6 +1387,38 @@ extension APIClient {
         }
 
         return data
+    }
+}
+
+private struct RegisterUserEnvelope: Decodable {
+    let user: User
+    let session: RegisterSessionEnvelope?
+    let confirmationSentAt: Date?
+
+    enum CodingKeys: String, CodingKey {
+        case user
+        case session
+        case confirmationSentAt = "confirmation_sent_at"
+    }
+}
+
+private struct RegisterSessionEnvelope: Decodable {
+    let accessToken: String?
+    let refreshToken: String?
+    let expiresIn: Int?
+
+    enum CodingKeys: String, CodingKey {
+        case accessToken = "access_token"
+        case refreshToken = "refresh_token"
+        case expiresIn = "expires_in"
+    }
+}
+
+private struct RegisterConfirmationEnvelope: Decodable {
+    let confirmationSentAt: Date?
+
+    enum CodingKeys: String, CodingKey {
+        case confirmationSentAt = "confirmation_sent_at"
     }
 }
 

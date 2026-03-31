@@ -167,7 +167,7 @@ struct HomeView: View {
             matching: .images,
             preferredItemEncoding: .automatic
         )
-        .onChange(of: selectedPhotoItem) { item in
+        .onChange(of: selectedPhotoItem) { _, item in
             guard let item else { return }
 
             Task {
@@ -191,7 +191,7 @@ struct HomeView: View {
         .sheet(isPresented: $showTodo) {
             TodoListView(showAsSheet: true)
         }
-        .onChange(of: isWorkbenchPresented) { isPresented in
+        .onChange(of: isWorkbenchPresented) { _, isPresented in
             UITestEventLogger.log("Home isWorkbenchPresented -> \(isPresented)")
         }
         .uiTestMarker(HomeAccessibilityIdentifiers.screen)

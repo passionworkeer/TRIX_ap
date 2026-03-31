@@ -413,7 +413,11 @@
 "auth.password.mismatch" = "Passwords do not match";
 "auth.register.success" = "Success!";
 "auth.register.success.message" = "Your account has been created successfully!";
+"auth.register.success.message.verify_email" = "Your account has been created. Check your email and confirm your address before signing in.";
+"auth.register.success.message.verify_email_with_email" = "Your account has been created. Check %1$@ and confirm your address before signing in.";
 "auth.register.creating" = "Creating account...";
+"auth.error.email.confirmation.required" = "Please confirm your email before signing in.";
+"auth.error.email.confirmation.required.with.email" = "Please confirm %1$@ before signing in.";
 "auth.signin.apple" = "Sign in with Apple";
 "auth.signin.wechat" = "Sign in with WeChat";
 

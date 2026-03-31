@@ -103,7 +103,7 @@ struct StudyStatsView: View {
             Text(L("study.stats.all.time")).tag(TimeRange.allTime)
         }
         .pickerStyle(.segmented)
-        .onChange(of: selectedTimeRange) { _ in
+        .onChange(of: selectedTimeRange) { _, _ in
             Task {
                 await loadStats()
             }

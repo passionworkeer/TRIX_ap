@@ -45,7 +45,7 @@ export function normalizeIp(raw: string | undefined | null): string | null {
   return normalized;
 }
 
-export function getRequestIp(request: http.IncomingMessage): string | null {
+function getForwardedForHeader(request: http.IncomingMessage): string | null {
   const forwardedFor = request.headers['x-forwarded-for'];
   if (typeof forwardedFor === 'string') {
     return normalizeIp(forwardedFor);
@@ -53,7 +53,26 @@ export function getRequestIp(request: http.IncomingMessage): string | null {
   if (Array.isArray(forwardedFor) && forwardedFor[0]) {
     return normalizeIp(forwardedFor[0]);
   }
-  return normalizeIp(request.socket.remoteAddress);
+  return null;
+}
+
+export function getRequestIp(request: http.IncomingMessage, trustedProxyAllowlist: string[] = []): string | null {
+  const remoteIp = normalizeIp(request.socket.remoteAddress);
+  const forwardedIp = getForwardedForHeader(request);
+  if (!forwardedIp) {
+    return remoteIp;
+  }
+
+  if (!remoteIp) {
+    return null;
+  }
+
+  const trustedProxies = ['127.0.0.1', ...trustedProxyAllowlist];
+  if (!isIpAllowed(remoteIp, trustedProxies)) {
+    return remoteIp;
+  }
+
+  return forwardedIp;
 }
 
 function ipv4ToInt(ip: string): number | null {

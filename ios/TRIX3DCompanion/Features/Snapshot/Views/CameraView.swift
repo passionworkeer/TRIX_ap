@@ -66,7 +66,7 @@ struct CameraView: View {
         .onDisappear {
             viewModel.stopCamera()
         }
-        .onChange(of: selectedPhotoItem) { newValue in
+        .onChange(of: selectedPhotoItem) { _, newValue in
             Task {
                 await handlePhotoSelection(newValue)
             }

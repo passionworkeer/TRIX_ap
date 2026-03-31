@@ -56,12 +56,12 @@ struct RobotHeroBackgroundView: View {
                 await initializeVideoSystem()
             }
         }
-        .onChange(of: botState) { newState in
+        .onChange(of: botState) { _, newState in
             Task {
                 await transitionToState(newState)
             }
         }
-        .onChange(of: batteryManager.playbackQuality) { _ in
+        .onChange(of: batteryManager.playbackQuality) { _, _ in
             Task {
                 await handleQualityChange()
             }

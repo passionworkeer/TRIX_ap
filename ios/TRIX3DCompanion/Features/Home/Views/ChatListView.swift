@@ -141,7 +141,7 @@ struct ChatListView: View {
                 }
             }
         }
-        .onChange(of: appState.pendingCompanionRoute) { route in
+        .onChange(of: appState.pendingCompanionRoute) { _, route in
             guard let route else { return }
             switch route {
             case .trixBot:

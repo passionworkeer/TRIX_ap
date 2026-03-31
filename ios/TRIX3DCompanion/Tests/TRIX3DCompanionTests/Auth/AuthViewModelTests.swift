@@ -377,6 +377,25 @@ extension AuthViewModelTests {
         XCTAssertFalse(mockAuthService.isLoggedInValue)
     }
 
+    func testLoginEmailConfirmationRequiredShowsSpecificMessage() async {
+        // Given
+        sut.loginEmail = "test@example.com"
+        sut.loginPassword = "password123"
+        mockAuthService.loginFailure = .emailConfirmationRequired(email: "test@example.com")
+
+        // When
+        let result = await sut.login()
+
+        // Then
+        switch result {
+        case .success:
+            XCTFail("Login should fail when email is not confirmed")
+        case .failure(let error):
+            XCTAssertEqual(error, .emailConfirmationRequired(email: "test@example.com"))
+            XCTAssertTrue(sut.loginApiError?.contains("test@example.com") == true)
+        }
+    }
+
     func testLoginWithValidationErrorOnEmptyEmail() async {
         // Given
         sut.loginEmail = ""
@@ -505,6 +524,29 @@ extension AuthViewModelTests {
         }
     }
 
+    func testRegisterEmailConfirmationRequiredShowsSuccessState() async {
+        // Given
+        sut.registerUsername = "newuser"
+        sut.registerEmail = "newuser@example.com"
+        sut.registerPassword = "password123"
+        sut.registerConfirmPassword = "password123"
+        mockAuthService.shouldRequireEmailConfirmationOnRegister = true
+
+        // When
+        let result = await sut.register()
+
+        // Then
+        switch result {
+        case .success:
+            XCTFail("Registration should require email confirmation")
+        case .failure(let error):
+            XCTAssertEqual(error, .emailConfirmationRequired(email: "newuser@example.com"))
+            XCTAssertTrue(sut.isRegisterSuccess)
+            XCTAssertNil(sut.registerApiError)
+            XCTAssertTrue(sut.registerSuccessMessage?.contains("newuser@example.com") == true)
+        }
+    }
+
     func testRegisterWithValidationErrorOnEmptyUsername() async {
         // Given
         sut.registerUsername = ""
@@ -550,6 +592,7 @@ extension AuthViewModelTests {
         sut.registerValidationError = "Previous error"
         sut.registerApiError = "Previous API error"
         sut.isRegisterSuccess = true
+        sut.registerSuccessMessage = "Previous success"
         sut.registerUsername = "newuser"
         sut.registerEmail = "newuser@example.com"
         sut.registerPassword = "password123"
@@ -733,6 +776,7 @@ extension AuthViewModelTests {
         XCTAssertEqual(sut.registerConfirmPassword, "")
         XCTAssertNil(sut.registerValidationError)
         XCTAssertNil(sut.registerApiError)
+        XCTAssertNil(sut.registerSuccessMessage)
         XCTAssertFalse(sut.isRegisterLoading)
         XCTAssertFalse(sut.isRegisterSuccess)
     }
@@ -775,6 +819,7 @@ extension AuthViewModelTests {
         XCTAssertEqual(sut.registerConfirmPassword, "")
         XCTAssertNil(sut.registerValidationError)
         XCTAssertNil(sut.registerApiError)
+        XCTAssertNil(sut.registerSuccessMessage)
         XCTAssertFalse(sut.isRegisterLoading)
         XCTAssertFalse(sut.isRegisterSuccess)
     }

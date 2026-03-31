@@ -122,6 +122,7 @@ enum CacheType: String, CaseIterable {
 
 // MARK: - Offline Cache Service Protocol
 
+@MainActor
 protocol OfflineCacheServiceProtocol {
     var totalCacheSize: Int64 { get set }
 

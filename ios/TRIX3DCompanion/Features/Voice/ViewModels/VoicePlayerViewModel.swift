@@ -18,22 +18,22 @@ final class VoicePlayerViewModel: ObservableObject {
     // MARK: - Published Properties
 
     /// Current playback state
-    @Published internal(set) var playbackState: PlaybackState = .idle
+    @Published var playbackState: PlaybackState = .idle
 
     /// Whether audio is currently playing
-    @Published internal(set) var isPlaying: Bool = false
+    @Published var isPlaying: Bool = false
 
     /// Current playback time in seconds
-    @Published internal(set) var currentTime: TimeInterval = 0
+    @Published var currentTime: TimeInterval = 0
 
     /// Total duration of the audio
-    @Published internal(set) var totalDuration: TimeInterval = 0
+    @Published var totalDuration: TimeInterval = 0
 
     /// Current playback rate
-    @Published internal(set) var playbackRate: Float = 1.0
+    @Published var playbackRate: Float = 1.0
 
     /// Playback progress (0.0 - 1.0)
-    @Published internal(set) var progress: Double = 0
+    @Published var progress: Double = 0
 
     /// Error message to display
     @Published var errorMessage: String?
