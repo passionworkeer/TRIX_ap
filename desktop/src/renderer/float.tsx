@@ -189,7 +189,8 @@ function FloatApp() {
       style={{
         width: '100%',
         height: '100%',
-        background: 'transparent',
+        /* Use a nearly invisible background to ensure Electron captures mouse events across the whole area */
+        background: 'rgba(0, 0, 0, 0.01)',
         cursor: 'pointer',
         position: 'relative',
         borderRadius: '14px',

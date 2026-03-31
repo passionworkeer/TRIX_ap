@@ -24,7 +24,12 @@ export function createFloatWindow(): BrowserWindow {
     show: false,
   });
 
-  floatWindow.loadFile(getFloatUrl());
+  const floatUrl = getFloatUrl();
+  if (floatUrl.startsWith('http')) {
+    floatWindow.loadURL(floatUrl).catch((err) => log.error('Float loadURL failed:', err));
+  } else {
+    floatWindow.loadFile(floatUrl).catch((err) => log.error('Float loadFile failed:', err));
+  }
 
   floatWindow.once('ready-to-show', () => {
     log.info('Float window ready to show');
