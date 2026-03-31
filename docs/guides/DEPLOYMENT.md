@@ -1,7 +1,7 @@
 # TRIX 3D Companion - 部署指南
 
 > 本文档详细介绍生产环境部署流程
-> **最后更新**: 2026-03-31（桌面端 101 IPC handlers；preload 79 methods；Float 260×280；pet-state.ts 模块；Gateway Triple-layer Health + WS RPC；preferences/friends/notifications stubs 待 IPC 实现）
+> **最后更新**: 2026-04-01（补充 TRIX Native 可信代理配置、Canvas token 使用约束、proxy 内存上限配置）
 
 ---
 
@@ -169,13 +169,68 @@ npm run build
 ### 5.3 启动服务
 
 ```bash
-# 使用 PM2 启动
-pm2 start /root/trix-3d-companion/packages/trix-openclaw-native/dist/server/TrixNativeServer.js \
-  --name trix-native \
-  --env PORT=8788 \
-  --env NODE_ENV=production \
-  --env TRIX_NATIVE_ADMIN_TOKEN=your-secure-token \
-  --env TRIX_NATIVE_PUBLIC_BASE_URL=https://trix.love
+# 推荐通过环境文件 + CLI 启动，避免把敏感配置写进命令历史
+cd /root/trix-3d-companion
+
+cat >/etc/trix-native.env <<'EOF'
+TRIX_NATIVE_ADMIN_TOKEN=replace-with-strong-admin-token
+TRIX_NATIVE_SERVICE_TOKEN=replace-with-strong-service-token
+TRIX_NATIVE_ATTACHMENT_SIGNING_SECRET=replace-with-strong-signing-secret
+TRIX_NATIVE_PUBLIC_BASE_URL=https://trix.love
+TRIX_NATIVE_SERVICE_ALLOWLIST=127.0.0.1
+TRIX_NATIVE_TRUST_PROXY_ALLOWLIST=127.0.0.1
+EOF
+
+set -a
+. /etc/trix-native.env
+set +a
+
+npm --prefix /root/trix-3d-companion/packages/trix-openclaw-native run build
+
+pm2 start node --name trix-native-server -- \
+  /root/trix-3d-companion/packages/trix-openclaw-native/dist/cli.js server start \
+  --host 127.0.0.1 \
+  --port 8788 \
+  --public-base-url https://trix.love
+```
+
+### 5.4 反向代理与真实来源 IP
+
+- 不要让 `TRIX Native Server` 直接暴露在公网。
+- 如果前面有 Nginx / Caddy / Gateway 反代，服务端只应信任这些反代发出的 `X-Forwarded-For`。
+- `TRIX_NATIVE_TRUST_PROXY_ALLOWLIST` 必须只包含真实反代地址或其 CIDR。
+- `TRIX_NATIVE_SERVICE_ALLOWLIST` 应限制 service token 平面的来源地址，不要直接设为 `0.0.0.0/0`。
+
+示例:
+
+```bash
+TRIX_NATIVE_SERVICE_ALLOWLIST=127.0.0.1,10.0.0.0/24
+TRIX_NATIVE_TRUST_PROXY_ALLOWLIST=127.0.0.1,10.0.0.0/24
+```
+
+如果这两个变量配置错误，常见后果是:
+
+- 限流按错误来源 IP 统计
+- allowlist 被客户端伪造 `X-Forwarded-For` 绕过
+- 真正的反代链路请求被误拒绝
+
+### 5.5 Canvas / Proxy 安全约束
+
+- `CANVAS_REQUIRE_AUTH=true` 时，浏览器端只应在登录面板里手动输入 token。
+- 不要通过 `?token=` 或 `#token=` 把访问令牌放进 URL。
+- 如果 `proxy.js` 需要对外暴露:
+  - 必须设置 `PROXY_ACCESS_TOKEN`
+  - 必须限制 `PROXY_ALLOWED_ORIGINS`
+  - 应设置 `PROXY_MAX_TASKS` / `PROXY_MAX_SESSIONS`
+
+示例:
+
+```bash
+CANVAS_REQUIRE_AUTH=true
+PROXY_ACCESS_TOKEN=replace-with-strong-bearer-token
+PROXY_ALLOWED_ORIGINS=https://trix.love
+PROXY_MAX_TASKS=500
+PROXY_MAX_SESSIONS=500
 ```
 
 ---

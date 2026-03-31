@@ -83,8 +83,10 @@ test('Canvas skill install sync + generate flow', async () => {
   const installedRoot = installPayload.installed_to;
   assert.ok(installedRoot, 'install output should include installed_to');
 
+  const installedCanvasSecurity = join(installedRoot, 'assets', 'canvas-service', 'canvasSecurity.js');
   const installedCanvasHtml = join(installedRoot, 'assets', 'canvas-service', 'public', 'canvas.html');
   const installedServerJs = join(installedRoot, 'assets', 'canvas-service', 'server.js');
+  assert.ok(existsSync(installedCanvasSecurity), 'installed canvasSecurity.js should exist');
   assert.ok(existsSync(installedCanvasHtml), 'installed canvas.html should exist');
   assert.ok(existsSync(installedServerJs), 'installed server.js should exist');
   assert.equal(sha1(installedCanvasHtml), sha1(PACKAGED_CANVAS_HTML), 'installed canvas.html should match package runtime');

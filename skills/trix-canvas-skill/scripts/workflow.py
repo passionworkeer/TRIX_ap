@@ -51,6 +51,63 @@ def _should_retry_failure(failure: dict) -> bool:
     return not any(marker in error for marker in non_retryable_markers)
 
 
+def _count_video_scenes(scenes: list[dict]) -> int:
+    return sum(1 for scene in scenes if _normalize_scene_media_type(scene) == "video")
+
+
+def _normalize_capability_status(raw_status: object) -> str:
+    status = str(raw_status or "").strip().lower()
+    return status if status in {"ready", "unavailable", "unknown"} else ""
+
+
+def _get_capability_status(capabilities: dict | None, key: str) -> str:
+    if not isinstance(capabilities, dict):
+        return ""
+    explicit = _normalize_capability_status(capabilities.get(f"{key}Status"))
+    if explicit:
+        return explicit
+    ready_flag = capabilities.get(f"{key}Ready")
+    if ready_flag is True:
+        return "ready"
+    return ""
+
+
+def _get_capability_reason(capabilities: dict | None, key: str) -> str:
+    if not isinstance(capabilities, dict):
+        return ""
+    reasons = capabilities.get("reasons")
+    if isinstance(reasons, dict):
+        reason = str(reasons.get(key) or "").strip()
+        if reason:
+            return reason
+    return str(capabilities.get(f"{key}Reason") or "").strip()
+
+
+def _build_preflight_failure(
+    *,
+    script_scene_count: int,
+    batch: int,
+    capabilities: dict | None,
+    error: str,
+) -> dict:
+    return {
+        "ok": False,
+        "error": error,
+        "preflight_failed": True,
+        "preflight_failures": batch,
+        "capabilities": capabilities or {},
+        "projects": [],
+        "project_summaries": [],
+        "scenes_per_project": script_scene_count,
+        "batch": batch,
+        "image_failures": 0,
+        "video_failures": 0,
+        "subtitle_failures": 0,
+        "final_video_failures": 0,
+        "failed_jobs": batch,
+    }
+
+
 def _queue_media_sessions(
     project_id: str,
     scenes: list[dict],
@@ -323,20 +380,34 @@ def run_workflow(
     print("[1/6] Checking environment...")
     errors = check_all()
     if errors:
-        for err in errors:
-            print(f"  [ERROR] {err}")
-        sys.exit(1)
+        raise RuntimeError("\n".join(errors))
     print("  [OK] Environment ready")
 
     print("\n[2/6] Parsing script...")
     scenes = parse_script(script_text)
     if not scenes:
-        print("  [ERROR] 没有解析出任何镜头")
-        sys.exit(1)
+        raise RuntimeError("没有解析出任何镜头")
     print(f"  [OK] Parsed {len(scenes)} scenes")
+
+    capabilities = {}
+    video_scene_count = _count_video_scenes(scenes)
+    if video_scene_count > 0 and not skip_video:
+        capabilities = _common.get_canvas_capabilities()
+        image_to_video_status = _get_capability_status(capabilities, "imageToVideo")
+        if image_to_video_status == "unavailable":
+            reason = _get_capability_reason(capabilities, "imageToVideo") or "图生视频能力不可用"
+            print("\n[3/6] Capability preflight failed")
+            print(f"  [FAIL] {reason}")
+            return _build_preflight_failure(
+                script_scene_count=len(scenes),
+                batch=batch,
+                capabilities=capabilities,
+                error=f"Video scenes require image-to-video support, but it is unavailable: {reason}",
+            )
 
     all_projects = []
     project_summaries = []
+    total_preflight_failures = 0
     total_image_failures = 0
     total_video_failures = 0
     total_subtitle_failures = 0
@@ -381,7 +452,6 @@ def run_workflow(
                 subtitle_failed = True
                 print(f"  [FAIL] Subtitle export: {subtitle_result.get('error', 'unknown error')}")
 
-        video_scene_count = sum(1 for scene in scenes if _normalize_scene_media_type(scene) == "video")
         final_video_result = None
         final_video_failed = False
         if skip_final_video:
@@ -437,6 +507,10 @@ def run_workflow(
                 "subtitle": {
                     "ok": False if subtitle_failed else True,
                     "error": subtitle_result.get("error", "") if isinstance(subtitle_result, dict) else "",
+                    "srt": subtitle_result.get("srt", "") if isinstance(subtitle_result, dict) else "",
+                    "script": subtitle_result.get("script", "") if isinstance(subtitle_result, dict) else "",
+                    "srt_url": subtitle_result.get("srt_url", "") if isinstance(subtitle_result, dict) else "",
+                    "script_url": subtitle_result.get("script_url", "") if isinstance(subtitle_result, dict) else "",
                 },
                 "final_video": {
                     "ok": isinstance(final_video_result, dict) and bool(final_video_result.get("ok")),
@@ -455,17 +529,20 @@ def run_workflow(
         )
 
     total_failures = (
-        total_image_failures
+        total_preflight_failures
+        + total_image_failures
         + total_video_failures
         + total_subtitle_failures
         + total_final_video_failures
     )
     return {
         "ok": total_failures == 0,
+        "capabilities": capabilities,
         "projects": all_projects,
         "project_summaries": project_summaries,
         "scenes_per_project": len(scenes),
         "batch": batch,
+        "preflight_failures": total_preflight_failures,
         "image_failures": total_image_failures,
         "video_failures": total_video_failures,
         "subtitle_failures": total_subtitle_failures,
@@ -504,18 +581,22 @@ if __name__ == "__main__":
     else:
         script_text = args.script
 
-    result = run_workflow(
-        script_text,
-        project_name=args.project_name,
-        concurrent=args.concurrent,
-        skip_video=args.skip_video,
-        skip_subtitle=args.skip_subtitle,
-        skip_final_video=args.skip_final_video,
-        retries=args.retries,
-        batch=args.batch,
-        aspect=args.aspect,
-        style=args.style,
-    )
-    print(json.dumps(result, ensure_ascii=False, indent=2))
-    if not result.get("ok", False):
+    try:
+        result = run_workflow(
+            script_text,
+            project_name=args.project_name,
+            concurrent=args.concurrent,
+            skip_video=args.skip_video,
+            skip_subtitle=args.skip_subtitle,
+            skip_final_video=args.skip_final_video,
+            retries=args.retries,
+            batch=args.batch,
+            aspect=args.aspect,
+            style=args.style,
+        )
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        if not result.get("ok", False):
+            sys.exit(1)
+    except Exception as exc:  # noqa: BLE001
+        print(json.dumps({"ok": False, "error": str(exc)}, ensure_ascii=False, indent=2))
         sys.exit(1)

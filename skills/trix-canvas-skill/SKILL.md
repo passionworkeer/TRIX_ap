@@ -88,6 +88,7 @@ python3 skills/trix-canvas-skill/scripts/start_canvas.py \
 - `create_node.py` 只用于手工加注释、参考素材、占位节点，不要在标准生成流里先手动建一个空节点
 - 做视频续写、图生视频或变体时，再把上一个图片节点通过 `create_session.py --parent-node-id <node_id>` 传进去
 - 混合短剧请直接在剧本文本里用 `image::` / `video::` 前缀标记每个镜头；`workflow.py` 会按镜头顺序执行，并让视频镜头自动依赖最近一个成功生成的图片镜头
+- `workflow.py` 在剧本包含视频镜头时，会先读取 `/api/capabilities`；如果 `imageToVideo` 明确不可用，会在创建项目之前直接失败并返回原因，避免先生成半套图片
 - 对 OpenClaw / Agent：混合短剧默认优先执行 `workflow.py`，不要自己并行排图片和视频；如果必须手工调用 `create_session.py`，必须先等待父图片会话 `status=completed`，再创建对应视频会话
 - 如果你要给 Agent 一个最稳的 mixed-media 输入，优先用 JSON 数组：
 
@@ -130,6 +131,7 @@ from _common import (
 | PATCH | `/api/nodes/:id` | 更新节点 |
 | POST | `/api/edges` | 创建连线 |
 | GET | `/health` | 健康检查 |
+| GET | `/api/capabilities` | 返回图片生成、视频生成、图生视频、视频导出可用性与原因 |
 | GET | `/canvas` | Canvas UI 页面 |
 
 ## 典型工作流

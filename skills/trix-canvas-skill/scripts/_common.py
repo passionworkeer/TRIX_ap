@@ -344,6 +344,16 @@ def change_project() -> dict:
     return _canvas_post("/api/session/change-project", {})
 
 
+def get_canvas_capabilities() -> dict:
+    try:
+        resp = _canvas_get("/api/capabilities")
+    except CanvasRequestError as exc:
+        if "404" in str(exc):
+            return {}
+        raise
+    return resp.get("data", resp) if isinstance(resp, dict) else resp
+
+
 def export_subtitle(project_id: str) -> dict:
     return _canvas_get(f"/api/projects/{project_id}/export/subtitle")
 

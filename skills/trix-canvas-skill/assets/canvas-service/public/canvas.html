@@ -585,6 +585,21 @@ body::before{ display: none; }
   color:var(--muted);
   font-size:11px;
 }
+.workspace-badge.ready{
+  color:#065f46;
+  border-color:rgba(16,185,129,.24);
+  background:rgba(16,185,129,.1);
+}
+.workspace-badge.unavailable{
+  color:#b91c1c;
+  border-color:rgba(239,68,68,.24);
+  background:rgba(239,68,68,.08);
+}
+.workspace-badge.unknown{
+  color:#9a6700;
+  border-color:rgba(234,179,8,.26);
+  background:rgba(234,179,8,.1);
+}
 .canvas-actions{
   justify-self:end;
   display:flex;
@@ -1575,6 +1590,8 @@ body::before{ display: none; }
               <div class="workspace-badge" id="projectStatus">空闲</div>
               <div class="workspace-badge" id="selectionStatus">未选中节点</div>
               <div class="workspace-badge" id="queueSummary">队列空闲</div>
+              <div class="workspace-badge unknown" id="capabilityStatus">AI 能力检查中</div>
+              <div class="workspace-badge unknown" id="exportCapabilityStatus">导出能力检查中</div>
             </div>
           </div>
           <div class="canvas-right-tools" id="canvasRightTools">
@@ -1830,10 +1847,35 @@ const WORKFLOW_RECIPES = [
   },
 ];
 
+function createDefaultCapabilities() {
+  return {
+    aiConfigured: false,
+    requiresAuth: false,
+    proxyReachable: false,
+    imageGenerateStatus: 'unknown',
+    imageGenerateReady: false,
+    videoGenerateStatus: 'unknown',
+    videoGenerateReady: false,
+    imageToVideoStatus: 'unknown',
+    imageToVideoReady: false,
+    videoExportStatus: 'unknown',
+    videoExportReady: false,
+    reasons: {
+      imageGenerate: '',
+      videoGenerate: '',
+      imageToVideo: '',
+      videoExport: '',
+    },
+    models: {},
+    updatedAt: '',
+  };
+}
+
 const state = {
   projects: [],
   project: null,
   selectedNodeId: null,
+  capabilities: createDefaultCapabilities(),
   ui: {
     projectRailOpen: false,
     canvasActionsOpen: false,
@@ -1915,6 +1957,8 @@ const elements = {
   projectStatus: document.getElementById('projectStatus'),
   selectionStatus: document.getElementById('selectionStatus'),
   queueSummary: document.getElementById('queueSummary'),
+  capabilityStatus: document.getElementById('capabilityStatus'),
+  exportCapabilityStatus: document.getElementById('exportCapabilityStatus'),
   canvasRightTools: document.getElementById('canvasRightTools'),
   canvasActionToggleButton: document.getElementById('canvasActionToggleButton'),
   canvasActions: document.getElementById('canvasActions'),
@@ -2101,6 +2145,15 @@ function showToast(message, timeout = 2800) {
   showToast.timer = setTimeout(() => elements.toast.classList.remove('show'), timeout);
 }
 
+function runUiAction(task, fallbackMessage = '操作失败') {
+  Promise.resolve()
+    .then(task)
+    .catch((error) => {
+      console.error(error);
+      showToast(error?.message || fallbackMessage);
+    });
+}
+
 async function fetchJson(path, options = {}) {
   const response = await fetch(`${API_BASE}${path}`, {
     credentials: 'same-origin',
@@ -2220,6 +2273,135 @@ async function ensureAuthenticated() {
 
 function getData(payload) {
   return payload && typeof payload === 'object' && 'data' in payload ? payload.data : payload;
+}
+
+function normalizeCapabilities(payload) {
+  const data = getData(payload) || {};
+  const defaults = createDefaultCapabilities();
+  const reasons = data.reasons && typeof data.reasons === 'object' ? data.reasons : {};
+  return {
+    ...defaults,
+    ...data,
+    reasons: {
+      ...defaults.reasons,
+      ...reasons,
+    },
+  };
+}
+
+function capabilityBadgeClass(status) {
+  return status === 'ready' ? 'ready' : status === 'unavailable' ? 'unavailable' : 'unknown';
+}
+
+function hasExportableVideoNodes() {
+  return Boolean((state.project?.nodes || []).some((node) => (
+    node.media_type === 'video'
+    && (node.file_id || node.result_url || node.preview_url)
+  )));
+}
+
+function currentVideoUnavailableReason() {
+  const caps = state.capabilities || createDefaultCapabilities();
+  if (caps.videoGenerateStatus === 'unavailable' && caps.imageToVideoStatus === 'unavailable') {
+    return caps.reasons.imageToVideo || caps.reasons.videoGenerate || '当前后端未配置视频生成';
+  }
+  return '';
+}
+
+function currentVideoExportReason() {
+  const caps = state.capabilities || createDefaultCapabilities();
+  if (caps.videoExportStatus === 'unavailable') {
+    return caps.reasons.videoExport || '视频导出当前不可用';
+  }
+  if (state.project?.id && !hasExportableVideoNodes()) {
+    return '项目内还没有可导出的视频节点';
+  }
+  return '';
+}
+
+function setSelectOptionAvailability(selectElement, value, enabled, reason = '') {
+  const option = selectElement?.querySelector(`option[value="${value}"]`);
+  if (!option) {
+    return;
+  }
+  option.disabled = !enabled;
+  option.title = enabled ? '' : reason;
+  if (!enabled && selectElement.value === value) {
+    selectElement.value = 'image';
+  }
+}
+
+function updateCapabilityUi() {
+  const caps = state.capabilities || createDefaultCapabilities();
+  const videoUnavailableReason = currentVideoUnavailableReason();
+  const exportReason = currentVideoExportReason();
+
+  const capabilityStatus = !caps.aiConfigured
+    ? 'unavailable'
+    : videoUnavailableReason
+      ? 'unavailable'
+      : caps.imageGenerateStatus === 'ready' && (caps.videoGenerateStatus === 'ready' || caps.imageToVideoStatus === 'ready')
+        ? 'ready'
+        : 'unknown';
+  const capabilityText = !caps.aiConfigured
+    ? 'AI 未配置'
+    : videoUnavailableReason
+      ? 'AI 图片可用 · 视频不可用'
+      : caps.imageGenerateStatus === 'ready' && (caps.videoGenerateStatus === 'ready' || caps.imageToVideoStatus === 'ready')
+        ? 'AI 图片/视频可用'
+        : 'AI 状态待确认';
+  elements.capabilityStatus.textContent = capabilityText;
+  elements.capabilityStatus.className = `workspace-badge ${capabilityBadgeClass(capabilityStatus)}`;
+  elements.capabilityStatus.title = videoUnavailableReason || caps.reasons.imageGenerate || '';
+
+  const exportStatus = exportReason ? 'unavailable' : (caps.videoExportStatus === 'ready' ? 'ready' : 'unknown');
+  elements.exportCapabilityStatus.textContent = exportReason ? '视频导出不可用' : '视频导出可用';
+  elements.exportCapabilityStatus.className = `workspace-badge ${capabilityBadgeClass(exportStatus)}`;
+  elements.exportCapabilityStatus.title = exportReason || caps.reasons.videoExport || '';
+
+  const videoSelectable = !videoUnavailableReason;
+  setSelectOptionAvailability(elements.mediaTypeSelect, 'video', videoSelectable, videoUnavailableReason);
+  setSelectOptionAvailability(elements.detailMediaTypeSelect, 'video', videoSelectable, videoUnavailableReason);
+
+  elements.exportVideoButton.disabled = Boolean(exportReason);
+  elements.exportVideoButton.title = exportReason;
+}
+
+async function loadCapabilities({ suppressErrors = false } = {}) {
+  try {
+    const response = await fetchJson('/api/capabilities');
+    state.capabilities = normalizeCapabilities(response);
+  } catch (error) {
+    state.capabilities = createDefaultCapabilities();
+    if (!suppressErrors) {
+      throw error;
+    }
+  }
+  updateCapabilityUi();
+  return state.capabilities;
+}
+
+function assertVideoCreationAvailable({ requiresImageToVideo = false } = {}) {
+  if (requiresImageToVideo && state.capabilities.imageToVideoStatus === 'unavailable') {
+    throw new Error(state.capabilities.reasons.imageToVideo || '当前图生视频不可用');
+  }
+  const reason = currentVideoUnavailableReason();
+  if (reason) {
+    throw new Error(reason);
+  }
+}
+
+function assertStoryboardCapabilities(lines) {
+  const hasVideoLines = lines.some((item) => item.mediaType === 'video');
+  if (!hasVideoLines) {
+    return;
+  }
+  const queueMode = elements.queueModeSelect.value;
+  const requiresImageToVideo = queueMode !== 'free';
+  if (queueMode === 'chain' && lines[0]?.mediaType === 'video' && !state.selectedNodeId) {
+    throw new Error('顺序串联的第一个视频镜头前需要先有一张图片镜头');
+  }
+  assertVideoCreationAvailable({ requiresImageToVideo });
 }
 
 function fmtDate(value) {
@@ -2349,14 +2531,17 @@ function applyRecipe(recipeId) {
   elements.mediaTypeSelect.value = recipe.mediaType;
   elements.aspectSelect.value = recipe.aspect;
   elements.styleInput.value = recipe.style;
+  updateCapabilityUi();
   showToast(`已载入模板：${recipe.name}`);
 }
 
 function updateDraftHint() {
   const node = selectedNode();
-  elements.draftHint.textContent = node
+  const base = node
     ? `当前父节点：${node.prompt.slice(0, 38) || node.id}。新的结果会从它的下方继续扩展。`
     : '未选择父节点，新镜头会直接追加到当前项目。';
+  const videoReason = currentVideoUnavailableReason();
+  elements.draftHint.textContent = videoReason ? `${base} 当前视频不可用：${videoReason}` : base;
   elements.selectionStatus.textContent = node
     ? `选中 Scene ${node.scene_id ?? '—'} · ${node.media_type === 'video' ? '视频' : '图片'}`
     : '未选中节点';
@@ -2364,11 +2549,13 @@ function updateDraftHint() {
 
 function updateBatchHint() {
   const mode = elements.queueModeSelect.value;
-  elements.batchHint.textContent = mode === 'chain'
+  const base = mode === 'chain'
     ? '当前模式：顺序串联。每个镜头会自动接在上一个镜头之后。'
     : mode === 'branch'
       ? '当前模式：分支挂载。所有新镜头会连到当前选中的父节点。'
       : '当前模式：独立节点。每个镜头都会作为自由节点加入画布。';
+  const videoReason = currentVideoUnavailableReason();
+  elements.batchHint.textContent = videoReason ? `${base} 当前视频不可用：${videoReason}` : base;
 }
 
 function renderProjects() {
@@ -2420,6 +2607,7 @@ function renderStats() {
     ? (activeSessions > 0 ? `活跃队列 ${activeSessions}` : '队列空闲')
     : '队列空闲';
   elements.queuePanelToggleButton.textContent = activeSessions > 0 ? `队列 ${activeSessions}` : '队列';
+  updateCapabilityUi();
 }
 
 function renderNodeList() {
@@ -3181,6 +3369,9 @@ async function generateNode() {
     showToast('先写一个提示词');
     return;
   }
+  if (elements.mediaTypeSelect.value === 'video') {
+    assertVideoCreationAvailable({ requiresImageToVideo: Boolean(state.selectedNodeId) });
+  }
   elements.generateButton.disabled = true;
   try {
     const created = await submitSession({
@@ -3221,6 +3412,7 @@ async function queueStoryboard() {
     showToast('先在批量脚本里写至少一个镜头');
     return;
   }
+  assertStoryboardCapabilities(lines);
 
   const queueMode = elements.queueModeSelect.value;
   elements.queueStoryboardButton.disabled = true;
@@ -3264,6 +3456,11 @@ async function retryFailedSessions() {
   if (!failedSessions.length) {
     showToast('当前没有失败任务');
     return;
+  }
+  if (failedSessions.some((session) => session.media_type === 'video')) {
+    assertVideoCreationAvailable({
+      requiresImageToVideo: failedSessions.some((session) => session.media_type === 'video' && session.parent_node_id),
+    });
   }
 
   elements.retryFailedSessionsButton.disabled = true;
@@ -3460,6 +3657,10 @@ async function exportSubtitle() {
 
 async function exportVideo() {
   if (!state.project?.id) return;
+  const exportReason = currentVideoExportReason();
+  if (exportReason) {
+    throw new Error(exportReason);
+  }
   const aspect = elements.aspectSelect.value || 'origin';
   const result = await fetchJson(`/api/projects/${state.project.id}/export/video?aspect=${encodeURIComponent(aspect)}`);
   showToast(`视频已导出: ${result.path}`);
@@ -3573,32 +3774,35 @@ document.addEventListener('click', (event) => {
   }
 });
 elements.refreshButton.addEventListener('click', async () => {
-  await loadProjects();
-  if (state.project?.id) {
-    await loadProject(state.project.id, { preserveSelection: true });
-  }
-  showToast('已刷新');
+  runUiAction(async () => {
+    await loadCapabilities({ suppressErrors: true });
+    await loadProjects();
+    if (state.project?.id) {
+      await loadProject(state.project.id, { preserveSelection: true });
+    }
+    showToast('已刷新');
+  }, '刷新失败');
 });
-elements.newProjectButton.addEventListener('click', createProject);
-elements.generateButton.addEventListener('click', generateNode);
+elements.newProjectButton.addEventListener('click', () => runUiAction(createProject, '创建项目失败'));
+elements.generateButton.addEventListener('click', () => runUiAction(generateNode, '生成失败'));
 elements.clearDraftButton.addEventListener('click', () => {
   elements.promptInput.value = '';
   elements.styleInput.value = '';
 });
-elements.createNoteButton.addEventListener('click', () => createUtilityNode('note'));
-elements.createRefButton.addEventListener('click', () => createUtilityNode('reference'));
+elements.createNoteButton.addEventListener('click', () => runUiAction(() => createUtilityNode('note'), '添加便签失败'));
+elements.createRefButton.addEventListener('click', () => runUiAction(() => createUtilityNode('reference'), '添加参考节点失败'));
 elements.uploadRefButton.addEventListener('click', () => elements.referenceUploadInput.click());
 elements.openAssetPickerButton.addEventListener('click', () => elements.referenceUploadInput.click());
 elements.queueModeSelect.addEventListener('change', updateBatchHint);
-elements.queueStoryboardButton.addEventListener('click', queueStoryboard);
+elements.queueStoryboardButton.addEventListener('click', () => runUiAction(queueStoryboard, '批量排队失败'));
 elements.clearStoryboardButton.addEventListener('click', () => {
   elements.storyboardInput.value = '';
 });
 elements.sessionFilterSelect.addEventListener('change', renderSessionList);
-elements.retryFailedSessionsButton.addEventListener('click', retryFailedSessions);
-elements.autoArrangeButton.addEventListener('click', autoArrangeNodes);
-elements.exportSubtitleButton.addEventListener('click', exportSubtitle);
-elements.exportVideoButton.addEventListener('click', exportVideo);
+elements.retryFailedSessionsButton.addEventListener('click', () => runUiAction(retryFailedSessions, '重试失败'));
+elements.autoArrangeButton.addEventListener('click', () => runUiAction(autoArrangeNodes, '自动布局失败'));
+elements.exportSubtitleButton.addEventListener('click', () => runUiAction(exportSubtitle, '导出字幕失败'));
+elements.exportVideoButton.addEventListener('click', () => runUiAction(exportVideo, '导出视频失败'));
 elements.focusButton.addEventListener('click', centerOnSelected);
 elements.toggleEdgesButton.addEventListener('click', () => {
   state.showEdges = !state.showEdges;
@@ -3900,6 +4104,7 @@ async function bootstrap() {
   updateZoomLabel();
   updateBatchHint();
   await ensureAuthenticated();
+  await loadCapabilities({ suppressErrors: true });
   await loadProjects();
   const projectId = new URLSearchParams(window.location.search).get('projectId');
   if (projectId) {

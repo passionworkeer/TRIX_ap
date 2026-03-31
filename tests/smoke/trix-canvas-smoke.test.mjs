@@ -62,6 +62,18 @@ test('Canvas service smoke flow', async (t) => {
       assert.equal(body?.status, 'ok');
     });
 
+    await t.test('capabilities endpoint returns runtime readiness fields', async () => {
+      const response = await fetch(`${canvasUrl}/api/capabilities`);
+      const body = await response.json();
+      assert.equal(response.status, 200);
+      assert.equal(body?.status, 'ok');
+      assert.ok('imageGenerateStatus' in body);
+      assert.ok('videoGenerateStatus' in body);
+      assert.ok('imageToVideoStatus' in body);
+      assert.ok('videoExportStatus' in body);
+      assert.ok(body?.reasons && typeof body.reasons === 'object');
+    });
+
     await t.test('backup or debug static artifacts are not exposed', async () => {
       const backupResponse = await fetch(`${canvasUrl}/canvas.html.bak`);
       assert.equal(backupResponse.status, 404);

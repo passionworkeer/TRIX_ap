@@ -12,6 +12,7 @@ from _paths import PACKAGED_SERVICE_DIR, resolve_canvas_service_dir, sync_packag
 
 SYNC_FILES = (
     "README.md",
+    "canvasSecurity.js",
     "package.json",
     "proxy.js",
     "relay.js",

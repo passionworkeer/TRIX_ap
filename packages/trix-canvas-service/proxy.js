@@ -122,7 +122,7 @@ function getPresentedToken(req) {
 }
 
 function assertProxyAuthenticated(req, pathname) {
-  if (pathname === '/health') {
+  if (pathname === '/health' || pathname === '/capabilities') {
     return;
   }
   if (!matchesProxyAccessToken(getPresentedToken(req))) {
@@ -231,6 +231,152 @@ function assertStoreCapacity(store, maxEntries, label) {
 
 const cleanupTimer = setInterval(cleanupExpiredEntries, Math.min(TASK_TTL_MS, SESSION_TTL_MS));
 cleanupTimer.unref();
+
+function nowIso() {
+  return new Date().toISOString();
+}
+
+function describeProvider(baseUrl) {
+  try {
+    return new URL(baseUrl).hostname || 'unknown';
+  } catch {
+    return 'unknown';
+  }
+}
+
+function createCapabilityEntry(status, reason = '') {
+  return {
+    status,
+    reason,
+    lastError: reason || '',
+    lastUpdatedAt: nowIso(),
+  };
+}
+
+const capabilityState = {
+  imageGenerate: AI_API_KEY && AI_IMAGE_PATH
+    ? createCapabilityEntry('ready')
+    : createCapabilityEntry('unavailable', AI_API_KEY ? 'AI_IMAGE_PATH 未配置' : 'AI_API_KEY 未配置'),
+  videoGenerate: AI_VIDEO_PATH && AI_API_KEY && AI_VIDEO_MODEL
+    ? createCapabilityEntry('unknown', '等待第一次视频请求确认能力')
+    : createCapabilityEntry(
+      'unavailable',
+      !AI_API_KEY
+        ? 'AI_API_KEY 未配置'
+        : !AI_VIDEO_PATH
+          ? 'AI_VIDEO_PATH 未配置'
+          : 'AI_VIDEO_MODEL 未配置',
+    ),
+  imageToVideo: AI_VIDEO_PATH && AI_API_KEY && AI_VIDEO_I2V_MODEL
+    ? createCapabilityEntry('unknown', '等待第一次图生视频请求确认能力')
+    : createCapabilityEntry(
+      'unavailable',
+      !AI_API_KEY
+        ? 'AI_API_KEY 未配置'
+        : !AI_VIDEO_PATH
+          ? 'AI_VIDEO_PATH 未配置'
+          : 'AI_VIDEO_I2V_MODEL 未配置',
+    ),
+};
+
+function setCapabilityStatus(key, status, reason = '') {
+  if (!capabilityState[key]) {
+    return;
+  }
+  capabilityState[key] = {
+    status,
+    reason,
+    lastError: reason || '',
+    lastUpdatedAt: nowIso(),
+  };
+}
+
+function isCapabilityUnsupportedMessage(message) {
+  const normalized = String(message || '').trim().toLowerCase();
+  if (!normalized) {
+    return false;
+  }
+  return [
+    'plan not support',
+    'does not support',
+    'not support model',
+    'model is not supported',
+    'unsupported model',
+    'model_not_supported',
+    'image generation is not supported',
+    'video generation is not supported',
+    'invalid api key',
+    'unauthorized',
+    'forbidden',
+    'permission denied',
+    'insufficient quota',
+  ].some((marker) => normalized.includes(marker));
+}
+
+function updateMediaCapabilityFromFailure(mediaType, error, { usesFirstFrameImage = false } = {}) {
+  const message = String(error || '').trim();
+  if (!message) {
+    return;
+  }
+  if (mediaType === 'image') {
+    if (isCapabilityUnsupportedMessage(message)) {
+      setCapabilityStatus('imageGenerate', 'unavailable', message);
+    }
+    return;
+  }
+  const key = usesFirstFrameImage ? 'imageToVideo' : 'videoGenerate';
+  if (isCapabilityUnsupportedMessage(message)) {
+    setCapabilityStatus(key, 'unavailable', message);
+  } else if (capabilityState[key]?.status === 'unknown') {
+    setCapabilityStatus(key, 'unknown', message);
+  }
+}
+
+function updateMediaCapabilityFromSuccess(mediaType, { usesFirstFrameImage = false } = {}) {
+  if (mediaType === 'image') {
+    setCapabilityStatus('imageGenerate', 'ready');
+    return;
+  }
+  const key = usesFirstFrameImage ? 'imageToVideo' : 'videoGenerate';
+  setCapabilityStatus(key, 'ready');
+}
+
+function capabilitySnapshot() {
+  return {
+    status: 'ok',
+    service: 'trix-canvas-ai-proxy',
+    port: PORT,
+    host: HOST,
+    provider: describeProvider(AI_API_BASE),
+    aiConfigured: Boolean(AI_API_KEY),
+    imageGenerateStatus: capabilityState.imageGenerate.status,
+    imageGenerateReady: capabilityState.imageGenerate.status === 'ready',
+    videoGenerateStatus: capabilityState.videoGenerate.status,
+    videoGenerateReady: capabilityState.videoGenerate.status === 'ready',
+    imageToVideoStatus: capabilityState.imageToVideo.status,
+    imageToVideoReady: capabilityState.imageToVideo.status === 'ready',
+    reasons: {
+      imageGenerate: capabilityState.imageGenerate.reason,
+      videoGenerate: capabilityState.videoGenerate.reason,
+      imageToVideo: capabilityState.imageToVideo.reason,
+    },
+    lastErrors: {
+      imageGenerate: capabilityState.imageGenerate.lastError,
+      videoGenerate: capabilityState.videoGenerate.lastError,
+      imageToVideo: capabilityState.imageToVideo.lastError,
+    },
+    models: {
+      image: AI_IMAGE_MODEL,
+      video: AI_VIDEO_MODEL,
+      imageToVideo: AI_VIDEO_I2V_MODEL,
+    },
+    paths: {
+      image: AI_IMAGE_PATH,
+      video: AI_VIDEO_PATH,
+    },
+    updatedAt: nowIso(),
+  };
+}
 
 // ── HTTP/HTTPS forwarder ────────────────────────────────────────────────────
 
@@ -483,6 +629,11 @@ async function pollTaskEntry(taskId, task) {
       if (!result.ok) {
         task.status = 'failed';
         task.error = extractErrorMessage(result.body, `HTTP ${result.status}`);
+        updateMediaCapabilityFromFailure(
+          task.mediaType,
+          task.error,
+          { usesFirstFrameImage: Boolean(task.usesFirstFrameImage) },
+        );
         return task;
       }
       const next = await finalizeAsyncResult(task, result.body);
@@ -490,11 +641,28 @@ async function pollTaskEntry(taskId, task) {
       task.output = next.output;
       task.urls = next.urls;
       task.error = next.error;
+      if (task.status === 'completed') {
+        updateMediaCapabilityFromSuccess(
+          task.mediaType,
+          { usesFirstFrameImage: Boolean(task.usesFirstFrameImage) },
+        );
+      } else if (task.status === 'failed') {
+        updateMediaCapabilityFromFailure(
+          task.mediaType,
+          task.error,
+          { usesFirstFrameImage: Boolean(task.usesFirstFrameImage) },
+        );
+      }
       return task;
     })
     .catch((error) => {
       task.status = 'failed';
       task.error = error.message;
+      updateMediaCapabilityFromFailure(
+        task.mediaType,
+        task.error,
+        { usesFirstFrameImage: Boolean(task.usesFirstFrameImage) },
+      );
       return task;
     })
     .finally(() => {
@@ -520,6 +688,11 @@ async function pollSessionEntry(sessionId, session) {
       if (!result.ok) {
         session.status = 'failed';
         session.error = extractErrorMessage(result.body, `HTTP ${result.status}`);
+        updateMediaCapabilityFromFailure(
+          session.mediaType,
+          session.error,
+          { usesFirstFrameImage: Boolean(session.usesFirstFrameImage) },
+        );
         return session;
       }
       const next = await finalizeAsyncResult(session, result.body);
@@ -529,11 +702,28 @@ async function pollSessionEntry(sessionId, session) {
       if (session.upstreamTaskId) {
         session.task_id = session.upstreamTaskId;
       }
+      if (session.status === 'completed') {
+        updateMediaCapabilityFromSuccess(
+          session.mediaType,
+          { usesFirstFrameImage: Boolean(session.usesFirstFrameImage) },
+        );
+      } else if (session.status === 'failed') {
+        updateMediaCapabilityFromFailure(
+          session.mediaType,
+          session.error,
+          { usesFirstFrameImage: Boolean(session.usesFirstFrameImage) },
+        );
+      }
       return session;
     })
     .catch((error) => {
       session.status = 'failed';
       session.error = error.message;
+      updateMediaCapabilityFromFailure(
+        session.mediaType,
+        session.error,
+        { usesFirstFrameImage: Boolean(session.usesFirstFrameImage) },
+      );
       return session;
     })
     .finally(() => {
@@ -549,6 +739,12 @@ async function callAi(canvasPayload) {
   const prompt = canvasPayload.message || canvasPayload.prompt || '';
   const mediaType = canvasPayload.media_type || canvasPayload.mediaType || 'image';
   const aspect = resolveAspect(canvasPayload.aspect);
+  const firstFrameImage = canvasPayload.parent_source_url
+    || canvasPayload.parentSourceUrl
+    || canvasPayload.parent_result_url
+    || canvasPayload.parentResultUrl
+    || '';
+  const capabilityContext = { usesFirstFrameImage: Boolean(firstFrameImage) };
 
   if (mediaType === 'image') {
     const result = await apiRequest('POST', AI_IMAGE_PATH, {
@@ -559,10 +755,13 @@ async function callAi(canvasPayload) {
       n: 1,
     });
     if (!result.ok) {
-      return { ok: false, error: extractErrorMessage(result.body, `HTTP ${result.status}`) };
+      const error = extractErrorMessage(result.body, `HTTP ${result.status}`);
+      updateMediaCapabilityFromFailure(mediaType, error, capabilityContext);
+      return { ok: false, error };
     }
     const urls = extractUrls(result.body);
     if (urls.length > 0) {
+      updateMediaCapabilityFromSuccess(mediaType, capabilityContext);
       return { ok: true, status: 'completed', urls };
     }
     const taskId = extractTaskId(result.body);
@@ -577,17 +776,15 @@ async function callAi(canvasPayload) {
       };
     }
     if (result.body?.base_resp?.status_code !== 0) {
-      return { ok: false, error: extractErrorMessage(result.body, 'Image generation failed') };
+      const error = extractErrorMessage(result.body, 'Image generation failed');
+      updateMediaCapabilityFromFailure(mediaType, error, capabilityContext);
+      return { ok: false, error };
     }
+    updateMediaCapabilityFromFailure(mediaType, 'No image URL in response', capabilityContext);
     return { ok: false, error: 'No image URL in response' };
   }
 
   if (AI_VIDEO_PATH) {
-    const firstFrameImage = canvasPayload.parent_source_url
-      || canvasPayload.parentSourceUrl
-      || canvasPayload.parent_result_url
-      || canvasPayload.parentResultUrl
-      || '';
     const videoModel = firstFrameImage ? AI_VIDEO_I2V_MODEL : AI_VIDEO_MODEL;
     const result = await apiRequest('POST', AI_VIDEO_PATH, {
       model: videoModel,
@@ -597,10 +794,13 @@ async function callAi(canvasPayload) {
       ...(firstFrameImage ? { first_frame_image: firstFrameImage } : {}),
     });
     if (!result.ok) {
-      return { ok: false, error: extractErrorMessage(result.body, `HTTP ${result.status}`) };
+      const error = extractErrorMessage(result.body, `HTTP ${result.status}`);
+      updateMediaCapabilityFromFailure(mediaType, error, capabilityContext);
+      return { ok: false, error };
     }
     const urls = extractUrls(result.body);
     if (urls.length > 0) {
+      updateMediaCapabilityFromSuccess(mediaType, capabilityContext);
       return { ok: true, status: 'completed', urls };
     }
     const taskId = extractTaskId(result.body);
@@ -616,14 +816,23 @@ async function callAi(canvasPayload) {
     }
     const extracted = extractMediaUrl(result.body, mediaType);
     if (extracted?.url) {
+      updateMediaCapabilityFromSuccess(mediaType, capabilityContext);
       return { ok: true, status: 'completed', urls: [extracted.url] };
     }
     if (extracted?.error) {
+      updateMediaCapabilityFromFailure(mediaType, extracted.error, capabilityContext);
       return { ok: false, error: extracted.error };
     }
     if (result.body?.base_resp?.status_code !== 0) {
-      return { ok: false, error: extractErrorMessage(result.body, 'Video generation failed') };
+      const error = extractErrorMessage(result.body, 'Video generation failed');
+      updateMediaCapabilityFromFailure(mediaType, error, capabilityContext);
+      return { ok: false, error };
     }
+    updateMediaCapabilityFromFailure(
+      mediaType,
+      'Video endpoint returned neither URL nor pollable task',
+      capabilityContext,
+    );
     return { ok: false, error: 'Video endpoint returned neither URL nor pollable task' };
   }
 
@@ -634,15 +843,20 @@ async function callAi(canvasPayload) {
     stream: false,
   });
   if (!result.ok) {
-    return { ok: false, error: extractErrorMessage(result.body, `HTTP ${result.status}`) };
+    const error = extractErrorMessage(result.body, `HTTP ${result.status}`);
+    updateMediaCapabilityFromFailure(mediaType, error, capabilityContext);
+    return { ok: false, error };
   }
   const extracted = extractMediaUrl(result.body, mediaType);
   if (!extracted) {
+    updateMediaCapabilityFromFailure(mediaType, 'AI response contained no usable URL', capabilityContext);
     return { ok: false, error: 'AI response contained no usable URL' };
   }
   if (extracted.error) {
+    updateMediaCapabilityFromFailure(mediaType, extracted.error, capabilityContext);
     return { ok: false, error: extracted.error };
   }
+  updateMediaCapabilityFromSuccess(mediaType, capabilityContext);
   return { ok: true, status: 'completed', urls: [extracted.url] };
 }
 
@@ -656,9 +870,16 @@ async function handle(req, url, body) {
     assertStoreCapacity(tasks, MAX_TASK_ENTRIES, 'task');
     const task_id = `tk_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     const mediaType = body?.media_type || body?.mediaType || 'image';
+    const usesFirstFrameImage = Boolean(
+      body?.parent_source_url
+      || body?.parentSourceUrl
+      || body?.parent_result_url
+      || body?.parentResultUrl,
+    );
     tasks.set(task_id, {
       status: 'pending',
       mediaType,
+      usesFirstFrameImage,
       output: null,
       urls: [],
       error: null,
@@ -714,10 +935,17 @@ async function handle(req, url, body) {
     const sessionId = `sess_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     const task_id = `tk_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     const mediaType = body?.media_type || body?.mediaType || 'image';
+    const usesFirstFrameImage = Boolean(
+      body?.parent_source_url
+      || body?.parentSourceUrl
+      || body?.parent_result_url
+      || body?.parentResultUrl,
+    );
     sessions.set(sessionId, {
       task_id,
       status: 'generating',
       mediaType,
+      usesFirstFrameImage,
       resultUrls: [],
       messages: [],
       error: null,
@@ -768,7 +996,11 @@ async function handle(req, url, body) {
 
   // ── Health ─────────────────────────────────────────────────────────────
   if (req.method === 'GET' && pathname === '/health') {
-    return { status: 200, body: { status: 'ok', service: 'trix-canvas-ai-proxy', aiConfigured: Boolean(AI_API_KEY) } };
+    return { status: 200, body: capabilitySnapshot() };
+  }
+
+  if (req.method === 'GET' && pathname === '/capabilities') {
+    return { status: 200, body: capabilitySnapshot() };
   }
 
   return { status: 404, body: { error: 'not found' } };

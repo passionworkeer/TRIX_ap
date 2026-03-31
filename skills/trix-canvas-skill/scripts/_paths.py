@@ -18,6 +18,7 @@ PACKAGED_SERVICE_DIR = (SKILL_ROOT / "assets" / "canvas-service").resolve()
 SYNC_TOP_LEVEL_FILES = (
     ".env.example",
     "README.md",
+    "canvasSecurity.js",
     "package.json",
     "proxy.js",
     "relay.js",

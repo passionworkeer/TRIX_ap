@@ -23,11 +23,15 @@
 - Canvas:
   - 已补鉴权入口、cookie 会话、允许源白名单。
   - 已去掉客户端可控 `result_url` 写入，并对媒体 URL 做前后端双向净化。
+  - 2026-04-01：500 错误已统一脱敏，不再把 ffmpeg / 内部路径细节回给客户端。
+  - 2026-04-01：已禁止 `?token=` / `#token=` URL 自动登录，改为仅允许页面内手动输入 token。
+  - 2026-04-01：proxy 的 `tasks` / `sessions` 已增加容量上限与终态淘汰，降低内存堆积风险。
 - Pairing / Native:
   - `PairingService` 改为强制 `secret`，客户端删除“去掉 secret 重试”。
   - WebSocket 不再把 `clientToken` 放在 query string，改为子协议传输。
   - `clientToken` 从 `localStorage` 迁到 `sessionStorage`，配对页与 ops 配对页都已去敏。
   - Native attachment 已补本地路径默认禁用、私网/回环/私有 DNS 拦截、远端大小上限。
+  - 2026-04-01：`X-Forwarded-For` 仅在请求来自回环或显式信任代理时才被采信，限流与 allowlist 不再无条件信任客户端伪造头。
 - Desktop:
   - `openclaw` / `clawhub` / `gateway` 启动链路已去掉 `shell: true`。
   - renderer 不再暴露通用 `configRead` / `configWrite`。
@@ -51,6 +55,7 @@
 仍未覆盖:
 - 未执行完整 `xcodebuild` / iOS Simulator / 真机回归。
 - 未执行联网黑盒 DAST / 渗透测试。
+- Canvas 鉴权门禁、受保护媒体读取、私网 URL 拒绝路径的 E2E / 压测仍偏少。
 
 ## Findings
 

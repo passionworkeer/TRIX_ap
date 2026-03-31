@@ -4,6 +4,34 @@
 
 ---
 
+## 📅 2026-04-01 — iOS 认证回归修复 + Native/Canvas 安全加固 + 文档同步
+
+### 完成内容
+
+1. **iOS 注册链路修复**:
+   - 修复 `APIClient` 对 `{ user, session }` 注册返回体丢失嵌套 `session` 的问题
+   - 修复 `AuthService.register()` 在 fallback 登录失败时误报 success 的问题
+   - 补上 APIClient / AuthService / AuthViewModel 定向回归测试
+   - 定向认证回归 `11/11` 通过
+
+2. **Native / Canvas 服务安全收口**:
+   - `trix-openclaw-native` 仅在回环或显式信任代理下采信 `X-Forwarded-For`
+   - Canvas 服务 500 错误统一脱敏，不再向客户端泄露 ffmpeg / 路径细节
+   - Canvas 前端禁用 `?token=` / `#token=` URL 自动登录
+   - Canvas proxy 的 `tasks` / `sessions` 增加硬上限和终态淘汰
+   - `trix-openclaw-native` 新增 `accessControl.test.ts`
+
+3. **耦合治理（低风险拆分）**:
+   - 从 `packages/trix-canvas-service/server.js` 抽离 `canvasSecurity.js`
+   - 将 bind 安全检查、token provisioning、cookie 序列化、鉴权判定、媒体 URL 安全校验独立成模块
+   - 同步更新 skill runtime 打包规则与 smoke 测试，确保仓库运行时与 skill 资产一致
+
+4. **文档同步**:
+   - 新增 `docs/project-reports/LAUNCH_READINESS_UPDATE_20260401.md`
+   - 更新 `docs/project-reports/OWASP_TOP10_AUDIT_20260331.md`
+   - 更新 `docs/guides/DEPLOYMENT.md`
+   - 更新 `docs/INDEX.md`
+
 ## 📅 2026-03-31 — Supabase Auth 统一 + Desktop 偏好/Friends/通知 IPC + E2E 9/9
 
 ### 完成内容

@@ -34,6 +34,7 @@ test('trix-canvas skill install smoke', async (t) => {
     assert.equal(existsSync(resolve(skillDir, 'SKILL.md')), true);
     assert.equal(existsSync(resolve(skillDir, 'scripts/start_canvas.py')), true);
     assert.equal(existsSync(resolve(skillDir, 'scripts/install_openclaw_skill.py')), true);
+    assert.equal(existsSync(resolve(skillDir, 'assets/canvas-service/canvasSecurity.js')), true);
     assert.equal(existsSync(resolve(skillDir, 'assets/canvas-service/server.js')), true);
     assert.equal(existsSync(resolve(skillDir, 'assets/canvas-service/public/canvas.html')), true);
     assert.equal(

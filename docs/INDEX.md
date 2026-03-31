@@ -1,6 +1,6 @@
 # TRIX 3D Companion — 文档索引
 
-> **版本**: v2.6（2026-03-31：文档架构同步更新，WEB_ARCHITECTURE Routes 19→20，BACKEND_ARCHITECTURE Node.js 18+→20+，INDEX 组件数 38→45）
+> **版本**: v2.7（2026-04-01：新增上线增补报告、OWASP 修复更新、部署安全说明、Canvas 耦合拆分记录）
 > **维护者**: TRIX 3D Companion 开发团队
 
 ---
@@ -22,7 +22,9 @@ docs/
 │
 ├── 📊 项目报告 (project-reports/)
 │   ├── PROJECT.md
-│   └── LAUNCH_READINESS_SUMMARY_20260331.md
+│   ├── LAUNCH_READINESS_SUMMARY_20260331.md
+│   ├── LAUNCH_READINESS_UPDATE_20260401.md
+│   └── OWASP_TOP10_AUDIT_20260331.md
 │
 ├── 🔧 开发文档 (development/)
 │   ├── TESTING.md
@@ -138,6 +140,8 @@ docs/
 | 文档 | 描述 |
 |------|------|
 | [project-reports/LAUNCH_READINESS_SUMMARY_20260331.md](./project-reports/LAUNCH_READINESS_SUMMARY_20260331.md) | 本地修复、压测验证、遗留风险总结 |
+| [project-reports/LAUNCH_READINESS_UPDATE_20260401.md](./project-reports/LAUNCH_READINESS_UPDATE_20260401.md) | 认证回归修复、Native/Canvas 安全加固与耦合扫描增补 |
+| [project-reports/OWASP_TOP10_AUDIT_20260331.md](./project-reports/OWASP_TOP10_AUDIT_20260331.md) | 三端 OWASP Top 10 审计与修复更新 |
 | [development/TESTING.md](./development/TESTING.md) | Web / iOS / Desktop 测试命令与约定 |
 | [issues/DESKTOP_TEST_REPORT.md](./issues/DESKTOP_TEST_REPORT.md) | Desktop 测试状态追踪 |
 
@@ -177,7 +181,7 @@ skills/trix-canvas-skill/SKILL.md → skills/trix-canvas-skill/scripts/create_se
 |------|------|
 | 根目录（`docs/`） | 4 |
 | 需求规格（`requirements/`） | 2 |
-| 项目报告（`project-reports/`） | 2 |
+| 项目报告（`project-reports/`） | 4 |
 | 开发文档（`development/`） | 2 |
 | UI 文档（`ui/`） | 3 |
 | 架构文档（`architecture/`） | 3 |
@@ -191,7 +195,7 @@ skills/trix-canvas-skill/SKILL.md → skills/trix-canvas-skill/scripts/create_se
 | 归档（`.archive/`） | 4 |
 | Canvas Skill（`skills/trix-canvas-skill/`） | 1 套（`SKILL.md` + 16 脚本） |
 
-**活跃文档总计（仅 `docs/`，不含 `.archive/` / `screenshots/`）**: 48 个  
+**活跃文档总计（仅 `docs/`，不含 `.archive/` / `screenshots/`）**: 50 个  
 **额外交付资产**: Canvas Skill 1 套，截图 5 张
 
 ---
@@ -209,4 +213,4 @@ skills/trix-canvas-skill/SKILL.md → skills/trix-canvas-skill/scripts/create_se
 
 ---
 
-**最后更新**: 2026-03-31
+**最后更新**: 2026-04-01

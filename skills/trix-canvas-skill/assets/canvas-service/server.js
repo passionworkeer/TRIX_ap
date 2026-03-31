@@ -1,7 +1,6 @@
 import express from 'express';
 import { createServer } from 'http';
 import { lookup } from 'dns/promises';
-import { randomBytes, timingSafeEqual } from 'crypto';
 import {
   existsSync,
   mkdirSync,
@@ -15,10 +14,11 @@ import {
 import { isIP } from 'net';
 import { basename, dirname, extname, join, resolve } from 'path';
 import { fileURLToPath } from 'url';
-import { spawn } from 'child_process';
+import { spawn, spawnSync } from 'child_process';
 import { tmpdir } from 'os';
 import { v4 as uuidv4 } from 'uuid';
 import dotenv from 'dotenv';
+import { createCanvasSecurity, isLoopbackHost } from './canvasSecurity.js';
 
 dotenv.config();
 
@@ -37,8 +37,6 @@ const CANVAS_AUTH_TOKEN_FILE = resolve(
 );
 const CANVAS_AUTH_COOKIE = 'trix_canvas_auth';
 const CANVAS_ALLOWED_ORIGINS = parseOriginList(process.env.CANVAS_ALLOWED_ORIGINS || '');
-const CANVAS_AUTH_TOKEN_INFO = resolveCanvasAccessToken();
-const CANVAS_ACCESS_TOKEN = CANVAS_AUTH_TOKEN_INFO.value;
 
 const PROJECTS_DIR = join(DATA_ROOT, 'projects');
 const NODES_DIR = join(DATA_ROOT, 'nodes');
@@ -55,6 +53,14 @@ const AI_API_KEY = process.env.AI_API_KEY || '';
 const AI_EXTRA_HEADERS = parseHeaderLines(process.env.AI_EXTRA_HEADERS || '');
 const CANVAS_JSON_LIMIT = process.env.CANVAS_JSON_LIMIT || '50mb';
 const AI_REQUEST_TIMEOUT_MS = readPositiveNumber(process.env.CANVAS_AI_REQUEST_TIMEOUT_MS, 60_000);
+const CAPABILITY_REQUEST_TIMEOUT_MS = readPositiveNumber(
+  process.env.CANVAS_CAPABILITY_REQUEST_TIMEOUT_MS,
+  Math.min(AI_REQUEST_TIMEOUT_MS, 2_500),
+);
+const CAPABILITY_CACHE_TTL_MS = readPositiveNumber(
+  process.env.CANVAS_CAPABILITY_CACHE_TTL_MS,
+  5_000,
+);
 const REMOTE_FETCH_TIMEOUT_MS = readPositiveNumber(process.env.CANVAS_REMOTE_FETCH_TIMEOUT_MS, 30_000);
 const MAX_CONCURRENT_EXPORTS = readPositiveNumber(process.env.CANVAS_MAX_CONCURRENT_EXPORTS, 2);
 const MAX_CONCURRENT_SESSION_REFRESHES = readPositiveNumber(
@@ -106,6 +112,11 @@ const sessionRefreshBackoffAttempts = new Map();
 const sessionRefreshWaiters = [];
 const inFlightVideoExportJobs = new Map();
 let activeSessionRefreshes = 0;
+let cachedCanvasCapabilities = null;
+let cachedCanvasCapabilitiesAt = 0;
+let inFlightCanvasCapabilities = null;
+let cachedFfmpegAvailability = null;
+let cachedFfmpegAvailabilityAt = 0;
 
 const EXPORT_ASPECTS = new Map([
   ['origin', null],
@@ -210,14 +221,6 @@ function defaultBaseUrl(host, port) {
   return `http://${formattedHost}:${port}`;
 }
 
-function isLoopbackHost(host) {
-  const normalized = String(host || '').trim().toLowerCase();
-  return normalized === '127.0.0.1'
-    || normalized === 'localhost'
-    || normalized === '::1'
-    || normalized === '[::1]';
-}
-
 function readPositiveNumber(value, fallback) {
   const parsed = Number(value);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
@@ -243,133 +246,12 @@ function appendVaryHeader(res, value) {
   res.setHeader('Vary', Array.from(next).join(', '));
 }
 
-function resolveCanvasAccessToken() {
-  const explicit = (process.env.CANVAS_ACCESS_TOKEN || '').trim();
-  if (!CANVAS_REQUIRE_AUTH) {
-    return { value: explicit, source: explicit ? 'env' : 'disabled' };
-  }
-  if (explicit) {
-    return { value: explicit, source: 'env' };
-  }
-  try {
-    if (existsSync(CANVAS_AUTH_TOKEN_FILE)) {
-      const stored = readFileSync(CANVAS_AUTH_TOKEN_FILE, 'utf8').trim();
-      if (stored) {
-        return { value: stored, source: 'file' };
-      }
-    }
-    const generated = randomBytes(24).toString('hex');
-    mkdirSync(dirname(CANVAS_AUTH_TOKEN_FILE), { recursive: true });
-    writeFileSync(CANVAS_AUTH_TOKEN_FILE, `${generated}\n`, { mode: 0o600 });
-    return { value: generated, source: 'generated-file' };
-  } catch (error) {
-    throw new Error(
-      `Failed to provision CANVAS_ACCESS_TOKEN at ${CANVAS_AUTH_TOKEN_FILE}: ${error.message}`,
-    );
-  }
-}
-
-function assertSafeBindConfiguration() {
-  if (!isLoopbackHost(HOST) && !CANVAS_REQUIRE_AUTH && !CANVAS_ALLOW_INSECURE_PUBLIC) {
-    throw new Error(
-      'Refusing to expose Canvas on a non-loopback host without auth. '
-      + 'Set CANVAS_REQUIRE_AUTH=true or CANVAS_ALLOW_INSECURE_PUBLIC=true to override.',
-    );
-  }
-}
-
-assertSafeBindConfiguration();
-
 function isCanvasAuthExemptPath(pathname) {
   return pathname === '/health'
+    || pathname === '/api/capabilities'
     || pathname === '/api/auth/status'
     || pathname === '/api/auth/login'
     || pathname === '/api/auth/logout';
-}
-
-function parseCookies(request) {
-  const raw = request.headers.cookie || '';
-  return Object.fromEntries(
-    raw
-      .split(';')
-      .map((entry) => entry.trim())
-      .filter(Boolean)
-      .map((entry) => {
-        const separator = entry.indexOf('=');
-        if (separator <= 0) {
-          return [entry, ''];
-        }
-        return [entry.slice(0, separator), decodeURIComponent(entry.slice(separator + 1))];
-      }),
-  );
-}
-
-function serializeCookie(name, value, options = {}) {
-  const parts = [`${name}=${encodeURIComponent(value)}`];
-  parts.push(`Path=${options.path || '/'}`);
-  if (options.httpOnly !== false) {
-    parts.push('HttpOnly');
-  }
-  if (options.sameSite) {
-    parts.push(`SameSite=${options.sameSite}`);
-  }
-  if (options.secure) {
-    parts.push('Secure');
-  }
-  if (typeof options.maxAge === 'number') {
-    parts.push(`Max-Age=${Math.max(0, Math.floor(options.maxAge))}`);
-  }
-  return parts.join('; ');
-}
-
-function matchesCanvasAccessToken(candidate) {
-  if (!CANVAS_REQUIRE_AUTH) {
-    return true;
-  }
-  if (!candidate) {
-    return false;
-  }
-  const received = Buffer.from(String(candidate));
-  const expected = Buffer.from(CANVAS_ACCESS_TOKEN);
-  if (received.length !== expected.length) {
-    return false;
-  }
-  return timingSafeEqual(received, expected);
-}
-
-function getCanvasPresentedToken(request) {
-  const authorization = request.headers.authorization;
-  const bearer = Array.isArray(authorization) ? authorization[0] : authorization;
-  const match = typeof bearer === 'string' ? bearer.match(/^Bearer\s+(.+)$/i) : null;
-  if (match?.[1]) {
-    return match[1].trim();
-  }
-  const cookies = parseCookies(request);
-  return cookies[CANVAS_AUTH_COOKIE];
-}
-
-function assertCanvasAuthenticated(request) {
-  if (!CANVAS_REQUIRE_AUTH) {
-    return;
-  }
-  if (!matchesCanvasAccessToken(getCanvasPresentedToken(request))) {
-    throw httpError('Canvas authentication required', 401, 'CANVAS_AUTH_REQUIRED');
-  }
-}
-
-function isSafeCanvasMediaUrl(rawUrl) {
-  if (typeof rawUrl !== 'string' || !rawUrl.trim()) {
-    return null;
-  }
-  try {
-    const parsed = new URL(rawUrl, APP_ORIGIN);
-    if (!['http:', 'https:'].includes(parsed.protocol)) {
-      return null;
-    }
-    return parsed.toString();
-  } catch {
-    return null;
-  }
 }
 
 function nowIso() {
@@ -390,6 +272,28 @@ function internalServerError(message, internalDetail, code = 'INTERNAL_SERVER_ER
   error.internalDetail = internalDetail;
   return error;
 }
+
+const {
+  accessToken: CANVAS_ACCESS_TOKEN,
+  authTokenInfo: CANVAS_AUTH_TOKEN_INFO,
+  assertCanvasAuthenticated,
+  assertSafeBindConfiguration,
+  getCanvasPresentedToken,
+  isSafeCanvasMediaUrl,
+  matchesCanvasAccessToken,
+  serializeCookie,
+} = createCanvasSecurity({
+  host: HOST,
+  requireAuth: CANVAS_REQUIRE_AUTH,
+  allowInsecurePublic: CANVAS_ALLOW_INSECURE_PUBLIC,
+  authTokenFile: CANVAS_AUTH_TOKEN_FILE,
+  explicitAccessToken: process.env.CANVAS_ACCESS_TOKEN || '',
+  authCookie: CANVAS_AUTH_COOKIE,
+  appOrigin: APP_ORIGIN,
+  httpError,
+});
+
+assertSafeBindConfiguration();
 
 function assertSafeRecordId(id, label = 'record id') {
   const normalized = String(id || '').trim();
@@ -1000,8 +904,8 @@ function deleteProject(projectId) {
   return true;
 }
 
-async function requestJson(url, options = {}) {
-  const response = await fetchWithTimeout(url, options, AI_REQUEST_TIMEOUT_MS);
+async function requestJson(url, options = {}, timeoutMs = AI_REQUEST_TIMEOUT_MS) {
+  const response = await fetchWithTimeout(url, options, timeoutMs);
   const rawText = await response.text();
   let payload = null;
   try {
@@ -1016,6 +920,196 @@ async function requestJson(url, options = {}) {
     throw error;
   }
   return payload;
+}
+
+function unwrapPayloadData(payload) {
+  if (payload && typeof payload === 'object' && payload.data && typeof payload.data === 'object') {
+    return payload.data;
+  }
+  return payload && typeof payload === 'object' ? payload : {};
+}
+
+function normalizeCapabilityStatus(status, fallback = 'unknown') {
+  const normalized = String(status || '').trim().toLowerCase();
+  if (['ready', 'unavailable', 'unknown'].includes(normalized)) {
+    return normalized;
+  }
+  if (normalized === 'ok') {
+    return 'ready';
+  }
+  if (normalized === 'disabled') {
+    return 'unavailable';
+  }
+  return fallback;
+}
+
+function deriveCapabilityStatus(explicitStatus, readyFlag, fallback = 'unknown') {
+  if (explicitStatus !== undefined && explicitStatus !== null && explicitStatus !== '') {
+    return normalizeCapabilityStatus(explicitStatus, fallback);
+  }
+  if (readyFlag === true) {
+    return 'ready';
+  }
+  if (readyFlag === false) {
+    return 'unavailable';
+  }
+  return fallback;
+}
+
+function joinRelativeUrl(baseUrl, relativePath) {
+  const normalizedBase = String(baseUrl || '').trim();
+  if (!normalizedBase) {
+    return '';
+  }
+  return new URL(relativePath.replace(/^\/+/, ''), normalizedBase.endsWith('/') ? normalizedBase : `${normalizedBase}/`).toString();
+}
+
+function detectFfmpegAvailability() {
+  if (cachedFfmpegAvailability && (Date.now() - cachedFfmpegAvailabilityAt) < CAPABILITY_CACHE_TTL_MS) {
+    return cachedFfmpegAvailability;
+  }
+  try {
+    const result = spawnSync('ffmpeg', ['-version'], {
+      stdio: 'ignore',
+      timeout: 5_000,
+    });
+    cachedFfmpegAvailability = result.status === 0
+      ? { available: true, reason: '' }
+      : { available: false, reason: 'ffmpeg 不可用，视频导出已禁用' };
+  } catch {
+    cachedFfmpegAvailability = { available: false, reason: 'ffmpeg 不可用，视频导出已禁用' };
+  }
+  cachedFfmpegAvailabilityAt = Date.now();
+  return cachedFfmpegAvailability;
+}
+
+async function fetchAiCapabilitySnapshot() {
+  if (!AI_API_BASE) {
+    return {
+      reachable: false,
+      provider: 'none',
+      imageGenerateStatus: 'unavailable',
+      videoGenerateStatus: 'unavailable',
+      imageToVideoStatus: 'unavailable',
+      reasons: {
+        imageGenerate: 'AI_API_BASE 未配置',
+        videoGenerate: 'AI_API_BASE 未配置',
+        imageToVideo: 'AI_API_BASE 未配置',
+      },
+      models: {},
+      paths: {},
+    };
+  }
+
+  try {
+    const payload = await requestJson(
+      joinRelativeUrl(AI_API_BASE, '/capabilities'),
+      {
+        method: 'GET',
+        headers: { Accept: 'application/json' },
+      },
+      CAPABILITY_REQUEST_TIMEOUT_MS,
+    );
+    const data = unwrapPayloadData(payload);
+    const reasons = data.reasons && typeof data.reasons === 'object' ? data.reasons : {};
+    return {
+      reachable: true,
+      provider: data.provider || 'unknown',
+      imageGenerateStatus: deriveCapabilityStatus(
+        data.imageGenerateStatus,
+        data.imageGenerateReady,
+        data.aiConfigured ? 'ready' : 'unknown',
+      ),
+      videoGenerateStatus: deriveCapabilityStatus(
+        data.videoGenerateStatus,
+        data.videoGenerateReady,
+        data.aiConfigured ? 'unknown' : 'unavailable',
+      ),
+      imageToVideoStatus: deriveCapabilityStatus(
+        data.imageToVideoStatus,
+        data.imageToVideoReady,
+        data.aiConfigured ? 'unknown' : 'unavailable',
+      ),
+      reasons: {
+        imageGenerate: String(reasons.imageGenerate || ''),
+        videoGenerate: String(reasons.videoGenerate || ''),
+        imageToVideo: String(reasons.imageToVideo || ''),
+      },
+      models: data.models && typeof data.models === 'object' ? data.models : {},
+      paths: data.paths && typeof data.paths === 'object' ? data.paths : {},
+    };
+  } catch (error) {
+    const reason = error?.statusCode === 404
+      ? '上游未暴露 capabilities 端点'
+      : String(error?.message || '无法连接生成代理');
+    return {
+      reachable: false,
+      provider: 'unknown',
+      imageGenerateStatus: 'unknown',
+      videoGenerateStatus: 'unknown',
+      imageToVideoStatus: 'unknown',
+      reasons: {
+        imageGenerate: reason,
+        videoGenerate: reason,
+        imageToVideo: reason,
+      },
+      models: {},
+      paths: {},
+    };
+  }
+}
+
+async function collectCanvasCapabilities({ force = false } = {}) {
+  if (!force && cachedCanvasCapabilities && (Date.now() - cachedCanvasCapabilitiesAt) < CAPABILITY_CACHE_TTL_MS) {
+    return cachedCanvasCapabilities;
+  }
+  if (!force && inFlightCanvasCapabilities) {
+    return inFlightCanvasCapabilities;
+  }
+
+  inFlightCanvasCapabilities = (async () => {
+    const aiCaps = await fetchAiCapabilitySnapshot();
+    const ffmpeg = detectFfmpegAvailability();
+    const imageGenerateStatus = aiCaps.imageGenerateStatus || (AI_API_BASE ? 'unknown' : 'unavailable');
+    const videoGenerateStatus = aiCaps.videoGenerateStatus || (AI_API_BASE ? 'unknown' : 'unavailable');
+    const imageToVideoStatus = aiCaps.imageToVideoStatus || (AI_API_BASE ? 'unknown' : 'unavailable');
+    const payload = {
+      status: 'ok',
+      service: 'trix-canvas',
+      port: PORT,
+      appOrigin: APP_ORIGIN,
+      aiConfigured: Boolean(AI_API_BASE),
+      requiresAuth: CANVAS_REQUIRE_AUTH,
+      proxyReachable: aiCaps.reachable,
+      provider: aiCaps.provider,
+      imageGenerateStatus,
+      imageGenerateReady: imageGenerateStatus === 'ready',
+      videoGenerateStatus,
+      videoGenerateReady: videoGenerateStatus === 'ready',
+      imageToVideoStatus,
+      imageToVideoReady: imageToVideoStatus === 'ready',
+      videoExportStatus: ffmpeg.available ? 'ready' : 'unavailable',
+      videoExportReady: ffmpeg.available,
+      reasons: {
+        imageGenerate: aiCaps.reasons.imageGenerate || (imageGenerateStatus === 'ready' ? '' : (AI_API_BASE ? '生成能力状态未知' : 'AI_API_BASE 未配置')),
+        videoGenerate: aiCaps.reasons.videoGenerate || (videoGenerateStatus === 'ready' ? '' : (AI_API_BASE ? '视频生成能力状态未知' : 'AI_API_BASE 未配置')),
+        imageToVideo: aiCaps.reasons.imageToVideo || (imageToVideoStatus === 'ready' ? '' : (AI_API_BASE ? '图生视频能力状态未知' : 'AI_API_BASE 未配置')),
+        videoExport: ffmpeg.reason,
+      },
+      models: aiCaps.models,
+      paths: aiCaps.paths,
+      updatedAt: new Date().toISOString(),
+    };
+    cachedCanvasCapabilities = payload;
+    cachedCanvasCapabilitiesAt = Date.now();
+    return payload;
+  })();
+
+  try {
+    return await inFlightCanvasCapabilities;
+  } finally {
+    inFlightCanvasCapabilities = null;
+  }
 }
 
 async function fetchWithTimeout(url, options = {}, timeoutMs = 30_000) {
@@ -2112,13 +2206,20 @@ function createVideoExportJob(projectId, aspect) {
   return entry;
 }
 
-app.get('/health', (_req, res) => {
-  res.json({
-    status: 'ok',
-    service: 'trix-canvas',
-    port: PORT,
-    aiConfigured: Boolean(AI_API_BASE),
-  });
+app.get('/health', async (_req, res, next) => {
+  try {
+    res.json(await collectCanvasCapabilities());
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get('/api/capabilities', async (_req, res, next) => {
+  try {
+    res.json(await collectCanvasCapabilities());
+  } catch (error) {
+    next(error);
+  }
 });
 
 app.get('/', (_req, res) => {

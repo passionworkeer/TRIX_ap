@@ -2,7 +2,7 @@ interface:
   display_name: "TRIX Canvas"
   short_description: "短剧分镜生成、排队和画布编排工作台"
   brand_color: "#33D1B2"
-  default_prompt: "Use trix-canvas-skill to parse a short-drama script, queue storyboard image or video scenes, and manage the results on the canvas."
+  default_prompt: "Use trix-canvas-skill through workflow.py for mixed short-drama scripts. Start the canvas runtime with start_canvas.py --with-proxy when needed, read /api/capabilities before mixed image/video work, fail fast if image-to-video is unavailable, and do not parallelize create_session.py calls for mixed scenes."
 
 policy:
   allow_implicit_invocation: true

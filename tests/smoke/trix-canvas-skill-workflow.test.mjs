@@ -184,3 +184,50 @@ print(json.dumps({"result": result, "create_calls": create_calls}, ensure_ascii=
     },
   ]);
 });
+
+test('workflow fails fast before project creation when image-to-video capability is unavailable', () => {
+  const code = `
+import json
+import sys
+
+sys.path.insert(0, ${JSON.stringify(SCRIPT_DIR)})
+import workflow
+
+workflow.check_all = lambda *args, **kwargs: []
+workflow.parse_script = lambda text: [
+    {"index": 1, "text": "scene 1", "media_type": "image"},
+    {"index": 2, "text": "scene 2", "media_type": "video"},
+]
+workflow._common.get_canvas_capabilities = lambda: {
+    "imageToVideoStatus": "unavailable",
+    "reasons": {"imageToVideo": "your current token plan not support model"},
+}
+workflow._common.create_project = lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("create_project should not be called"))
+
+result = workflow.run_workflow(
+    "ignored",
+    project_name="Workflow Preflight Demo",
+    concurrent=2,
+    skip_video=False,
+    skip_subtitle=False,
+    retries=0,
+)
+print(json.dumps(result, ensure_ascii=False))
+`;
+
+  const result = spawnSync('python3', ['-c', code], {
+    cwd: REPO_ROOT,
+    encoding: 'utf-8',
+  });
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  const output = result.stdout.trim().split('\n').filter(Boolean);
+  const payload = JSON.parse(output.at(-1));
+
+  assert.equal(payload.ok, false, result.stdout);
+  assert.equal(payload.preflight_failed, true, result.stdout);
+  assert.equal(payload.preflight_failures, 1, result.stdout);
+  assert.equal(payload.projects.length, 0, result.stdout);
+  assert.match(payload.error, /image-to-video support/i, result.stdout);
+  assert.match(payload.error, /plan not support/i, result.stdout);
+});
