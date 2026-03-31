@@ -1,581 +1,1555 @@
 import express from 'express';
 import { createServer } from 'http';
-import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync } from 'fs';
-import { join, dirname, extname, resolve } from 'path';
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  sendFileSync,
+  statSync,
+  unlinkSync,
+  writeFileSync,
+} from 'fs';
+import { basename, dirname, extname, join, resolve } from 'path';
 import { fileURLToPath } from 'url';
+import { spawnSync } from 'child_process';
+import { tmpdir } from 'os';
 import { v4 as uuidv4 } from 'uuid';
 import dotenv from 'dotenv';
 
 dotenv.config();
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const PORT = process.env.CANVAS_PORT || 8789;
-const DATA_DIR = process.env.CANVAS_DATA_DIR || join(__dirname, 'data');
-const OUTPUT_DIR = process.env.CANVAS_OUTPUT_DIR || join(__dirname, 'outputs');
-const CANVAS_BASE_URL = process.env.CANVAS_BASE_URL || `http://localhost:${PORT}`;
+const PORT = Number(process.env.CANVAS_PORT || 8789);
+const APP_ORIGIN = process.env.CANVAS_BASE_URL || `http://localhost:${PORT}`;
+const DATA_ROOT = resolve(process.env.CANVAS_DATA_DIR || join(__dirname, 'data'));
+const EXPORT_ROOT = resolve(process.env.CANVAS_EXPORT_DIR || join(__dirname, 'exports'));
 
-// 确保目录存在
-[DATA_DIR, OUTPUT_DIR].forEach(dir => {
-  if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+const PROJECTS_DIR = join(DATA_ROOT, 'projects');
+const NODES_DIR = join(DATA_ROOT, 'nodes');
+const EDGES_DIR = join(DATA_ROOT, 'edges');
+const FILES_DIR = join(DATA_ROOT, 'files');
+const SESSIONS_DIR = join(DATA_ROOT, 'sessions');
+const BLOB_DIR = join(DATA_ROOT, 'blobs');
+
+const AI_API_BASE = (process.env.AI_API_BASE || '').replace(/\/$/, '');
+const AI_GENERATE_PATH = process.env.AI_GENERATE_PATH || '/generate';
+const AI_TASK_PATH_TEMPLATE = process.env.AI_TASK_PATH_TEMPLATE || '/tasks/:taskId';
+const AI_API_KEY = process.env.AI_API_KEY || '';
+const AI_EXTRA_HEADERS = parseHeaderLines(process.env.AI_EXTRA_HEADERS || '');
+
+const EXPORT_ASPECTS = new Map([
+  ['origin', null],
+  ['9:16', { width: 1080, height: 1920, label: '9:16' }],
+  ['16:9', { width: 1920, height: 1080, label: '16:9' }],
+  ['1:1', { width: 1080, height: 1080, label: '1:1' }],
+  ['4:3', { width: 1440, height: 1080, label: '4:3' }],
+]);
+
+[
+  DATA_ROOT,
+  EXPORT_ROOT,
+  PROJECTS_DIR,
+  NODES_DIR,
+  EDGES_DIR,
+  FILES_DIR,
+  SESSIONS_DIR,
+  BLOB_DIR,
+].forEach((dir) => {
+  if (!existsSync(dir)) {
+    mkdirSync(dir, { recursive: true });
+  }
 });
 
 const app = express();
 app.use(express.json({ limit: '50mb' }));
 app.use(express.static(join(__dirname, 'public')));
+app.use((req, res, next) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PATCH, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(204);
+  }
+  return next();
+});
 
-// 解析额外 headers
-function parseExtraHeaders() {
+function parseHeaderLines(raw) {
   const headers = {};
-  const raw = process.env.AI_EXTRA_HEADERS || '';
-  raw.split('\n').filter(Boolean).forEach(line => {
-    const idx = line.indexOf(':');
-    if (idx > 0) {
-      const key = line.slice(0, idx).trim();
-      const val = line.slice(idx + 1).trim();
-      if (key && val) headers[key] = val;
-    }
-  });
+  raw
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .forEach((line) => {
+      const idx = line.indexOf(':');
+      if (idx > 0) {
+        const key = line.slice(0, idx).trim();
+        const value = line.slice(idx + 1).trim();
+        if (key && value) {
+          headers[key] = value;
+        }
+      }
+    });
   return headers;
 }
 
-// AI API 请求封装
-async function aiRequest(endpoint, body, method = 'POST') {
-  const base = process.env.AI_API_BASE;
-  if (!base) throw new Error('AI_API_BASE 未配置，请在 .env 中设置');
-
-  const url = `${base.replace(/\/$/, '')}${endpoint}`;
-  const headers = {
-    'Content-Type': 'application/json',
-    ...parseExtraHeaders(),
-  };
-  const key = process.env.AI_API_KEY;
-  if (key) headers['Authorization'] = `Bearer ${key}`;
-
-  const resp = await fetch(url, {
-    method,
-    headers,
-    body: method === 'POST' ? JSON.stringify(body) : undefined,
-  });
-  if (!resp.ok) {
-    const text = await resp.text();
-    throw new Error(`AI API 错误 ${resp.status}: ${text}`);
-  }
-  return resp.json();
+function nowIso() {
+  return new Date().toISOString();
 }
 
-// ============================================================
-// API 路由
-// ============================================================
+function recordPath(dir, id) {
+  return join(dir, `${id}.json`);
+}
 
-// GET /api/project/:projectId - 获取项目详情
-app.get('/api/project/:projectId', (req, res) => {
-  try {
-    const projectFile = join(DATA_DIR, `${req.params.projectId}.json`);
-    if (!existsSync(projectFile)) {
-      return res.status(404).json({ error: '项目不存在' });
-    }
-    const project = JSON.parse(readFileSync(projectFile, 'utf-8'));
+function readRecord(dir, id) {
+  const file = recordPath(dir, id);
+  if (!existsSync(file)) {
+    return null;
+  }
+  return JSON.parse(readFileSync(file, 'utf8'));
+}
 
-    // 补充每个 session 的文件列表
-    project.sessions = (project.sessions || []).map(session => {
-      const sessionFile = join(DATA_DIR, 'sessions', `${session.id}.json`);
-      if (existsSync(sessionFile)) {
-        const sessionData = JSON.parse(readFileSync(sessionFile, 'utf-8'));
-        return { ...session, ...sessionData };
+function writeRecord(dir, id, value) {
+  writeFileSync(recordPath(dir, id), JSON.stringify(value, null, 2));
+  return value;
+}
+
+function deleteRecord(dir, id) {
+  const file = recordPath(dir, id);
+  if (existsSync(file)) {
+    rmSync(file, { force: true });
+  }
+}
+
+function listRecords(dir) {
+  return readdirSync(dir)
+    .filter((name) => name.endsWith('.json'))
+    .map((name) => {
+      try {
+        return JSON.parse(readFileSync(join(dir, name), 'utf8'));
+      } catch {
+        return null;
       }
-      return session;
+    })
+    .filter(Boolean);
+}
+
+function clampNumber(value, fallback = 0) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function inferMimeType(filename = '', fallback = 'application/octet-stream') {
+  const ext = extname(filename).toLowerCase();
+  return (
+    {
+      '.png': 'image/png',
+      '.jpg': 'image/jpeg',
+      '.jpeg': 'image/jpeg',
+      '.webp': 'image/webp',
+      '.gif': 'image/gif',
+      '.mp4': 'video/mp4',
+      '.mov': 'video/quicktime',
+      '.webm': 'video/webm',
+    }[ext] || fallback
+  );
+}
+
+function inferExtension(filename = '', mimeType = '') {
+  const ext = extname(filename).toLowerCase();
+  if (ext) {
+    return ext;
+  }
+  return (
+    {
+      'image/png': '.png',
+      'image/jpeg': '.jpg',
+      'image/webp': '.webp',
+      'image/gif': '.gif',
+      'video/mp4': '.mp4',
+      'video/quicktime': '.mov',
+      'video/webm': '.webm',
+    }[mimeType] || ''
+  );
+}
+
+function guessMediaType(mimeType = '', filename = '') {
+  if (mimeType.startsWith('video/') || ['.mp4', '.mov', '.webm'].includes(extname(filename).toLowerCase())) {
+    return 'video';
+  }
+  return 'image';
+}
+
+function sanitizeFilename(filename) {
+  const base = basename(filename || 'asset').replace(/[^a-zA-Z0-9._-]/g, '_');
+  return base || 'asset';
+}
+
+function buildTaskPath(taskId) {
+  return AI_TASK_PATH_TEMPLATE.replace(':taskId', taskId).replace('{taskId}', taskId);
+}
+
+function normalizeStatus(rawStatus) {
+  const status = String(rawStatus || '').toLowerCase();
+  if (!status) {
+    return 'pending';
+  }
+  if (['completed', 'complete', 'done', 'success', 'succeeded'].includes(status)) {
+    return 'completed';
+  }
+  if (['failed', 'failure', 'error', 'errored', 'cancelled', 'canceled'].includes(status)) {
+    return 'error';
+  }
+  if (['processing', 'running', 'queued', 'pending', 'submitted', 'generating'].includes(status)) {
+    return 'generating';
+  }
+  return status;
+}
+
+function extractTaskId(payload) {
+  return (
+    payload?.task_id ||
+    payload?.taskId ||
+    payload?.id ||
+    payload?.data?.task_id ||
+    payload?.data?.taskId ||
+    payload?.data?.id ||
+    payload?.result?.task_id ||
+    payload?.result?.taskId ||
+    ''
+  );
+}
+
+function extractUrls(payload) {
+  const candidates = [
+    payload?.url,
+    payload?.urls,
+    payload?.output?.url,
+    payload?.output?.urls,
+    payload?.data?.url,
+    payload?.data?.urls,
+    payload?.result?.url,
+    payload?.result?.urls,
+    payload?.video?.url,
+    payload?.image?.url,
+    Array.isArray(payload?.images) ? payload.images.map((item) => item?.url || item) : null,
+    Array.isArray(payload?.videos) ? payload.videos.map((item) => item?.url || item) : null,
+  ];
+  return [...new Set(candidates.flat(Infinity).filter((value) => typeof value === 'string' && value.trim()))];
+}
+
+function extractBase64Result(payload) {
+  const base64 = payload?.base64 || payload?.output?.base64 || payload?.data?.base64;
+  if (typeof base64 === 'string' && base64.trim()) {
+    return [base64];
+  }
+  const imageBase64 = payload?.data?.image_base64;
+  if (Array.isArray(imageBase64)) {
+    return imageBase64.filter((item) => typeof item === 'string' && item.trim());
+  }
+  return [];
+}
+
+function toArrayBufferBytes(value) {
+  if (value instanceof Uint8Array) {
+    return Buffer.from(value);
+  }
+  if (Buffer.isBuffer(value)) {
+    return value;
+  }
+  if (typeof value === 'string') {
+    return Buffer.from(value, 'base64');
+  }
+  return null;
+}
+
+function serializeFile(file) {
+  if (!file) {
+    return null;
+  }
+  return {
+    ...file,
+    projectId: file.project_id,
+    nodeId: file.node_id,
+    mimeType: file.mime_type,
+    mediaType: file.media_type,
+    sceneId: file.scene_id,
+    storedFilename: file.stored_filename,
+    sourceUrl: file.source_url,
+    createdAt: file.created_at,
+    updatedAt: file.updated_at,
+  };
+}
+
+function serializeNode(node, fileMap = new Map()) {
+  if (!node) {
+    return null;
+  }
+  const linkedFile = node.file_id ? fileMap.get(node.file_id) : null;
+  const previewUrl = linkedFile?.url || node.result_url || null;
+  return {
+    ...node,
+    projectId: node.project_id,
+    sessionId: node.session_id,
+    fileId: node.file_id,
+    parentNodeId: node.parent_node_id,
+    sceneId: node.scene_id,
+    mediaType: node.media_type,
+    resultUrl: node.result_url,
+    previewUrl,
+    createdAt: node.created_at,
+    updatedAt: node.updated_at,
+    file: linkedFile ? serializeFile(linkedFile) : null,
+  };
+}
+
+function serializeEdge(edge) {
+  if (!edge) {
+    return null;
+  }
+  return {
+    ...edge,
+    projectId: edge.project_id,
+    sourceNodeId: edge.source_node_id,
+    targetNodeId: edge.target_node_id,
+    edgeType: edge.edge_type,
+    createdAt: edge.created_at,
+    updatedAt: edge.updated_at,
+  };
+}
+
+function serializeSession(session) {
+  if (!session) {
+    return null;
+  }
+  return {
+    ...session,
+    projectId: session.project_id,
+    nodeId: session.node_id,
+    parentNodeId: session.parent_node_id,
+    mediaType: session.media_type,
+    taskId: session.task_id,
+    resultUrls: session.result_urls || [],
+    upstreamStatus: session.upstream_status,
+    lastPolledAt: session.last_polled_at,
+    createdAt: session.created_at,
+    updatedAt: session.updated_at,
+  };
+}
+
+function serializeProject(project) {
+  const fileMap = new Map();
+  const files = (project.file_ids || [])
+    .map((id) => readRecord(FILES_DIR, id))
+    .filter(Boolean)
+    .map((file) => {
+      fileMap.set(file.id, file);
+      return serializeFile(file);
+    });
+  const nodes = (project.node_ids || [])
+    .map((id) => readRecord(NODES_DIR, id))
+    .filter(Boolean)
+    .map((node) => serializeNode(node, fileMap));
+  const edges = (project.edge_ids || [])
+    .map((id) => readRecord(EDGES_DIR, id))
+    .filter(Boolean)
+    .map(serializeEdge);
+  const sessions = (project.session_ids || [])
+    .map((id) => readRecord(SESSIONS_DIR, id))
+    .filter(Boolean)
+    .map(serializeSession);
+  return {
+    ...project,
+    scriptText: project.script_text,
+    nodeCount: nodes.length,
+    edgeCount: edges.length,
+    fileCount: files.length,
+    sessionCount: sessions.length,
+    createdAt: project.created_at,
+    updatedAt: project.updated_at,
+    nodes,
+    edges,
+    files,
+    sessions,
+    canvasUrl: `${APP_ORIGIN}/canvas?projectId=${project.id}`,
+  };
+}
+
+function saveProject(project) {
+  project.updated_at = nowIso();
+  return writeRecord(PROJECTS_DIR, project.id, project);
+}
+
+function getProject(projectId) {
+  return readRecord(PROJECTS_DIR, projectId);
+}
+
+function requireProject(projectId) {
+  const project = getProject(projectId);
+  if (!project) {
+    const error = new Error('项目不存在');
+    error.statusCode = 404;
+    throw error;
+  }
+  return project;
+}
+
+function createProject({ name = 'Untitled project', script_text = '' } = {}) {
+  const timestamp = nowIso();
+  const project = {
+    id: uuidv4(),
+    name,
+    script_text,
+    node_ids: [],
+    edge_ids: [],
+    file_ids: [],
+    session_ids: [],
+    created_at: timestamp,
+    updated_at: timestamp,
+  };
+  writeRecord(PROJECTS_DIR, project.id, project);
+  return project;
+}
+
+function addUnique(list, value) {
+  if (value && !list.includes(value)) {
+    list.push(value);
+  }
+}
+
+function removeValue(list, value) {
+  const index = list.indexOf(value);
+  if (index >= 0) {
+    list.splice(index, 1);
+  }
+}
+
+function updateNodeRecord(nodeId, patch) {
+  const node = readRecord(NODES_DIR, nodeId);
+  if (!node) {
+    const error = new Error('节点不存在');
+    error.statusCode = 404;
+    throw error;
+  }
+  const next = {
+    ...node,
+    ...patch,
+    id: node.id,
+    updated_at: nowIso(),
+  };
+  writeRecord(NODES_DIR, nodeId, next);
+  if (next.project_id) {
+    const project = getProject(next.project_id);
+    if (project) {
+      saveProject(project);
+    }
+  }
+  return next;
+}
+
+function createNode({
+  project_id,
+  session_id = null,
+  file_id = null,
+  parent_node_id = null,
+  scene_id = null,
+  media_type = 'image',
+  x = 60,
+  y = 60,
+  prompt = '',
+  status = 'pending',
+  aspect = 'origin',
+  style = '',
+  task_id = '',
+  result_url = null,
+  error = null,
+}) {
+  const timestamp = nowIso();
+  const node = {
+    id: uuidv4(),
+    project_id,
+    session_id,
+    file_id,
+    parent_node_id,
+    scene_id,
+    media_type,
+    x: clampNumber(x, 60),
+    y: clampNumber(y, 60),
+    prompt,
+    status,
+    aspect,
+    style,
+    task_id,
+    result_url,
+    error,
+    created_at: timestamp,
+    updated_at: timestamp,
+  };
+  writeRecord(NODES_DIR, node.id, node);
+  const project = requireProject(project_id);
+  addUnique(project.node_ids, node.id);
+  saveProject(project);
+  return node;
+}
+
+function createEdge({ project_id, source_node_id, target_node_id, edge_type = 'scene_order' }) {
+  const timestamp = nowIso();
+  const edge = {
+    id: uuidv4(),
+    project_id,
+    source_node_id,
+    target_node_id,
+    edge_type,
+    created_at: timestamp,
+    updated_at: timestamp,
+  };
+  writeRecord(EDGES_DIR, edge.id, edge);
+  const project = requireProject(project_id);
+  addUnique(project.edge_ids, edge.id);
+  saveProject(project);
+  return edge;
+}
+
+function removeEdge(edgeId) {
+  const edge = readRecord(EDGES_DIR, edgeId);
+  if (!edge) {
+    return false;
+  }
+  const project = getProject(edge.project_id);
+  if (project) {
+    removeValue(project.edge_ids, edge.id);
+    saveProject(project);
+  }
+  deleteRecord(EDGES_DIR, edge.id);
+  return true;
+}
+
+function removeNode(nodeId) {
+  const node = readRecord(NODES_DIR, nodeId);
+  if (!node) {
+    return false;
+  }
+  const project = getProject(node.project_id);
+  if (project) {
+    removeValue(project.node_ids, node.id);
+    project.edge_ids
+      .map((edgeId) => readRecord(EDGES_DIR, edgeId))
+      .filter(Boolean)
+      .filter((edge) => edge.source_node_id === node.id || edge.target_node_id === node.id)
+      .forEach((edge) => removeEdge(edge.id));
+
+    if (node.session_id) {
+      removeValue(project.session_ids, node.session_id);
+      deleteRecord(SESSIONS_DIR, node.session_id);
+    }
+    if (node.file_id) {
+      const remainingReferences = listRecords(NODES_DIR).filter(
+        (candidate) => candidate.id !== node.id && candidate.file_id === node.file_id,
+      );
+      if (remainingReferences.length === 0) {
+        removeFile(node.file_id);
+      }
+    }
+    saveProject(project);
+  }
+  deleteRecord(NODES_DIR, node.id);
+  return true;
+}
+
+function removeFile(fileId) {
+  const file = readRecord(FILES_DIR, fileId);
+  if (!file) {
+    return false;
+  }
+  const project = getProject(file.project_id);
+  if (project) {
+    removeValue(project.file_ids, file.id);
+    saveProject(project);
+  }
+  if (file.stored_filename) {
+    const blobPath = join(BLOB_DIR, file.stored_filename);
+    if (existsSync(blobPath)) {
+      unlinkSync(blobPath);
+    }
+  }
+  deleteRecord(FILES_DIR, file.id);
+  return true;
+}
+
+function deleteProject(projectId) {
+  const project = getProject(projectId);
+  if (!project) {
+    return false;
+  }
+  [...project.edge_ids].forEach((edgeId) => removeEdge(edgeId));
+  [...project.node_ids].forEach((nodeId) => removeNode(nodeId));
+  [...project.file_ids].forEach((fileId) => removeFile(fileId));
+  [...project.session_ids].forEach((sessionId) => deleteRecord(SESSIONS_DIR, sessionId));
+  deleteRecord(PROJECTS_DIR, projectId);
+  return true;
+}
+
+async function requestJson(url, options = {}) {
+  const response = await fetch(url, options);
+  const rawText = await response.text();
+  let payload = null;
+  try {
+    payload = rawText ? JSON.parse(rawText) : {};
+  } catch {
+    payload = { raw: rawText };
+  }
+  if (!response.ok) {
+    const error = new Error(payload?.error || payload?.message || `${response.status} ${response.statusText}`);
+    error.statusCode = response.status;
+    error.payload = payload;
+    throw error;
+  }
+  return payload;
+}
+
+function buildAiHeaders() {
+  const headers = {
+    'Content-Type': 'application/json',
+    ...AI_EXTRA_HEADERS,
+  };
+  if (AI_API_KEY) {
+    headers.Authorization = `Bearer ${AI_API_KEY}`;
+  }
+  return headers;
+}
+
+async function invokeAi(path, body, method = 'POST') {
+  if (!AI_API_BASE) {
+    const error = new Error('AI_API_BASE 未配置');
+    error.statusCode = 500;
+    throw error;
+  }
+  return requestJson(`${AI_API_BASE}${path}`, {
+    method,
+    headers: buildAiHeaders(),
+    body: method === 'GET' ? undefined : JSON.stringify(body),
+  });
+}
+
+function buildGeneratePayload(session) {
+  return {
+    prompt: session.message,
+    message: session.message,
+    media_type: session.media_type,
+    mediaType: session.media_type,
+    aspect: session.aspect,
+    style: session.style,
+    project_id: session.project_id,
+    projectId: session.project_id,
+    session_id: session.id,
+    sessionId: session.id,
+    parent_node_id: session.parent_node_id,
+    parentNodeId: session.parent_node_id,
+  };
+}
+
+async function downloadRemoteAsset(url) {
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`下载结果失败: ${response.status}`);
+  }
+  const mimeType = response.headers.get('content-type') || inferMimeType(url);
+  const bytes = Buffer.from(await response.arrayBuffer());
+  return { bytes, mimeType };
+}
+
+function storeFileBuffer({
+  bytes,
+  filename,
+  mime_type = inferMimeType(filename),
+  media_type = guessMediaType(mime_type, filename),
+  project_id,
+  node_id = null,
+  prompt = '',
+  scene_id = null,
+  source_url = null,
+}) {
+  const timestamp = nowIso();
+  const id = uuidv4();
+  const safeFilename = sanitizeFilename(filename || `asset${inferExtension('', mime_type)}`);
+  const ext = inferExtension(safeFilename, mime_type);
+  const storedFilename = `${id}${ext || ''}`;
+  const blobPath = join(BLOB_DIR, storedFilename);
+  writeFileSync(blobPath, bytes);
+
+  const file = {
+    id,
+    project_id,
+    node_id,
+    filename: safeFilename,
+    stored_filename: storedFilename,
+    mime_type,
+    media_type,
+    prompt,
+    scene_id,
+    size: bytes.length,
+    source_url,
+    created_at: timestamp,
+    updated_at: timestamp,
+    url: `/media/files/${storedFilename}`,
+  };
+  writeRecord(FILES_DIR, id, file);
+  const project = requireProject(project_id);
+  addUnique(project.file_ids, id);
+  saveProject(project);
+  return file;
+}
+
+function fileNameFromUrl(url, fallback = 'result') {
+  try {
+    const parsed = new URL(url);
+    const candidate = basename(parsed.pathname || '') || fallback;
+    return candidate;
+  } catch {
+    return fallback;
+  }
+}
+
+async function storeSessionResult(session, node, payload) {
+  const urls = extractUrls(payload);
+  const base64Results = extractBase64Result(payload);
+  let storedFile = null;
+  let publicUrl = null;
+
+  if (urls.length > 0) {
+    const remoteUrl = urls[0];
+    try {
+      const downloaded = await downloadRemoteAsset(remoteUrl);
+      storedFile = storeFileBuffer({
+        bytes: downloaded.bytes,
+        filename: fileNameFromUrl(remoteUrl, `${session.media_type}-result`),
+        mime_type: downloaded.mimeType,
+        media_type: session.media_type,
+        project_id: session.project_id,
+        node_id: node.id,
+        prompt: session.message,
+        scene_id: node.scene_id,
+        source_url: remoteUrl,
+      });
+      publicUrl = storedFile.url;
+    } catch (error) {
+      publicUrl = remoteUrl;
+    }
+  } else if (base64Results.length > 0) {
+    const mimeType = session.media_type === 'video' ? 'video/mp4' : 'image/png';
+    storedFile = storeFileBuffer({
+      bytes: toArrayBufferBytes(base64Results[0]),
+      filename: `${session.media_type}-result${inferExtension('', mimeType)}`,
+      mime_type: mimeType,
+      media_type: session.media_type,
+      project_id: session.project_id,
+      node_id: node.id,
+      prompt: session.message,
+      scene_id: node.scene_id,
+    });
+    publicUrl = storedFile.url;
+  }
+
+  const updatedSession = {
+    ...session,
+    status: 'completed',
+    task_id: session.task_id || extractTaskId(payload) || '',
+    upstream_status: 'completed',
+    result_urls: publicUrl ? [publicUrl] : urls,
+    error: null,
+    updated_at: nowIso(),
+  };
+  writeRecord(SESSIONS_DIR, session.id, updatedSession);
+
+  const updatedNode = updateNodeRecord(node.id, {
+    status: 'completed',
+    file_id: storedFile?.id || node.file_id,
+    result_url: publicUrl || urls[0] || node.result_url,
+    error: null,
+    task_id: updatedSession.task_id,
+  });
+
+  return { session: updatedSession, node: updatedNode };
+}
+
+async function failSession(session, message) {
+  const updatedSession = {
+    ...session,
+    status: 'error',
+    upstream_status: 'error',
+    error: message,
+    updated_at: nowIso(),
+  };
+  writeRecord(SESSIONS_DIR, session.id, updatedSession);
+  updateNodeRecord(session.node_id, {
+    status: 'error',
+    error: message,
+  });
+  return updatedSession;
+}
+
+function defaultNodePosition(project, parentNodeId = null) {
+  if (parentNodeId) {
+    const parent = readRecord(NODES_DIR, parentNodeId);
+    if (parent) {
+      return {
+        x: clampNumber(parent.x, 60),
+        y: clampNumber(parent.y, 60) + 320,
+      };
+    }
+  }
+  const count = project.node_ids.length;
+  return {
+    x: 60 + (count % 4) * 250,
+    y: 60 + Math.floor(count / 4) * 320,
+  };
+}
+
+async function createGenerationSession({
+  message,
+  project_id,
+  media_type = 'image',
+  aspect = 'origin',
+  style = '',
+  parent_node_id = null,
+}) {
+  const project = requireProject(project_id);
+  const timestamp = nowIso();
+  const position = defaultNodePosition(project, parent_node_id);
+  const sceneId = project.node_ids.length + 1;
+
+  const node = createNode({
+    project_id,
+    parent_node_id,
+    scene_id: sceneId,
+    media_type,
+    x: position.x,
+    y: position.y,
+    prompt: message,
+    status: AI_API_BASE ? 'generating' : 'error',
+    aspect,
+    style,
+  });
+
+  const session = {
+    id: uuidv4(),
+    project_id,
+    node_id: node.id,
+    parent_node_id,
+    message,
+    media_type,
+    aspect,
+    style,
+    status: AI_API_BASE ? 'generating' : 'error',
+    task_id: '',
+    upstream_status: AI_API_BASE ? 'pending' : 'error',
+    result_urls: [],
+    error: AI_API_BASE ? null : 'AI_API_BASE 未配置',
+    last_polled_at: null,
+    created_at: timestamp,
+    updated_at: timestamp,
+  };
+  writeRecord(SESSIONS_DIR, session.id, session);
+  addUnique(project.session_ids, session.id);
+  saveProject(project);
+
+  if (parent_node_id) {
+    createEdge({
+      project_id,
+      source_node_id: parent_node_id,
+      target_node_id: node.id,
+      edge_type: media_type === 'video' ? 'image_to_video' : 'story_branch',
+    });
+  }
+
+  if (!AI_API_BASE) {
+    await failSession(session, 'AI_API_BASE 未配置');
+    return { session: readRecord(SESSIONS_DIR, session.id), node: readRecord(NODES_DIR, node.id) };
+  }
+
+  try {
+    const payload = await invokeAi(AI_GENERATE_PATH, buildGeneratePayload(session));
+    const taskId = extractTaskId(payload);
+    const immediateStatus = normalizeStatus(payload?.status || payload?.state);
+
+    if (extractUrls(payload).length > 0 || extractBase64Result(payload).length > 0 || immediateStatus === 'completed') {
+      const completed = await storeSessionResult(
+        {
+          ...session,
+          task_id: taskId,
+          upstream_status: 'completed',
+        },
+        node,
+        payload,
+      );
+      return completed;
+    }
+
+    if (!taskId) {
+      await failSession(session, '上游接口未返回 taskId 或结果 URL');
+      return { session: readRecord(SESSIONS_DIR, session.id), node: readRecord(NODES_DIR, node.id) };
+    }
+
+    const runningSession = {
+      ...session,
+      task_id: taskId,
+      upstream_status: immediateStatus || 'generating',
+      updated_at: nowIso(),
+    };
+    writeRecord(SESSIONS_DIR, session.id, runningSession);
+    updateNodeRecord(node.id, {
+      status: 'generating',
+      task_id: taskId,
+    });
+    return { session: runningSession, node: readRecord(NODES_DIR, node.id) };
+  } catch (error) {
+    await failSession(session, error.message);
+    return { session: readRecord(SESSIONS_DIR, session.id), node: readRecord(NODES_DIR, node.id) };
+  }
+}
+
+async function refreshSession(sessionId) {
+  const session = readRecord(SESSIONS_DIR, sessionId);
+  if (!session) {
+    return null;
+  }
+  if (session.status !== 'generating' || !session.task_id || !AI_API_BASE) {
+    return session;
+  }
+
+  const lastPolledAt = session.last_polled_at ? new Date(session.last_polled_at).getTime() : 0;
+  if (Date.now() - lastPolledAt < 2000) {
+    return session;
+  }
+
+  try {
+    const payload = await invokeAi(buildTaskPath(session.task_id), null, 'GET');
+    const status = normalizeStatus(payload?.status || payload?.state || payload?.progress);
+    const node = readRecord(NODES_DIR, session.node_id);
+
+    if (!node) {
+      return await failSession(session, '关联节点不存在');
+    }
+
+    if (status === 'completed' || extractUrls(payload).length > 0 || extractBase64Result(payload).length > 0) {
+      const completed = await storeSessionResult(
+        {
+          ...session,
+          task_id: session.task_id,
+          upstream_status: status || 'completed',
+          last_polled_at: nowIso(),
+        },
+        node,
+        payload,
+      );
+      return completed.session;
+    }
+
+    if (status === 'error') {
+      return await failSession(session, payload?.error || payload?.message || '生成失败');
+    }
+
+    const next = {
+      ...session,
+      upstream_status: status || 'generating',
+      last_polled_at: nowIso(),
+      updated_at: nowIso(),
+    };
+    writeRecord(SESSIONS_DIR, session.id, next);
+    updateNodeRecord(node.id, {
+      status: 'generating',
+    });
+    return next;
+  } catch (error) {
+    return await failSession(session, error.message);
+  }
+}
+
+function projectSummaries() {
+  return listRecords(PROJECTS_DIR)
+    .map((project) => serializeProject(project))
+    .sort((left, right) => new Date(right.updatedAt) - new Date(left.updatedAt))
+    .map((project) => ({
+      id: project.id,
+      name: project.name,
+      script_text: project.script_text,
+      nodeCount: project.nodeCount,
+      edgeCount: project.edgeCount,
+      fileCount: project.fileCount,
+      sessionCount: project.sessionCount,
+      createdAt: project.createdAt,
+      updatedAt: project.updatedAt,
+      canvasUrl: project.canvasUrl,
+      sessions: project.sessions.map((session) => ({
+        id: session.id,
+        status: session.status,
+        media_type: session.media_type,
+        mediaType: session.mediaType,
+      })),
+    }));
+}
+
+function getMediaFilePath(file) {
+  if (!file?.stored_filename) {
+    return null;
+  }
+  const filePath = join(BLOB_DIR, file.stored_filename);
+  return existsSync(filePath) ? filePath : null;
+}
+
+function ffprobeDuration(filePath) {
+  const probe = spawnSync(
+    'ffprobe',
+    ['-v', 'quiet', '-print_format', 'json', '-show_format', '-show_streams', filePath],
+    { encoding: 'utf8' },
+  );
+  if (probe.status !== 0) {
+    return 3;
+  }
+  try {
+    const payload = JSON.parse(probe.stdout || '{}');
+    const videoStream = (payload.streams || []).find((stream) => stream.codec_type === 'video');
+    const duration = Number(videoStream?.duration || payload?.format?.duration || 0);
+    return duration > 0 ? duration : 3;
+  } catch {
+    return 3;
+  }
+}
+
+function formatSrtTime(totalSeconds) {
+  const safeSeconds = Math.max(0, Number(totalSeconds) || 0);
+  const hours = Math.floor(safeSeconds / 3600);
+  const minutes = Math.floor((safeSeconds % 3600) / 60);
+  const seconds = Math.floor(safeSeconds % 60);
+  const milliseconds = Math.round((safeSeconds % 1) * 1000);
+  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')},${String(milliseconds).padStart(3, '0')}`;
+}
+
+function orderedNodes(project) {
+  return [...project.nodes].sort((left, right) => {
+    const leftScene = Number(left.scene_id ?? left.sceneId ?? 0);
+    const rightScene = Number(right.scene_id ?? right.sceneId ?? 0);
+    if (leftScene !== rightScene) {
+      return leftScene - rightScene;
+    }
+    return new Date(left.createdAt) - new Date(right.createdAt);
+  });
+}
+
+function exportSubtitle(project) {
+  const nodes = orderedNodes(project);
+  if (nodes.length === 0) {
+    const error = new Error('项目没有节点');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  let currentTime = 0;
+  const rows = nodes.map((node) => {
+    const duration =
+      node.media_type === 'video' && node.file?.stored_filename
+        ? ffprobeDuration(getMediaFilePath(node.file) || '')
+        : 3;
+    const row = {
+      node,
+      start: currentTime,
+      end: currentTime + duration,
+      duration,
+    };
+    currentTime += duration;
+    return row;
+  });
+
+  const safeName = sanitizeFilename(project.name || project.id);
+  const srtPath = join(EXPORT_ROOT, `${safeName}.srt`);
+  const scriptPath = join(EXPORT_ROOT, `${safeName}_script.md`);
+
+  const srt = rows
+    .map((row, index) => {
+      const prompt = row.node.prompt || `Scene ${index + 1}`;
+      return `${index + 1}\n${formatSrtTime(row.start)} --> ${formatSrtTime(row.end)}\n${prompt}\n`;
+    })
+    .join('\n');
+  writeFileSync(srtPath, srt, 'utf8');
+
+  const markdown = [
+    `# ${project.name}`,
+    '',
+    `总时长: ${formatSrtTime(currentTime)}`,
+    '',
+    ...rows.map((row, index) => `## 镜头 ${index + 1}\n\n- 类型: ${row.node.media_type}\n- 时长: ${row.duration.toFixed(2)}s\n- 提示词: ${row.node.prompt || '(空)'}`),
+    '',
+  ].join('\n');
+  writeFileSync(scriptPath, markdown, 'utf8');
+
+  return {
+    srt: srtPath,
+    script: scriptPath,
+    total_duration: Number(currentTime.toFixed(2)),
+    scenes: rows.length,
+  };
+}
+
+function exportVideo(project, aspect) {
+  const preset = EXPORT_ASPECTS.get(aspect);
+  if (!preset && aspect !== 'origin') {
+    const error = new Error('invalid aspect');
+    error.statusCode = 422;
+    throw error;
+  }
+
+  const nodes = orderedNodes(project).filter((node) => node.media_type === 'video' && node.file?.stored_filename);
+  if (nodes.length === 0) {
+    const error = new Error('项目中没有视频节点');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const tempRoot = join(tmpdir(), `trix-canvas-${uuidv4()}`);
+  mkdirSync(tempRoot, { recursive: true });
+  const concatPath = join(tempRoot, 'concat.txt');
+  const outPath = join(EXPORT_ROOT, `${sanitizeFilename(project.name || project.id)}_${aspect}.mp4`);
+
+  try {
+    const segmentPaths = [];
+    nodes.forEach((node, index) => {
+      const sourcePath = getMediaFilePath(node.file);
+      if (!sourcePath) {
+        return;
+      }
+      const duration = ffprobeDuration(sourcePath);
+      const segmentPath = join(tempRoot, `segment-${String(index).padStart(3, '0')}.mp4`);
+      const args = ['-y', '-hide_banner', '-loglevel', 'warning', '-i', sourcePath];
+      if (preset) {
+        args.push(
+          '-vf',
+          `scale=${preset.width}:${preset.height}:force_original_aspect_ratio=decrease,pad=${preset.width}:${preset.height}:(ow-iw)/2:(oh-ih)/2:black,fps=30`,
+        );
+      }
+      args.push(
+        '-c:v',
+        'libx264',
+        '-preset',
+        'fast',
+        '-crf',
+        '23',
+        '-c:a',
+        'aac',
+        '-b:a',
+        '128k',
+        '-t',
+        String(duration),
+        segmentPath,
+      );
+      const result = spawnSync('ffmpeg', args, { encoding: 'utf8' });
+      if (result.status !== 0) {
+        const error = new Error(`片段转码失败: ${result.stderr || result.stdout}`);
+        error.statusCode = 500;
+        throw error;
+      }
+      segmentPaths.push(segmentPath);
     });
 
-    res.json({ data: project });
-  } catch (e) {
-    res.status(500).json({ error: e.message });
+    if (segmentPaths.length === 0) {
+      const error = new Error('没有可导出的视频文件');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    writeFileSync(concatPath, segmentPaths.map((filePath) => `file '${filePath.replace(/'/g, "'\\''")}'`).join('\n'), 'utf8');
+    const result = spawnSync(
+      'ffmpeg',
+      ['-y', '-hide_banner', '-loglevel', 'warning', '-f', 'concat', '-safe', '0', '-i', concatPath, '-c:v', 'copy', '-c:a', 'aac', outPath],
+      { encoding: 'utf8' },
+    );
+    if (result.status !== 0) {
+      const error = new Error(`视频拼接失败: ${result.stderr || result.stdout}`);
+      error.statusCode = 500;
+      throw error;
+    }
+
+    return {
+      path: outPath,
+      aspect,
+      segments: segmentPaths.length,
+      size: statSync(outPath).size,
+    };
+  } finally {
+    rmSync(tempRoot, { recursive: true, force: true });
+  }
+}
+
+app.get('/health', (_req, res) => {
+  res.json({
+    status: 'ok',
+    service: 'trix-canvas',
+    port: PORT,
+    aiConfigured: Boolean(AI_API_BASE),
+  });
+});
+
+app.get('/', (_req, res) => {
+  const html = join(__dirname, 'public', 'canvas.html');
+  res.type('html').send(readFileSync(html, 'utf8'));
+});
+
+app.get('/canvas', (_req, res) => {
+  const html = join(__dirname, 'public', 'canvas.html');
+  res.type('html').send(readFileSync(html, 'utf8'));
+});
+
+app.get('/api/projects', (_req, res) => {
+  res.json({ data: projectSummaries() });
+});
+
+app.post('/api/projects', (req, res, next) => {
+  try {
+    const project = createProject({
+      name: req.body?.name || 'Untitled project',
+      script_text: req.body?.script_text || '',
+    });
+    res.status(201).json({
+      id: project.id,
+      name: project.name,
+      script_text: project.script_text,
+      createdAt: project.created_at,
+      updatedAt: project.updated_at,
+      canvasUrl: `${APP_ORIGIN}/canvas?projectId=${project.id}`,
+    });
+  } catch (error) {
+    next(error);
   }
 });
 
-// GET /api/projects - 列出所有项目（Canvas Skill 模型）
-app.get('/api/projects', (req, res) => {
+app.get(['/api/projects/:projectId', '/api/project/:projectId'], async (req, res, next) => {
   try {
-    if (!existsSync(PROJECTS_DIR)) { mkdirSync(PROJECTS_DIR, { recursive: true }); }
-    const files = readdirSync(PROJECTS_DIR).filter(f => f.endsWith('.json'));
-    const projects = files.map(file => {
-      try {
-        const data = JSON.parse(readFileSync(join(PROJECTS_DIR, file), 'utf-8'));
-        return {
-          id: data.id,
-          name: data.name || data.id,
-          nodeCount: (data.nodes || []).length,
-          edgeCount: (data.edges || []).length,
-          updatedAt: data.updatedAt,
-          createdAt: data.createdAt,
-          canvasUrl: `${CANVAS_BASE_URL}/canvas?projectId=${data.id}`,
-        };
-      } catch { return null; }
-    }).filter(Boolean);
-    projects.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
-    res.json({ data: projects });
-  } catch (e) {
-    res.status(500).json({ error: e.message });
+    const project = requireProject(req.params.projectId);
+    await Promise.all((project.session_ids || []).map((sessionId) => refreshSession(sessionId)));
+    res.json({ data: serializeProject(requireProject(req.params.projectId)) });
+  } catch (error) {
+    next(error);
   }
 });
 
-// POST /api/session - 创建会话（提交生成任务）
-app.post('/api/session', async (req, res) => {
+app.patch('/api/projects/:projectId', (req, res, next) => {
   try {
-    const { message, sessionId, projectId } = req.body;
-    if (!message) return res.status(400).json({ error: 'message 不能为空' });
+    const project = requireProject(req.params.projectId);
+    const nextProject = {
+      ...project,
+      name: req.body?.name || project.name,
+      script_text: req.body?.script_text ?? project.script_text,
+    };
+    saveProject(nextProject);
+    res.json({ data: serializeProject(nextProject) });
+  } catch (error) {
+    next(error);
+  }
+});
 
-    const now = new Date().toISOString();
-    let project, session;
+app.delete('/api/projects/:projectId', (req, res, next) => {
+  try {
+    if (!deleteProject(req.params.projectId)) {
+      return res.status(404).json({ error: '项目不存在' });
+    }
+    return res.json({ ok: true });
+  } catch (error) {
+    return next(error);
+  }
+});
 
-    if (sessionId) {
-      // 向已有 session 发消息
-      const sessionFile = join(DATA_DIR, 'sessions', `${sessionId}.json`);
-      if (!existsSync(sessionFile)) {
-        return res.status(404).json({ error: 'session 不存在' });
+app.get('/api/projects/:projectId/files', (req, res, next) => {
+  try {
+    const project = serializeProject(requireProject(req.params.projectId));
+    res.json({ data: project.files });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get('/api/projects/:projectId/export/subtitle', (req, res, next) => {
+  try {
+    const project = serializeProject(requireProject(req.params.projectId));
+    res.json(exportSubtitle(project));
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get('/api/projects/:projectId/export/video', (req, res, next) => {
+  try {
+    const aspect = req.query.aspect ? String(req.query.aspect) : 'origin';
+    const project = serializeProject(requireProject(req.params.projectId));
+    res.json(exportVideo(project, aspect));
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post(['/api/upload', '/api/file/upload'], async (req, res, next) => {
+  try {
+    const body = req.body || {};
+    const projectId = String(body.project_id || body.projectId || '');
+    if (!projectId) {
+      return res.status(400).json({ error: 'project_id 不能为空' });
+    }
+    requireProject(projectId);
+
+    let bytes = null;
+    if (typeof body.fileData === 'string' || typeof body.file_data === 'string') {
+      bytes = Buffer.from(body.fileData || body.file_data, 'base64');
+    } else if (typeof body.external_url === 'string' || typeof body.externalUrl === 'string') {
+      const remoteUrl = body.external_url || body.externalUrl;
+      const downloaded = await downloadRemoteAsset(remoteUrl);
+      bytes = downloaded.bytes;
+      body.mime_type = body.mime_type || body.mimeType || downloaded.mimeType;
+      body.filename = body.filename || fileNameFromUrl(remoteUrl);
+      body.source_url = remoteUrl;
+    }
+
+    if (!bytes || bytes.length === 0) {
+      return res.status(400).json({ error: '请传入 fileData(base64) 或 external_url' });
+    }
+
+    const file = storeFileBuffer({
+      bytes,
+      filename: body.filename || 'upload',
+      mime_type: body.mime_type || body.mimeType || inferMimeType(body.filename || ''),
+      media_type: body.media_type || body.mediaType || guessMediaType(body.mime_type || body.mimeType || '', body.filename || ''),
+      project_id: projectId,
+      node_id: body.node_id || body.nodeId || null,
+      prompt: body.prompt || '',
+      scene_id: body.scene_id ?? body.sceneId ?? null,
+      source_url: body.source_url || body.sourceUrl || null,
+    });
+
+    if (body.node_id || body.nodeId) {
+      updateNodeRecord(String(body.node_id || body.nodeId), { file_id: file.id, result_url: file.url });
+    }
+
+    res.json(serializeFile(file));
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post('/api/nodes', (req, res, next) => {
+  try {
+    const projectId = String(req.body?.project_id || req.body?.projectId || '');
+    requireProject(projectId);
+    const node = createNode({
+      project_id: projectId,
+      session_id: req.body?.session_id || req.body?.sessionId || null,
+      file_id: req.body?.file_id || req.body?.fileId || null,
+      parent_node_id: req.body?.parent_node_id || req.body?.parentNodeId || null,
+      scene_id: req.body?.scene_id ?? req.body?.sceneId ?? null,
+      media_type: req.body?.media_type || req.body?.mediaType || 'image',
+      x: req.body?.x ?? 60,
+      y: req.body?.y ?? 60,
+      prompt: req.body?.prompt || '',
+      status: req.body?.status || 'pending',
+      aspect: req.body?.aspect || 'origin',
+      style: req.body?.style || '',
+      task_id: req.body?.task_id || req.body?.taskId || '',
+      result_url: req.body?.result_url || req.body?.resultUrl || null,
+      error: req.body?.error || null,
+    });
+    res.status(201).json(serializeNode(node));
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get('/api/nodes/:nodeId', (req, res, next) => {
+  try {
+    const node = readRecord(NODES_DIR, req.params.nodeId);
+    if (!node) {
+      return res.status(404).json({ error: '节点不存在' });
+    }
+    const file = node.file_id ? readRecord(FILES_DIR, node.file_id) : null;
+    const fileMap = new Map();
+    if (file) {
+      fileMap.set(file.id, file);
+    }
+    return res.json(serializeNode(node, fileMap));
+  } catch (error) {
+    return next(error);
+  }
+});
+
+app.patch('/api/nodes/:nodeId', (req, res, next) => {
+  try {
+    const patch = {};
+    const body = req.body || {};
+    [
+      ['file_id', body.file_id ?? body.fileId],
+      ['parent_node_id', body.parent_node_id ?? body.parentNodeId],
+      ['scene_id', body.scene_id ?? body.sceneId],
+      ['media_type', body.media_type ?? body.mediaType],
+      ['prompt', body.prompt],
+      ['status', body.status],
+      ['aspect', body.aspect],
+      ['style', body.style],
+      ['task_id', body.task_id ?? body.taskId],
+      ['result_url', body.result_url ?? body.resultUrl],
+      ['error', body.error],
+    ].forEach(([key, value]) => {
+      if (value !== undefined) {
+        patch[key] = value;
       }
-      session = JSON.parse(readFileSync(sessionFile, 'utf-8'));
-      project = JSON.parse(readFileSync(join(DATA_DIR, `${session.projectId}.json`), 'utf-8'));
-      session.messages = session.messages || [];
-      session.messages.push({ role: 'user', content: message, timestamp: now });
-    } else {
-      // 新建项目 + 会话
-      projectId || (projectId = uuidv4());
-      sessionId || (sessionId = uuidv4());
-      project = {
-        id: projectId,
-        name: message.slice(0, 50),
-        sessions: [{ id: sessionId, createdAt: now }],
-        createdAt: now,
-        updatedAt: now,
-      };
-      session = {
-        id: sessionId,
-        projectId,
-        messages: [{ role: 'user', content: message, timestamp: now }],
-        status: 'pending',
-        taskId: null,
-        createdAt: now,
-      };
-      // 初始化项目文件
-      const projectFile = join(DATA_DIR, `${projectId}.json`);
-      writeFileSync(projectFile, JSON.stringify(project, null, 2));
-      // 初始化会话文件
-      const sessionDir = join(DATA_DIR, 'sessions');
-      if (!existsSync(sessionDir)) mkdirSync(sessionDir, { recursive: true });
-      writeFileSync(join(sessionDir, `${sessionId}.json`), JSON.stringify(session, null, 2));
+    });
+    if (body.x !== undefined) {
+      patch.x = clampNumber(body.x, 60);
     }
-
-    // 调用 AI 生成 API
-    let taskId = null;
-    let generationResult = null;
-    try {
-      const result = await aiRequest('/generate', { prompt: message });
-      // 通用字段映射（可根据实际 API 调整）
-      taskId = result.task_id || result.taskId || result.id || result.data?.task_id || null;
-      generationResult = result;
-    } catch (e) {
-      session.status = 'error';
-      session.error = e.message;
+    if (body.y !== undefined) {
+      patch.y = clampNumber(body.y, 60);
     }
-
-    if (taskId) {
-      session.status = 'generating';
-      session.taskId = taskId;
-      session.aiResponse = generationResult;
-      session.messages.push({ role: 'assistant', content: `任务已提交: ${taskId}`, timestamp: now });
+    const node = updateNodeRecord(req.params.nodeId, patch);
+    const file = node.file_id ? readRecord(FILES_DIR, node.file_id) : null;
+    const fileMap = new Map();
+    if (file) {
+      fileMap.set(file.id, file);
     }
+    res.json(serializeNode(node, fileMap));
+  } catch (error) {
+    next(error);
+  }
+});
 
-    // 更新文件
-    writeFileSync(join(DATA_DIR, 'sessions', `${sessionId}.json`), JSON.stringify(session, null, 2));
-    project.updatedAt = now;
-    if (!project.sessions.find(s => s.id === sessionId)) {
-      project.sessions.push({ id: sessionId, createdAt: now });
+app.delete('/api/nodes/:nodeId', (req, res, next) => {
+  try {
+    if (!removeNode(req.params.nodeId)) {
+      return res.status(404).json({ error: '节点不存在' });
     }
-    writeFileSync(join(DATA_DIR, `${project.id}.json`), JSON.stringify(project, null, 2));
+    return res.json({ ok: true });
+  } catch (error) {
+    return next(error);
+  }
+});
 
+app.post('/api/edges', (req, res, next) => {
+  try {
+    const projectId = String(req.body?.project_id || req.body?.projectId || '');
+    const sourceNodeId = String(req.body?.source_node_id || req.body?.sourceNodeId || '');
+    const targetNodeId = String(req.body?.target_node_id || req.body?.targetNodeId || '');
+    if (!projectId || !sourceNodeId || !targetNodeId) {
+      return res.status(400).json({ error: 'project_id/source_node_id/target_node_id 必填' });
+    }
+    requireProject(projectId);
+    if (!readRecord(NODES_DIR, sourceNodeId) || !readRecord(NODES_DIR, targetNodeId)) {
+      return res.status(404).json({ error: '源节点或目标节点不存在' });
+    }
+    const edge = createEdge({
+      project_id: projectId,
+      source_node_id: sourceNodeId,
+      target_node_id: targetNodeId,
+      edge_type: req.body?.edge_type || req.body?.edgeType || 'scene_order',
+    });
+    res.status(201).json(serializeEdge(edge));
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.delete('/api/edges/:edgeId', (req, res, next) => {
+  try {
+    if (!removeEdge(req.params.edgeId)) {
+      return res.status(404).json({ error: '连线不存在' });
+    }
+    return res.json({ ok: true });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+app.post('/api/session/change-project', (_req, res, next) => {
+  try {
+    const project = createProject({ name: '新项目' });
     res.json({
       data: {
         projectUuid: project.id,
-        sessionId: session.id,
-        taskId,
-        projectUrl: `${CANVAS_BASE_URL}/canvas?projectId=${project.id}`,
-      }
+        projectId: project.id,
+        projectUrl: `${APP_ORIGIN}/canvas?projectId=${project.id}`,
+      },
     });
-  } catch (e) {
-    res.status(500).json({ error: e.message });
+  } catch (error) {
+    next(error);
   }
 });
 
-// GET /api/session/:sessionId - 查询会话状态
-app.get('/api/session/:sessionId', async (req, res) => {
+app.post('/api/session', async (req, res, next) => {
   try {
-    const { afterSeq } = req.query;
-    const sessionFile = join(DATA_DIR, 'sessions', `${req.params.sessionId}.json`);
-    if (!existsSync(sessionFile)) {
-      return res.status(404).json({ error: 'session 不存在' });
-    }
-    const session = JSON.parse(readFileSync(sessionFile, 'utf-8'));
-
-    // 检查 task 状态
-    if (session.taskId && session.status === 'generating') {
-      try {
-        const result = await aiRequest(`/tasks/${session.taskId}`, null, 'GET');
-        const status = result.status || result.state || result.progress;
-        if (status === 'completed' || status === 'done' || status === 'success') {
-          session.status = 'completed';
-          session.messages = session.messages || [];
-          // 提取结果 URL
-          const urls = result.output?.url
-            || result.output?.urls
-            || result.data?.url
-            || result.data?.urls
-            || result.images?.map(i => i.url)
-            || result.videos?.map(v => v.url)
-            || [];
-          if (urls.length) {
-            session.resultUrls = Array.isArray(urls) ? urls : [urls];
-            session.messages.push({
-              role: 'assistant',
-              content: `生成完成: ${session.resultUrls.join(', ')}`,
-              timestamp: new Date().toISOString(),
-            });
-          }
-          writeFileSync(sessionFile, JSON.stringify(session, null, 2));
-        } else if (status === 'failed' || status === 'error') {
-          session.status = 'error';
-          session.error = result.error || result.message || '生成失败';
-          writeFileSync(sessionFile, JSON.stringify(session, null, 2));
-        }
-      } catch { /* 轮询中，允许继续 */ }
+    const body = req.body || {};
+    const projectId = String(body.project_id || body.projectId || '');
+    const message = String(body.message || body.prompt || '').trim();
+    if (!message) {
+      return res.status(400).json({ error: 'message 不能为空' });
     }
 
-    // 增量拉取（afterSeq 以后的 message）
-    const messages = (session.messages || []).slice(Number(afterSeq) || 0);
+    const targetProject = projectId || createProject({ name: message.slice(0, 24) || 'New project' }).id;
+    const created = await createGenerationSession({
+      message,
+      project_id: targetProject,
+      media_type: body.media_type || body.mediaType || 'image',
+      aspect: body.aspect || 'origin',
+      style: body.style || '',
+      parent_node_id: body.parent_node_id || body.parentNodeId || null,
+    });
+
     res.json({
       data: {
-        sessionId: session.id,
-        projectId: session.projectId,
-        status: session.status,
-        taskId: session.taskId,
-        messages,
-        resultUrls: session.resultUrls || [],
-      }
+        projectUuid: targetProject,
+        projectId: targetProject,
+        projectUrl: `${APP_ORIGIN}/canvas?projectId=${targetProject}`,
+        sessionId: created.session.id,
+        nodeId: created.node.id,
+        taskId: created.session.task_id || '',
+        status: created.session.status,
+        resultUrls: created.session.result_urls || [],
+      },
     });
-  } catch (e) {
-    res.status(500).json({ error: e.message });
+  } catch (error) {
+    next(error);
   }
 });
 
-// POST /api/session/change-project - 切换/创建新项目
-app.post('/api/session/change-project', (req, res) => {
-  const projectId = uuidv4();
-  const now = new Date().toISOString();
-  const project = {
-    id: projectId,
-    name: '新项目',
-    sessions: [],
-    createdAt: now,
-    updatedAt: now,
-  };
-  const projectFile = join(DATA_DIR, `${projectId}.json`);
-  writeFileSync(projectFile, JSON.stringify(project, null, 2));
-  res.json({
-    data: {
-      projectUuid: projectId,
-      projectUrl: `${CANVAS_BASE_URL}/canvas?projectId=${projectId}`,
+app.get('/api/session/:sessionId', async (req, res, next) => {
+  try {
+    const session = await refreshSession(req.params.sessionId);
+    if (!session) {
+      return res.status(404).json({ error: 'session 不存在' });
     }
-  });
-});
-
-// POST /api/file/upload - 上传文件到 OSS
-app.post('/api/file/upload', async (req, res) => {
-  try {
-    const { fileData, filename, mimeType } = req.body;
-    const uploadUrl = process.env.UPLOAD_API_URL;
-    if (!uploadUrl) throw new Error('UPLOAD_API_URL 未配置');
-
-    const body = { file: fileData, filename, mimeType };
-    const headers = {};
-    const key = process.env.UPLOAD_API_KEY;
-    if (key) headers['Authorization'] = `Bearer ${key}`;
-
-    const resp = await fetch(uploadUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...headers },
-      body: JSON.stringify(body),
-    });
-    const result = await resp.json();
-    res.json({ data: result });
-  } catch (e) {
-    res.status(500).json({ error: e.message });
+    return res.json({ data: serializeSession(readRecord(SESSIONS_DIR, req.params.sessionId)) });
+  } catch (error) {
+    return next(error);
   }
 });
 
-// ============================================================
-// Canvas Skill API — 项目/节点/连线模型（补充 session API）
-// ============================================================
-
-// Canvas Skill 存储路径（与 session API 的 DATA_DIR 分开）
-// resolve() 正确处理 Windows 绝对路径
-const CANVAS_DATA_DIR = resolve(__dirname, '..', '..', 'skills', 'trix-canvas-skill', 'canvas', 'data_8791');
-const FILES_DIR = join(CANVAS_DATA_DIR, 'files');
-const PROJECTS_DIR = join(CANVAS_DATA_DIR, 'projects');
-const NODES_DIR = join(CANVAS_DATA_DIR, 'nodes');
-const EDGES_DIR = join(CANVAS_DATA_DIR, 'edges');
-
-[CANVAS_DATA_DIR, FILES_DIR, PROJECTS_DIR, NODES_DIR, EDGES_DIR].forEach(d => {
-  if (!existsSync(d)) mkdirSync(d, { recursive: true });
-});
-
-// 简化存储读写
-function readJson(dir, id) {
-  const file = join(dir, `${id}.json`);
-  return existsSync(file) ? JSON.parse(readFileSync(file, 'utf-8')) : null;
-}
-function writeJson(dir, id, data) {
-  writeFileSync(join(dir, `${id}.json`), JSON.stringify(data, null, 2));
-}
-function listJson(dir) {
-  return readdirSync(dir).filter(f => f.endsWith('.json')).map(f => {
-    try { return JSON.parse(readFileSync(join(dir, f), 'utf-8')); }
-    catch { return null; }
-  }).filter(Boolean);
-}
-
-// POST /api/projects — 创建项目
-app.post('/api/projects', (req, res) => {
-  try {
-    const { name = 'Untitled', script_text = '' } = req.body || {};
-    const id = Date.now().toString();
-    const now = new Date().toISOString();
-    const project = { id, name, script_text, nodes: [], edges: [], createdAt: now, updatedAt: now };
-    writeJson(PROJECTS_DIR, id, project);
-    res.json({ id, name, createdAt: now, updatedAt: now });
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
-});
-
-// GET /api/projects/:id — 获取项目详情
-app.get('/api/projects/:id', (req, res) => {
-  try {
-    const project = readJson(PROJECTS_DIR, req.params.id);
-    if (!project) return res.status(404).json({ error: '项目不存在' });
-    res.json({ data: project });
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
-});
-
-// GET /api/projects/:id/files — 项目文件列表
-app.get('/api/projects/:id/files', (req, res) => {
-  try {
-    const project = readJson(PROJECTS_DIR, req.params.id);
-    if (!project) return res.status(404).json({ error: '项目不存在' });
-    const files = listJson(FILES_DIR).filter(f => f.projectId == req.params.id);
-    res.json({ data: files });
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
-});
-
-// POST /api/upload — 上传文件
-// 支持 multipart/form-data（浏览器）或 JSON {fileData, filename, ...}（Python skill）
-app.post('/api/upload', (req, res) => {
-  try {
-    let fileData, filename, mimeType, projectId, prompt, mediaType, sceneId;
-
-    const ct = req.headers['content-type'] || '';
-    if (ct.includes('multipart/form-data')) {
-      // 解析 multipart（Node 原生不支持，换 JSON base64 方案）
-      return res.status(400).json({ error: '请使用 JSON 格式上传：{fileData(base64),filename,mimeType,projectId}' });
-    } else {
-      // JSON 格式：fileData 为 base64 字符串
-      const body = req.body || {};
-      const b64 = body.fileData || body.file_data;
-      if (!b64) return res.status(400).json({ error: '缺少 fileData 字段' });
-      fileData = Buffer.from(b64, body.filename?.endsWith('.mp4') ? 'base64' : 'base64');
-      filename = body.filename || 'upload';
-      mimeType = body.mimeType || body.mime_type || 'application/octet-stream';
-      projectId = body.projectId || body.project_id;
-      prompt = body.prompt || '';
-      mediaType = body.mediaType || body.media_type || 'image';
-      sceneId = body.sceneId != null ? body.sceneId : (body.scene_id != null ? body.scene_id : null);
-    }
-
-    const id = Date.now().toString();
-    const ext = filename.split('.').pop();
-    const safeName = `${id}_${filename.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
-    const filePath = join(FILES_DIR, safeName);
-    writeFileSync(filePath, fileData);
-
-    const fileMeta = {
-      id,
-      projectId: projectId ? String(projectId) : null,
-      filename,
-      storedFilename: safeName,
-      mimeType,
-      mediaType,
-      prompt,
-      sceneId,
-      size: fileData.length,
-      url: `/media/files/${safeName}`,
-      createdAt: new Date().toISOString(),
-    };
-    writeJson(FILES_DIR, id, fileMeta);
-
-    // 关联到项目
-    if (projectId) {
-      const project = readJson(PROJECTS_DIR, String(projectId));
-      if (project) {
-        if (!project.fileIds) project.fileIds = [];
-        if (!project.fileIds.includes(id)) project.fileIds.push(id);
-        project.updatedAt = new Date().toISOString();
-        writeJson(PROJECTS_DIR, String(projectId), project);
-      }
-    }
-
-    res.json({ id, ...fileMeta });
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
-});
-
-// POST /api/nodes — 创建节点
-app.post('/api/nodes', (req, res) => {
-  try {
-    const { project_id, file_id, scene_id, media_type, x, y, prompt, status, task_id } = req.body || {};
-    const id = Date.now().toString();
-    const node = {
-      id: Number(id),
-      projectId: project_id ? String(project_id) : null,
-      fileId: file_id != null ? Number(file_id) : null,
-      sceneId: scene_id != null ? Number(scene_id) : null,
-      mediaType: media_type || 'image',
-      x: Number(x) || 0,
-      y: Number(y) || 0,
-      prompt: prompt || '',
-      status: status || 'pending',
-      taskId: task_id || '',
-      createdAt: new Date().toISOString(),
-    };
-    writeJson(NODES_DIR, id, node);
-
-    if (node.projectId) {
-      const project = readJson(PROJECTS_DIR, node.projectId);
-      if (project) {
-        if (!project.nodes) project.nodes = [];
-        project.nodes.push(node);
-        project.updatedAt = new Date().toISOString();
-        writeJson(PROJECTS_DIR, node.projectId, project);
-      }
-    }
-
-    res.json({ id: Number(id), ...node });
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
-});
-
-// PATCH /api/nodes/:id — 更新节点
-app.patch('/api/nodes/:id', (req, res) => {
-  try {
-    const node = readJson(NODES_DIR, req.params.id);
-    if (!node) return res.status(404).json({ error: '节点不存在' });
-    const updated = { ...node, ...req.body, id: node.id };
-    writeJson(NODES_DIR, req.params.id, updated);
-
-    if (updated.projectId) {
-      const project = readJson(PROJECTS_DIR, updated.projectId);
-      if (project && project.nodes) {
-        const idx = project.nodes.findIndex(n => n.id === node.id);
-        if (idx >= 0) project.nodes[idx] = updated;
-        project.updatedAt = new Date().toISOString();
-        writeJson(PROJECTS_DIR, updated.projectId, project);
-      }
-    }
-
-    res.json({ data: updated });
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
-});
-
-// POST /api/edges — 创建连线
-app.post('/api/edges', (req, res) => {
-  try {
-    const { project_id, source_node_id, target_node_id, edge_type } = req.body || {};
-    if (!source_node_id || !target_node_id) {
-      return res.status(400).json({ error: 'source_node_id 和 target_node_id 不能为空' });
-    }
-    // 校验节点存在
-    const src = readJson(NODES_DIR, String(source_node_id));
-    const tgt = readJson(NODES_DIR, String(target_node_id));
-    if (!src) return res.status(404).json({ error: `源节点 ${source_node_id} 不存在` });
-    if (!tgt) return res.status(404).json({ error: `目标节点 ${target_node_id} 不存在` });
-    const id = Date.now().toString();
-    const edge = {
-      id: Number(id),
-      projectId: project_id ? String(project_id) : null,
-      sourceNodeId: Number(source_node_id),
-      targetNodeId: Number(target_node_id),
-      edgeType: edge_type || 'scene_order',
-      createdAt: new Date().toISOString(),
-    };
-    writeJson(EDGES_DIR, id, edge);
-
-    if (edge.projectId) {
-      const project = readJson(PROJECTS_DIR, edge.projectId);
-      if (project) {
-        if (!project.edges) project.edges = [];
-        project.edges.push(edge);
-        project.updatedAt = new Date().toISOString();
-        writeJson(PROJECTS_DIR, edge.projectId, project);
-      }
-    }
-
-    res.json({ id: Number(id), ...edge });
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
-});
-
-// 媒体文件访问（与 Python skill 的 /media/ 路径一致）
-// 自定义媒体文件服务（express.static 有 Windows 路径兼容问题）
 app.get('/media/files/:filename', (req, res) => {
-  const filename = req.params.filename.replace(/[^a-zA-Z0-9._-]/g, '');
-  const filePath = join(FILES_DIR, filename);
-  if (!existsSync(filePath)) return res.status(404).json({ error: '文件不存在' });
-  res.sendFile(filePath);
+  const filename = basename(req.params.filename).replace(/[^a-zA-Z0-9._-]/g, '');
+  const filePath = join(BLOB_DIR, filename);
+  if (!existsSync(filePath)) {
+    return res.status(404).json({ error: '文件不存在' });
+  }
+  return res.sendFile(filePath);
 });
 
-// ============================================================
-// 原有路由（兜底 404 之前）
-// ============================================================
-
-// GET /health - 健康检查
-app.get('/health', (req, res) => res.json({ status: 'ok', service: 'trix-canvas' }));
-
-// 兜底：SPA 路由（canvas 页面）
-app.get('/canvas', (req, res) => {
-  const html = join(__dirname, 'public', 'canvas.html');
-  res.type('html').send(readFileSync(html, 'utf-8'));
-});
-
-// 兜底 404
-app.use((req, res) => {
-  res.status(404).json({ error: '接口不存在' });
+app.use((error, _req, res, _next) => {
+  const statusCode = error?.statusCode || 500;
+  res.status(statusCode).json({
+    error: error?.message || '服务异常',
+    detail: error?.message || '服务异常',
+  });
 });
 
 const server = createServer(app);
 server.listen(PORT, '0.0.0.0', () => {
-  console.log(`TRIX Canvas Service 已启动: http://0.0.0.0:${PORT}`);
-  console.log(`  - Canvas 页面: http://0.0.0.0:${PORT}/canvas`);
-  console.log(`  - 健康检查:    http://0.0.0.0:${PORT}/health`);
-  console.log(`  - 数据目录:    ${DATA_DIR}`);
-  console.log(`  - Canvas Skill 数据: ${CANVAS_DATA_DIR}`);
-  console.log(`  - 输出目录:    ${OUTPUT_DIR}`);
-  if (!process.env.AI_API_BASE) {
-    console.warn('⚠️  AI_API_BASE 未配置，请在 .env 中设置');
+  console.log(`TRIX Canvas Service running at ${APP_ORIGIN}`);
+  console.log(`  Canvas UI: ${APP_ORIGIN}/canvas`);
+  console.log(`  Health:    ${APP_ORIGIN}/health`);
+  console.log(`  Data dir:  ${DATA_ROOT}`);
+  console.log(`  Export dir:${EXPORT_ROOT}`);
+  if (!AI_API_BASE) {
+    console.warn('⚠ AI_API_BASE 未配置，生成接口会返回错误状态');
   }
 });
