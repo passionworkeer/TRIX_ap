@@ -410,6 +410,21 @@ export interface ElectronAPI {
   cronUpdate: (id: string, updates: unknown) => Promise<ApiResult<void>>;
   cronDelete: (id: string) => Promise<ApiResult<void>>;
   cronToggle: (id: string, enabled: boolean) => Promise<ApiResult<void>>;
+
+  // Preferences
+  preferencesGet: () => Promise<ApiResult<Record<string, unknown>>>;
+  preferencesSet: (prefs: Record<string, unknown>) => Promise<ApiResult<void>>;
+
+  // Friends
+  friendsList: () => Promise<ApiResult<Array<{ id: string; userId: string; displayName: string; status: string }>>>;
+  friendsAdd: (friendUserId: string) => Promise<ApiResult<void>>;
+  friendsAccept: (friendId: string) => Promise<ApiResult<void>>;
+  friendsRemove: (friendId: string) => Promise<ApiResult<void>>;
+
+  // Notifications
+  notificationsList: () => Promise<ApiResult<Array<{ id: string; type: string; message: string; read: boolean; createdAt: string }>>>;
+  notificationsMarkRead: (notificationId: string) => Promise<ApiResult<void>>;
+  notificationsMarkAllRead: () => Promise<ApiResult<void>>;
 }
 
 export interface SystemInfo {
