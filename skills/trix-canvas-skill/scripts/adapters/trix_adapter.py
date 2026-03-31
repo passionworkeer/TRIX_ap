@@ -4,7 +4,7 @@ import json
 import re
 import time
 import urllib.request
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlparse
 
 from base import AIAdapter
 
@@ -20,6 +20,7 @@ class TRIXAdapter(AIAdapter):
     def __init__(self, api_base: str, api_key: str = ""):
         self.api_base = api_base.rstrip("/")
         self.api_key = api_key
+        self._api_base_parsed = urlparse(self.api_base)
         self._session_create_url = f"{self.api_base}/api/session"
         self._max_polls = 150
         self._poll_interval = 2
@@ -93,8 +94,12 @@ class TRIXAdapter(AIAdapter):
             return {"ok": False, "error": "session 中未找到产出 URL"}
 
         media_url = self._resolve_media_url(urls[0])
+        headers = {"User-Agent": "TRIX-Canvas-Skill/1.0"}
+        if self.api_key and self._is_same_origin(media_url):
+            headers["Authorization"] = f"Bearer {self.api_key}"
         req = urllib.request.Request(
-            media_url, headers={"User-Agent": "TRIX-Canvas-Skill/1.0"}
+            media_url,
+            headers=headers,
         )
         try:
             with DIRECT_OPENER.open(req, timeout=60) as resp:
@@ -110,6 +115,13 @@ class TRIXAdapter(AIAdapter):
         if url.startswith("http://") or url.startswith("https://"):
             return url
         return urljoin(f"{self.api_base}/", url.lstrip("/"))
+
+    def _is_same_origin(self, url: str) -> bool:
+        parsed = urlparse(url)
+        return (
+            parsed.scheme == self._api_base_parsed.scheme
+            and parsed.netloc == self._api_base_parsed.netloc
+        )
 
     @staticmethod
     def _ext_to_mime(url: str) -> str:

@@ -13,16 +13,40 @@ SKILL_ROOT = SCRIPT_DIR.parent
 RUNTIME_ROOT = Path(
     os.environ.get("TRIX_CANVAS_RUNTIME_DIR", str(SKILL_ROOT / "runtime"))
 ).expanduser().resolve()
+PACKAGED_SERVICE_DIR = (SKILL_ROOT / "assets" / "canvas-service").resolve()
+
+SYNC_TOP_LEVEL_FILES = (
+    ".env.example",
+    "README.md",
+    "package.json",
+    "proxy.js",
+    "relay.js",
+    "server.js",
+    "start-all.js",
+)
+SYNC_TOP_LEVEL_DIRS = ("public",)
+SYNC_IGNORE_PATTERNS = (
+    ".DS_Store",
+    "*.log",
+    "node_modules",
+    "*.bak",
+    "*.orig",
+    "*.rej",
+    "*.tmp",
+    "*.swp",
+    "*.swo",
+    "test.html",
+)
 
 
 def canvas_service_candidates() -> list[Path]:
     raw_candidates = [
         os.environ.get("TRIX_CANVAS_SERVICE_DIR", "").strip(),
-        str(SKILL_ROOT / "assets" / "canvas-service"),
         str(SKILL_ROOT.parents[1] / "packages" / "trix-canvas-service")
         if len(SKILL_ROOT.parents) > 1
         else "",
         str(Path.cwd() / "packages" / "trix-canvas-service"),
+        str(PACKAGED_SERVICE_DIR),
     ]
     seen: set[str] = set()
     candidates: list[Path] = []
@@ -47,6 +71,38 @@ def resolve_canvas_service_dir() -> Path:
         "TRIX Canvas service runtime not found. Checked:\n"
         f"{joined or '- <none>'}"
     )
+
+
+def sync_packaged_canvas_service(
+    source_dir: Path | None = None,
+    target_dir: Path | None = None,
+) -> Path:
+    """Mirror canvas runtime into a packaged assets directory."""
+    source = (source_dir or resolve_canvas_service_dir()).expanduser().resolve()
+    target = (target_dir or PACKAGED_SERVICE_DIR).expanduser().resolve()
+    if source == target:
+        return target
+    target.mkdir(parents=True, exist_ok=True)
+
+    for filename in SYNC_TOP_LEVEL_FILES:
+        src = source / filename
+        if src.exists():
+            shutil.copy2(src, target / filename)
+
+    for dirname in SYNC_TOP_LEVEL_DIRS:
+        src = source / dirname
+        if not src.exists() or not src.is_dir():
+            continue
+        dst = target / dirname
+        if dst.exists():
+            shutil.rmtree(dst)
+        shutil.copytree(
+            src,
+            dst,
+            ignore=shutil.ignore_patterns(*SYNC_IGNORE_PATTERNS),
+        )
+
+    return target
 
 
 def default_canvas_data_dir() -> Path:

@@ -9,6 +9,7 @@
     "dev": "node --watch server.js",
     "proxy": "node proxy.js",
     "start:all": "node start-all.js",
+    "sync:skill-runtime": "python3 ../../skills/trix-canvas-skill/scripts/sync_canvas_runtime.py",
     "test:smoke": "node --test ../../tests/smoke/trix-canvas-smoke.test.mjs",
     "check": "node --check server.js && node --check proxy.js && node --check relay.js && node --check start-all.js"
   },

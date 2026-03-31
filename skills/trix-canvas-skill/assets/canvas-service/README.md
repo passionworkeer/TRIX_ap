@@ -16,6 +16,9 @@ npm start
 # 先配置 AI_API_KEY 或 MINIMAX_API_KEY
 # 本机回环模式下也支持回退读取 ~/.openclaw/openclaw.json
 npm run start:all
+
+# 如果你要把这个服务作为 skill 发布，先把 package runtime 同步回 skill 内嵌 runtime
+npm run sync:skill-runtime
 ```
 
 默认只监听本机回环地址，画布地址: `http://127.0.0.1:8789/canvas`
@@ -44,7 +47,7 @@ packages/trix-canvas-service/
 ├── public/
 │   └── canvas.html      # 画布 SPA
 ├── data/                # 运行时目录，存放 JSON 数据
-├── outputs/             # 导出文件（字幕/视频）
+├── exports/             # 导出文件（字幕/视频）
 ├── .env.example         # 环境变量模板
 └── trix-canvas.service   # systemd 单元（参考）
 ```
@@ -91,6 +94,7 @@ packages/trix-canvas-service/
 
 如果这些都没配，本机回环模式下会尝试回退读取 `~/.openclaw/openclaw.json` 里的 `MINIMAX_API_KEY`。
 若你在非本机环境运行，请显式设置 `TRIX_CANVAS_ALLOW_OPENCLAW_CONFIG=true` 才会允许这一回退。
+如果你额外给 proxy 配了 `PROXY_ACCESS_TOKEN`，`start-all.js` 会自动把这个 token 传给 Canvas 服务，保证 Canvas -> proxy 的内部请求也能通过鉴权。
 
 `proxy.js` 默认也只允许绑定回环地址；若你确实要远程暴露 proxy，必须显式设置 `PROXY_ALLOW_REMOTE=true`，并同时配置 `PROXY_ACCESS_TOKEN`，之后调用方需要带 `Authorization: Bearer <token>`。
 
@@ -101,11 +105,11 @@ packages/trix-canvas-service/
 - `RELAY_PORT`：监听端口（默认 8791）
 - `IMAGE_API_URL`, `IMAGE_API_METHOD`, `IMAGE_API_KEY`, `IMAGE_API_MODEL`
 - `VIDEO_API_URL`, `VIDEO_API_METHOD`, `VIDEO_API_KEY`, `VIDEO_API_MODEL`
-- `RELAY_OUTPUT_PREFIX`：如果仓库需要本地 assets，可把 base64 写入 outputs 并用 `http://localhost:8791/outputs/...` 访问
+- `RELAY_OUTPUT_PREFIX`：如果仓库需要本地 assets，可把 base64 写入 relay 自己的 `outputs/` 并用 `http://localhost:8791/outputs/...` 访问；Canvas 主服务的导出目录仍是 `exports/`
 
 ## 授权与开放
 
-因为本服务是开源的，所以不再嵌入任何第三方 key。请把实际的 AI 供应商密钥存放在环境变量，并确保 `.env` 写入内容不会纳入 Git（本项目已在 `.gitignore` 默认排除 `.env`、`data/`、`outputs/`）。
+因为本服务是开源的，所以不再嵌入任何第三方 key。请把实际的 AI 供应商密钥存放在环境变量，并确保 `.env` 写入内容不会纳入 Git（本项目已在 `.gitignore` 默认排除 `.env`、`data/`、`exports/`）。
 
 ## 环境变量概览
 

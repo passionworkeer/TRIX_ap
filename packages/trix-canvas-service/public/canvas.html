@@ -4,6 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>TRIX Canvas</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%230b1117'/%3E%3Cpath d='M16 18h32v8H16zm0 12h20v8H16zm0 12h32v8H16z' fill='%2339d0b3'/%3E%3C/svg%3E" />
 <style>
 
 
@@ -367,6 +368,28 @@ body::before{ display: none; }
   color:var(--muted);
   font-size:12px;
   line-height:1.7;
+}
+.asset-dropzone{
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  padding:12px;
+  border-radius:14px;
+  border:1px dashed rgba(24,24,27,.26);
+  background:rgba(0,0,0,.02);
+  margin-bottom:10px;
+}
+.asset-dropzone.dragover{
+  border-color:rgba(59,130,246,.72);
+  background:rgba(59,130,246,.1);
+}
+.asset-drop-title{
+  font-size:12px;
+  font-weight:700;
+}
+.asset-drop-sub{
+  color:var(--muted);
+  font-size:12px;
 }
 .stat-grid{
   display:grid;
@@ -856,7 +879,6 @@ body::before{ display: none; }
   .canvas-shell{
     min-height:460px;
     height:100%;
-    
   }
   .canvas-shell::after{
     inset:14px;
@@ -929,6 +951,494 @@ body::before{ display: none; }
   .minimap{display:none}
 }
 
+/* Studio-first layout overrides */
+.section-kicker,
+.canvas-kicker{
+  color:rgba(24,24,27,.4);
+}
+.topbar{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  padding:8px 12px;
+  border-radius:18px;
+  background:rgba(255,255,255,.78);
+  box-shadow:0 14px 34px rgba(15,23,42,.08);
+  backdrop-filter:blur(18px);
+}
+.brand-stack{
+  flex:none;
+  gap:2px;
+}
+.brand{
+  font-size:22px;
+  letter-spacing:.02em;
+}
+.brand-sub{
+  font-size:9px;
+  letter-spacing:.18em;
+}
+.pill-row:empty{
+  display:none;
+}
+.project-rail-popover{
+  position:absolute;
+  left:14px;
+  right:14px;
+  top:calc(100% + 6px);
+  z-index:12;
+  padding:10px;
+  border-radius:18px;
+  border:1px solid rgba(24,24,27,.08);
+  background:rgba(255,255,255,.96);
+  box-shadow:0 22px 44px rgba(15,23,42,.14);
+  opacity:0;
+  pointer-events:none;
+  transform:translateY(-8px);
+  transition:opacity .18s ease, transform .22s ease;
+}
+.topbar.project-rail-open .project-rail-popover{
+  opacity:1;
+  pointer-events:auto;
+  transform:translateY(0);
+}
+.project-rail-popover .pill-row{
+  padding:0;
+  border:0;
+  border-radius:0;
+  background:transparent;
+}
+.pill-row{
+  gap:10px;
+}
+.pill{
+  padding:9px 13px;
+  border-radius:999px;
+  background:rgba(15,23,42,.05);
+}
+.toolbar-actions{
+  flex:1 1 auto;
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  flex-wrap:nowrap;
+  gap:10px;
+  background:transparent;
+  border:0;
+  padding:0;
+  min-width:0;
+}
+.toolbar-panel-toggles{
+  flex:none;
+  display:flex;
+  align-items:center;
+  gap:6px;
+  padding:3px;
+  border-radius:999px;
+  border:1px solid rgba(24,24,27,.08);
+  background:rgba(15,23,42,.08);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.55);
+}
+.panel-button{
+  min-width:76px;
+  white-space:nowrap;
+}
+.project-rail-button{
+  min-width:90px;
+}
+.panel-button.active{
+  color:#ffffff;
+  background:var(--accent);
+  border-color:var(--accent);
+}
+.project-select{
+  flex:1 1 360px;
+  min-width:240px;
+  max-width:560px;
+  padding:9px 13px;
+  border-radius:14px;
+  box-shadow:none;
+}
+.workspace{
+  display:block;
+  position:relative;
+  overflow:hidden;
+  border-radius:18px;
+  border:1px solid rgba(0,0,0,.05);
+  background:rgba(255,255,255,.58);
+  box-shadow:0 12px 30px rgba(0,0,0,.06);
+}
+.workspace-overlay{
+  position:absolute;
+  inset:0;
+  z-index:6;
+  border:0;
+  padding:0;
+  margin:0;
+  opacity:0;
+  pointer-events:none;
+  background:rgba(9,13,18,.10);
+  backdrop-filter:blur(2px);
+  transition:opacity .22s ease;
+}
+.workspace.has-open-panel .workspace-overlay{
+  opacity:1;
+  pointer-events:auto;
+}
+.center-stack{
+  position:relative;
+  width:100%;
+  height:100%;
+  min-height:0;
+  display:block;
+}
+.canvas-shell{
+  height:100%;
+  border-radius:18px;
+}
+.column,
+.column.right{
+  position:absolute;
+  z-index:7;
+  top:10px;
+  bottom:10px;
+  width:min(336px, calc(100% - 20px));
+  padding-right:0;
+  gap:14px;
+  opacity:0;
+  pointer-events:none;
+  transition:transform .28s ease, opacity .2s ease;
+}
+.column{
+  left:10px;
+  right:auto;
+  transform:translateX(calc(-100% - 18px));
+}
+.column.right{
+  left:auto;
+  right:10px;
+  transform:translateX(calc(100% + 18px));
+}
+.workspace.panel-left-open .column:not(.right){
+  transform:translateX(0);
+  opacity:1;
+  pointer-events:auto;
+}
+.workspace.panel-right-open .column.right{
+  transform:translateX(0);
+  opacity:1;
+  pointer-events:auto;
+}
+.panel-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  padding:0 4px;
+}
+.panel-meta{
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+  min-width:0;
+}
+.panel-kicker{
+  color:rgba(24,24,27,.42);
+  font-size:10px;
+  letter-spacing:.24em;
+  text-transform:uppercase;
+}
+.panel-title{
+  font-family:"Baskerville","Iowan Old Style","Times New Roman",serif;
+  font-size:24px;
+  line-height:1;
+}
+.panel-body{
+  min-height:0;
+  display:flex;
+  flex-direction:column;
+  gap:14px;
+  overflow:auto;
+  padding:2px 6px 0 0;
+}
+.panel-body::-webkit-scrollbar{width:8px}
+.panel-body::-webkit-scrollbar-thumb{
+  border-radius:999px;
+  background:rgba(0,0,0,.08);
+}
+.canvas-header{
+  grid-template-columns:minmax(0,320px) auto;
+  gap:8px;
+  padding:10px 10px 0;
+  background:linear-gradient(180deg, rgba(8,10,12,.56), rgba(8,10,12,.14), transparent 82%);
+}
+.canvas-stagecard{
+  gap:4px;
+  max-width:320px;
+  padding:10px 12px;
+  border-radius:16px;
+  border-color:rgba(255,255,255,.08);
+  background:rgba(9,12,16,.66);
+  box-shadow:0 16px 26px rgba(0,0,0,.2), inset 0 1px 0 rgba(255,255,255,.04);
+  backdrop-filter:blur(18px);
+}
+.canvas-stagecard .canvas-kicker{
+  color:rgba(255,255,255,.38);
+}
+.canvas-header strong{
+  color:#ffffff;
+  font-size:clamp(18px, 1.2vw, 22px);
+  line-height:1.02;
+  -webkit-line-clamp:2;
+}
+.canvas-header span{
+  color:rgba(255,255,255,.68);
+  margin-top:1px;
+  font-size:10px;
+  line-height:1.35;
+  display:-webkit-box;
+  -webkit-box-orient:vertical;
+  -webkit-line-clamp:1;
+  overflow:hidden;
+}
+.workspace-badges{
+  display:inline-flex;
+  flex-wrap:nowrap;
+  gap:0;
+  margin-top:2px;
+  overflow:auto;
+  padding:0;
+  border-radius:999px;
+  border:1px solid rgba(255,255,255,.08);
+  background:rgba(255,255,255,.06);
+}
+.workspace-badges::-webkit-scrollbar{display:none}
+.workspace-badge{
+  padding:5px 8px;
+  color:rgba(255,255,255,.88);
+  background:transparent;
+  border-color:transparent;
+  font-size:9px;
+  border-radius:999px;
+}
+.workspace-badge + .workspace-badge{
+  border-left:1px solid rgba(255,255,255,.08);
+}
+.canvas-right-tools{
+  position:relative;
+  justify-self:end;
+  display:flex;
+  flex-direction:column;
+  align-items:flex-end;
+  gap:8px;
+}
+.canvas-toggle-row{
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+.canvas-toggle-button{
+  min-width:70px;
+  padding:8px 12px;
+  border-radius:999px;
+  color:#ffffff;
+  background:rgba(12,16,19,.42);
+  border-color:rgba(255,255,255,.10);
+  box-shadow:0 10px 20px rgba(0,0,0,.12);
+}
+.canvas-toggle-button.active{
+  color:#ffffff;
+  background:rgba(7,11,15,.92);
+  border-color:rgba(255,255,255,.16);
+}
+.canvas-popovers{
+  position:absolute;
+  top:calc(100% + 8px);
+  right:0;
+  z-index:5;
+  display:flex;
+  flex-direction:column;
+  align-items:flex-end;
+  gap:10px;
+}
+.canvas-actions,
+.minimap{
+  opacity:0;
+  pointer-events:none;
+  transform:translateY(-8px) scale(.98);
+  transition:transform .2s ease, opacity .18s ease;
+}
+.canvas-right-tools.actions-open .canvas-actions,
+.canvas-right-tools.minimap-open .minimap{
+  opacity:1;
+  pointer-events:auto;
+  transform:translateY(0) scale(1);
+}
+.canvas-actions{
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  flex-wrap:wrap;
+  gap:6px;
+  width:min(460px, calc(100vw - 48px));
+  padding:6px;
+  border:1px solid rgba(255,255,255,.10);
+  border-radius:18px;
+  background:rgba(7,11,15,.84);
+  box-shadow:0 18px 32px rgba(0,0,0,.18);
+}
+.canvas-actions .button{
+  padding:8px 10px;
+  border-radius:999px;
+  font-size:11px;
+  color:#ffffff;
+  background:rgba(255,255,255,.10);
+}
+.canvas-actions .button:hover{
+  border-color:rgba(255,255,255,.22);
+  background:rgba(255,255,255,.16);
+}
+.minimap{
+  position:relative;
+  top:auto;
+  right:auto;
+  width:178px;
+  padding:12px;
+  border:1px solid rgba(255,255,255,.10);
+  border-radius:18px;
+  background:rgba(7,11,15,.84);
+  box-shadow:0 18px 32px rgba(0,0,0,.18);
+}
+.canvas-tools{
+  right:12px;
+  bottom:12px;
+}
+.dock{
+  position:absolute;
+  z-index:7;
+  left:50%;
+  bottom:14px;
+  width:min(980px, calc(100% - 28px));
+  max-height:min(38vh, 360px);
+  min-height:0;
+  border-radius:22px;
+  background:rgba(255,255,255,.95);
+  backdrop-filter:blur(14px);
+  box-shadow:0 24px 48px rgba(0,0,0,.14);
+  transform:translate(-50%, calc(100% + 28px));
+  opacity:0;
+  pointer-events:none;
+  transition:transform .28s ease, opacity .2s ease;
+}
+.workspace.panel-queue-open .dock{
+  transform:translate(-50%, 0);
+  opacity:1;
+  pointer-events:auto;
+}
+.dock .session-list{
+  min-height:0;
+}
+.dock .session-item{
+  padding:10px 12px;
+  gap:10px;
+  border-radius:14px;
+  background:rgba(0,0,0,.02);
+}
+.dock .session-status{
+  padding:6px 9px;
+  font-size:10px;
+}
+.dock-close{
+  flex:none;
+}
+@media (max-width: 1100px){
+  .topbar{
+    flex-wrap:wrap;
+    align-items:flex-start;
+  }
+  .toolbar-actions{
+    width:100%;
+    justify-content:flex-end;
+    flex-wrap:wrap;
+  }
+  .project-select{
+    order:-1;
+    flex:1 1 100%;
+    max-width:none;
+  }
+  .canvas-header{
+    grid-template-columns:1fr;
+  }
+  .canvas-right-tools{
+    justify-self:start;
+    align-items:flex-start;
+  }
+  .canvas-popovers{
+    left:0;
+    right:auto;
+    align-items:flex-start;
+  }
+}
+@media (max-width: 820px){
+  .toolbar-actions{
+    width:100%;
+    justify-content:stretch;
+  }
+  .toolbar-panel-toggles{
+    order:3;
+    width:100%;
+    overflow:auto;
+  }
+  .toolbar-panel-toggles::-webkit-scrollbar{display:none}
+  .toolbar-panel-toggles .button{
+    flex:1 0 auto;
+  }
+  .project-rail-popover{
+    left:8px;
+    right:8px;
+  }
+  .column,
+  .column.right{
+    top:8px;
+    bottom:8px;
+    width:calc(100% - 16px);
+  }
+  .column{left:8px}
+  .column.right{right:8px}
+  .dock{
+    width:calc(100% - 16px);
+    bottom:8px;
+    max-height:min(52vh, 420px);
+  }
+  .canvas-header{
+    padding:12px 12px 0;
+  }
+  .canvas-right-tools{
+    width:100%;
+    align-items:flex-start;
+  }
+  .canvas-toggle-row{
+    width:100%;
+  }
+  .canvas-toggle-button{
+    flex:1 1 auto;
+  }
+  .canvas-popovers{
+    left:0;
+    right:auto;
+    width:min(100%, calc(100vw - 40px));
+    align-items:stretch;
+  }
+  .canvas-actions,
+  .minimap{
+    width:100%;
+  }
+  .canvas-shell::after{
+    inset:10px;
+  }
+}
+
 
 
 
@@ -937,21 +1447,38 @@ body::before{ display: none; }
 </head>
 <body>
 <div class="app">
-  <header class="topbar">
+  <header class="topbar" id="topbar">
     <div class="brand-stack">
       <div class="brand">TRIX <strong>Canvas</strong></div>
       <div class="brand-sub">ComfyUI 风格短剧工作台</div>
     </div>
-    <div class="pill-row" id="projectPills"></div>
     <div class="toolbar-actions">
+      <div class="toolbar-panel-toggles">
+        <button class="button ghost panel-button project-rail-button" id="projectRailToggleButton" type="button" aria-expanded="false">项目轨道</button>
+        <button class="button ghost panel-button" id="leftPanelToggleButton" type="button" aria-expanded="false">创作台</button>
+        <button class="button ghost panel-button" id="queuePanelToggleButton" type="button" aria-expanded="false">队列</button>
+        <button class="button ghost panel-button" id="rightPanelToggleButton" type="button" aria-expanded="false">检查器</button>
+      </div>
       <select class="project-select" id="project-select"></select>
       <button class="button ghost" id="refreshButton" type="button">刷新</button>
       <button class="button" id="btn-new-project" type="button">新项目</button>
     </div>
+    <div class="project-rail-popover" id="projectRailPopover" hidden>
+      <div class="pill-row" id="projectPills"></div>
+    </div>
   </header>
 
-  <main class="workspace">
+  <main class="workspace" id="workspace">
+    <button class="workspace-overlay" id="workspaceOverlay" type="button" aria-label="关闭面板"></button>
     <aside class="column">
+      <div class="panel-head">
+        <div class="panel-meta">
+          <div class="panel-kicker">Creative Console</div>
+          <div class="panel-title">创作工具台</div>
+        </div>
+        <button class="button ghost" id="leftPanelCloseButton" type="button">收起</button>
+      </div>
+      <div class="panel-body">
       <section class="card">
         <div class="card-header">
           <div class="card-title">
@@ -1034,6 +1561,7 @@ body::before{ display: none; }
         </div>
         <div class="node-list" id="nodeList"></div>
       </section>
+      </div>
     </aside>
 
     <section class="center-stack">
@@ -1049,20 +1577,27 @@ body::before{ display: none; }
               <div class="workspace-badge" id="queueSummary">队列空闲</div>
             </div>
           </div>
-          <div class="canvas-actions">
-            <button class="button ghost" id="btn-export-subtitle" type="button">导出字幕</button>
-            <button class="button ghost" id="btn-export-video" type="button">导出视频</button>
-            <button class="button ghost" id="focusButton" type="button">聚焦节点</button>
-            <button class="button ghost" id="toggleEdgesButton" type="button">隐藏连线</button>
+          <div class="canvas-right-tools" id="canvasRightTools">
+            <div class="canvas-toggle-row">
+              <button class="button ghost canvas-toggle-button" id="canvasActionToggleButton" type="button" aria-expanded="false">操作</button>
+              <button class="button ghost canvas-toggle-button" id="minimapToggleButton" type="button" aria-expanded="false">地图</button>
+            </div>
+            <div class="canvas-popovers">
+              <div class="canvas-actions" id="canvasActions">
+                <button class="button ghost" id="btn-export-subtitle" type="button">导出字幕</button>
+                <button class="button ghost" id="btn-export-video" type="button">导出视频</button>
+                <button class="button ghost" id="focusButton" type="button">聚焦节点</button>
+                <button class="button ghost" id="toggleEdgesButton" type="button">隐藏连线</button>
+              </div>
+              <div class="minimap" id="minimapPanel">
+                <div class="minimap-head">
+                  <span>Minimap</span>
+                  <span id="minimapMeta">0 nodes</span>
+                </div>
+                <canvas id="minimapCanvas" width="220" height="126"></canvas>
+              </div>
+            </div>
           </div>
-        </div>
-
-        <div class="minimap">
-          <div class="minimap-head">
-            <span>Minimap</span>
-            <span id="minimapMeta">0 nodes</span>
-          </div>
-          <canvas id="minimapCanvas" width="220" height="126"></canvas>
         </div>
 
         <canvas id="mycanvas"></canvas>
@@ -1076,6 +1611,13 @@ body::before{ display: none; }
       </section>
 
       <section class="card dock">
+        <div class="panel-head">
+          <div class="panel-meta">
+            <div class="panel-kicker">Queue Drawer</div>
+            <div class="panel-title">生成队列</div>
+          </div>
+          <button class="button ghost dock-close" id="queuePanelCloseButton" type="button">收起</button>
+        </div>
         <div class="dock-header">
           <div class="card-title">
             <div class="section-kicker">Queue Monitor</div>
@@ -1083,11 +1625,28 @@ body::before{ display: none; }
           </div>
           <div class="dock-copy">这里会显示项目的 session 队列。点击任意条目可以直接聚焦到对应节点。</div>
         </div>
+        <div class="field-grid">
+          <select class="select" id="sessionFilterSelect">
+            <option value="all">全部状态</option>
+            <option value="generating">生成中</option>
+            <option value="completed">已完成</option>
+            <option value="error">失败</option>
+          </select>
+          <button class="button ghost" id="retryFailedSessionsButton" type="button">重试失败项</button>
+        </div>
         <div class="session-list" id="sessionList"></div>
       </section>
     </section>
 
     <aside class="column right">
+      <div class="panel-head">
+        <div class="panel-meta">
+          <div class="panel-kicker">Inspector Drawer</div>
+          <div class="panel-title">检查器</div>
+        </div>
+        <button class="button ghost" id="rightPanelCloseButton" type="button">收起</button>
+      </div>
+      <div class="panel-body">
       <section class="card" style="min-height:0">
         <div class="card-header">
           <div class="card-title">
@@ -1106,8 +1665,32 @@ body::before{ display: none; }
             <div class="detail-box"><div class="label">更新时间</div><div class="value" id="detailUpdatedAt">-</div></div>
           </div>
           <textarea class="textarea" id="detailPromptInput" placeholder="节点提示词"></textarea>
+          <div class="field-grid three">
+            <select class="select" id="detailMediaTypeSelect">
+              <option value="image">图片</option>
+              <option value="video">视频</option>
+            </select>
+            <select class="select" id="detailAspectSelect">
+              <option value="origin">原始比例</option>
+              <option value="9:16">竖屏 9:16</option>
+              <option value="16:9">横屏 16:9</option>
+              <option value="1:1">方屏 1:1</option>
+              <option value="4:3">标准 4:3</option>
+            </select>
+            <input class="input" id="detailStyleInput" placeholder="节点风格" />
+          </div>
+          <div class="field-grid">
+            <input class="input" id="detailSceneInput" type="number" min="1" step="1" placeholder="Scene 序号" />
+            <select class="select" id="detailStatusSelect">
+              <option value="pending">pending</option>
+              <option value="draft">draft</option>
+              <option value="generating">generating</option>
+              <option value="completed">completed</option>
+              <option value="error">error</option>
+            </select>
+          </div>
           <div class="row-actions">
-            <button class="button primary" id="savePromptButton" type="button">保存提示词</button>
+            <button class="button primary" id="savePromptButton" type="button">保存节点</button>
             <button class="button ghost" id="reusePromptButton" type="button">载入到草稿</button>
             <button class="button ghost" id="uploadNodeAssetButton" type="button">上传素材</button>
             <button class="button ghost" id="openMediaButton" type="button">打开结果</button>
@@ -1124,6 +1707,11 @@ body::before{ display: none; }
             <div class="section-title">文件浏览器</div>
           </div>
           <div class="section-copy">最近生成的图片、视频和导出文件。</div>
+        </div>
+        <div class="asset-dropzone" id="assetDropZone">
+          <div class="asset-drop-title">拖拽素材到这里，批量上传到当前项目</div>
+          <div class="asset-drop-sub">会自动关联到当前选中节点；若未选中会创建参考节点。</div>
+          <button class="button ghost" id="openAssetPickerButton" type="button">选择文件</button>
         </div>
         <div class="file-list" id="fileList"></div>
       </section>
@@ -1145,12 +1733,13 @@ body::before{ display: none; }
           <div class="meta-chip">拖拽节点 / 空白区域平移 / 滚轮缩放</div>
         </div>
       </section>
+      </div>
     </aside>
   </main>
 </div>
 
 <div class="toast" id="toast"></div>
-<input id="referenceUploadInput" type="file" accept="image/*,video/*" hidden />
+<input id="referenceUploadInput" type="file" accept="image/*,video/*" multiple hidden />
 
 <div class="lightbox" id="lightbox">
   <button class="lightbox-close" id="lightboxClose" type="button">×</button>
@@ -1245,6 +1834,14 @@ const state = {
   projects: [],
   project: null,
   selectedNodeId: null,
+  ui: {
+    projectRailOpen: false,
+    canvasActionsOpen: false,
+    minimapOpen: false,
+    leftPanelOpen: false,
+    rightPanelOpen: false,
+    queuePanelOpen: false,
+  },
   auth: {
     requiresAuth: false,
     authenticated: true,
@@ -1252,6 +1849,7 @@ const state = {
   },
   viewport: { scale: 1, tx: 120, ty: 120 },
   dragging: null,
+  linking: null,
   panning: null,
   saveQueue: new Map(),
   imageCache: new Map(),
@@ -1264,6 +1862,7 @@ const state = {
     running: false,
     sessionIds: [],
     total: 0,
+    cancelled: false,
   },
   minimap: {
     worldBounds: null,
@@ -1271,10 +1870,21 @@ const state = {
 };
 
 const elements = {
+  topbar: document.getElementById('topbar'),
+  workspace: document.getElementById('workspace'),
+  workspaceOverlay: document.getElementById('workspaceOverlay'),
+  projectRailPopover: document.getElementById('projectRailPopover'),
+  projectRailToggleButton: document.getElementById('projectRailToggleButton'),
   projectPills: document.getElementById('projectPills'),
   projectSelect: document.getElementById('project-select'),
   refreshButton: document.getElementById('refreshButton'),
   newProjectButton: document.getElementById('btn-new-project'),
+  leftPanelToggleButton: document.getElementById('leftPanelToggleButton'),
+  queuePanelToggleButton: document.getElementById('queuePanelToggleButton'),
+  rightPanelToggleButton: document.getElementById('rightPanelToggleButton'),
+  leftPanelCloseButton: document.getElementById('leftPanelCloseButton'),
+  queuePanelCloseButton: document.getElementById('queuePanelCloseButton'),
+  rightPanelCloseButton: document.getElementById('rightPanelCloseButton'),
   recipeGrid: document.getElementById('recipeGrid'),
   promptInput: document.getElementById('promptInput'),
   mediaTypeSelect: document.getElementById('mediaTypeSelect'),
@@ -1291,6 +1901,8 @@ const elements = {
   autoArrangeButton: document.getElementById('autoArrangeButton'),
   queueStoryboardButton: document.getElementById('queueStoryboardButton'),
   clearStoryboardButton: document.getElementById('clearStoryboardButton'),
+  sessionFilterSelect: document.getElementById('sessionFilterSelect'),
+  retryFailedSessionsButton: document.getElementById('retryFailedSessionsButton'),
   batchStatus: document.getElementById('batchStatus'),
   batchHint: document.getElementById('batchHint'),
   nodeCount: document.getElementById('nodeCount'),
@@ -1303,6 +1915,11 @@ const elements = {
   projectStatus: document.getElementById('projectStatus'),
   selectionStatus: document.getElementById('selectionStatus'),
   queueSummary: document.getElementById('queueSummary'),
+  canvasRightTools: document.getElementById('canvasRightTools'),
+  canvasActionToggleButton: document.getElementById('canvasActionToggleButton'),
+  canvasActions: document.getElementById('canvasActions'),
+  minimapToggleButton: document.getElementById('minimapToggleButton'),
+  minimapPanel: document.getElementById('minimapPanel'),
   exportSubtitleButton: document.getElementById('btn-export-subtitle'),
   exportVideoButton: document.getElementById('btn-export-video'),
   focusButton: document.getElementById('focusButton'),
@@ -1325,12 +1942,19 @@ const elements = {
   detailScene: document.getElementById('detailScene'),
   detailUpdatedAt: document.getElementById('detailUpdatedAt'),
   detailPromptInput: document.getElementById('detailPromptInput'),
+  detailMediaTypeSelect: document.getElementById('detailMediaTypeSelect'),
+  detailAspectSelect: document.getElementById('detailAspectSelect'),
+  detailStyleInput: document.getElementById('detailStyleInput'),
+  detailSceneInput: document.getElementById('detailSceneInput'),
+  detailStatusSelect: document.getElementById('detailStatusSelect'),
   savePromptButton: document.getElementById('savePromptButton'),
   reusePromptButton: document.getElementById('reusePromptButton'),
   uploadNodeAssetButton: document.getElementById('uploadNodeAssetButton'),
   openMediaButton: document.getElementById('openMediaButton'),
   copyLinkButton: document.getElementById('copyLinkButton'),
   deleteNodeButton: document.getElementById('deleteNodeButton'),
+  assetDropZone: document.getElementById('assetDropZone'),
+  openAssetPickerButton: document.getElementById('openAssetPickerButton'),
   referenceUploadInput: document.getElementById('referenceUploadInput'),
   toast: document.getElementById('toast'),
   lightbox: document.getElementById('lightbox'),
@@ -1346,6 +1970,129 @@ const elements = {
 
 const ctx = elements.canvas.getContext('2d');
 const minimapCtx = elements.minimapCanvas.getContext('2d');
+
+window.__TRIX_CANVAS_DEBUG__ = {
+  getMetrics() {
+    return {
+      nodeWidth: NODE_WIDTH,
+      nodeHeight: NODE_HEIGHT,
+      headerHeight: HEADER_HEIGHT,
+      previewHeight: PREVIEW_HEIGHT,
+    };
+  },
+  getViewport() {
+    return { ...state.viewport };
+  },
+  worldToClient(worldX, worldY) {
+    const rect = elements.canvas.getBoundingClientRect();
+    return {
+      x: rect.left + state.viewport.tx + worldX * state.viewport.scale,
+      y: rect.top + state.viewport.ty + worldY * state.viewport.scale,
+    };
+  },
+};
+
+function anyPanelOpen() {
+  return state.ui.leftPanelOpen || state.ui.rightPanelOpen || state.ui.queuePanelOpen;
+}
+
+function anyCanvasPopoverOpen() {
+  return state.ui.canvasActionsOpen || state.ui.minimapOpen;
+}
+
+function closeCanvasPopovers() {
+  state.ui.canvasActionsOpen = false;
+  state.ui.minimapOpen = false;
+  renderPanelState();
+}
+
+function closePanels() {
+  state.ui.leftPanelOpen = false;
+  state.ui.rightPanelOpen = false;
+  state.ui.queuePanelOpen = false;
+  renderPanelState();
+}
+
+function closeProjectRail() {
+  state.ui.projectRailOpen = false;
+  renderPanelState();
+}
+
+function openPanel(panelName) {
+  state.ui.projectRailOpen = false;
+  state.ui.canvasActionsOpen = false;
+  state.ui.minimapOpen = false;
+  state.ui.leftPanelOpen = panelName === 'left';
+  state.ui.rightPanelOpen = panelName === 'right';
+  state.ui.queuePanelOpen = panelName === 'queue';
+  renderPanelState();
+}
+
+function togglePanel(panelName) {
+  const isOpen = (
+    (panelName === 'left' && state.ui.leftPanelOpen)
+    || (panelName === 'right' && state.ui.rightPanelOpen)
+    || (panelName === 'queue' && state.ui.queuePanelOpen)
+  );
+  if (isOpen) {
+    closePanels();
+    return;
+  }
+  openPanel(panelName);
+}
+
+function toggleProjectRail() {
+  const canOpen = !elements.projectRailToggleButton.hidden;
+  if (!canOpen) return;
+  state.ui.canvasActionsOpen = false;
+  state.ui.minimapOpen = false;
+  state.ui.leftPanelOpen = false;
+  state.ui.rightPanelOpen = false;
+  state.ui.queuePanelOpen = false;
+  state.ui.projectRailOpen = !state.ui.projectRailOpen;
+  renderPanelState();
+}
+
+function toggleCanvasPopover(popoverName) {
+  state.ui.projectRailOpen = false;
+  state.ui.leftPanelOpen = false;
+  state.ui.rightPanelOpen = false;
+  state.ui.queuePanelOpen = false;
+  if (popoverName === 'actions') {
+    state.ui.canvasActionsOpen = !state.ui.canvasActionsOpen;
+    state.ui.minimapOpen = false;
+  } else {
+    state.ui.minimapOpen = !state.ui.minimapOpen;
+    state.ui.canvasActionsOpen = false;
+  }
+  renderPanelState();
+}
+
+function renderPanelState() {
+  const showProjectRail = state.ui.projectRailOpen && !elements.projectRailToggleButton.hidden;
+  const showCanvasActions = state.ui.canvasActionsOpen;
+  const showMinimap = state.ui.minimapOpen;
+  elements.workspace.classList.toggle('panel-left-open', state.ui.leftPanelOpen);
+  elements.workspace.classList.toggle('panel-right-open', state.ui.rightPanelOpen);
+  elements.workspace.classList.toggle('panel-queue-open', state.ui.queuePanelOpen);
+  elements.workspace.classList.toggle('has-open-panel', anyPanelOpen());
+  elements.topbar.classList.toggle('project-rail-open', showProjectRail);
+  elements.projectRailPopover.hidden = elements.projectRailToggleButton.hidden;
+  elements.projectRailToggleButton.classList.toggle('active', showProjectRail);
+  elements.projectRailToggleButton.setAttribute('aria-expanded', String(showProjectRail));
+  elements.leftPanelToggleButton.classList.toggle('active', state.ui.leftPanelOpen);
+  elements.queuePanelToggleButton.classList.toggle('active', state.ui.queuePanelOpen);
+  elements.rightPanelToggleButton.classList.toggle('active', state.ui.rightPanelOpen);
+  elements.canvasRightTools.classList.toggle('actions-open', showCanvasActions);
+  elements.canvasRightTools.classList.toggle('minimap-open', showMinimap);
+  elements.canvasActionToggleButton.classList.toggle('active', showCanvasActions);
+  elements.minimapToggleButton.classList.toggle('active', showMinimap);
+  elements.leftPanelToggleButton.setAttribute('aria-expanded', String(state.ui.leftPanelOpen));
+  elements.queuePanelToggleButton.setAttribute('aria-expanded', String(state.ui.queuePanelOpen));
+  elements.rightPanelToggleButton.setAttribute('aria-expanded', String(state.ui.rightPanelOpen));
+  elements.canvasActionToggleButton.setAttribute('aria-expanded', String(showCanvasActions));
+  elements.minimapToggleButton.setAttribute('aria-expanded', String(showMinimap));
+}
 
 function showToast(message, timeout = 2800) {
   elements.toast.textContent = message;
@@ -1631,6 +2378,12 @@ function updateBatchHint() {
 
 function renderProjects() {
   const projects = state.projects || [];
+  elements.projectPills.hidden = projects.length === 0;
+  elements.projectRailToggleButton.hidden = projects.length <= 1;
+  elements.projectRailToggleButton.textContent = projects.length > 1 ? `项目 ${projects.length}` : '项目轨道';
+  if (projects.length <= 1) {
+    state.ui.projectRailOpen = false;
+  }
   elements.projectSelect.innerHTML = projects.length
     ? projects.map((project) => `<option value="${project.id}" ${project.id === state.project?.id ? 'selected' : ''}>${escapeHtml(project.name)}</option>`).join('')
     : '<option value="">暂无项目</option>';
@@ -1651,10 +2404,12 @@ function renderProjects() {
   elements.projectPills.querySelectorAll('[data-project-id]').forEach((button) => {
     button.addEventListener('click', () => selectProject(button.dataset.projectId));
   });
+  renderPanelState();
 }
 
 function renderStats() {
   const project = state.project;
+  const activeSessions = selectedSessionCount();
   elements.nodeCount.textContent = String(project?.nodes.length || 0);
   elements.edgeCount.textContent = String(project?.edges.length || 0);
   elements.fileCount.textContent = String(project?.files.length || 0);
@@ -1667,8 +2422,9 @@ function renderStats() {
     ? (projectGenerating(project) ? '生成中' : '已同步')
     : '空闲';
   elements.queueSummary.textContent = project
-    ? (selectedSessionCount() > 0 ? `活跃队列 ${selectedSessionCount()}` : '队列空闲')
+    ? (activeSessions > 0 ? `活跃队列 ${activeSessions}` : '队列空闲')
     : '队列空闲';
+  elements.queuePanelToggleButton.textContent = activeSessions > 0 ? `队列 ${activeSessions}` : '队列';
 }
 
 function renderNodeList() {
@@ -1715,8 +2471,12 @@ function renderNodeList() {
 }
 
 function renderSessionList() {
-  const sessions = [...(state.project?.sessions || [])]
+  const allSessions = [...(state.project?.sessions || [])]
     .sort((left, right) => new Date(right.updated_at || 0) - new Date(left.updated_at || 0));
+  const sessionFilter = elements.sessionFilterSelect.value || 'all';
+  const sessions = sessionFilter === 'all'
+    ? allSessions
+    : allSessions.filter((session) => session.status === sessionFilter);
 
   elements.batchStatus.textContent = state.localBatch.running
     ? `排队中 ${completedBatchCount()}/${state.localBatch.total}`
@@ -1732,7 +2492,7 @@ function renderSessionList() {
         <div class="session-status ${escapeHtml(session.status)}">${escapeHtml(session.status)}</div>
       </button>
     `).join('')
-    : '<div class="detail-empty">这里会显示生成任务历史。</div>';
+    : '<div class="detail-empty">当前筛选条件下没有任务。</div>';
 
   elements.sessionList.querySelectorAll('[data-session-id]').forEach((button) => {
     button.addEventListener('click', () => {
@@ -1776,6 +2536,7 @@ function renderFileList() {
 
 function renderDetail() {
   const node = selectedNode();
+  elements.rightPanelToggleButton.textContent = node ? '检查器 已选' : '检查器';
   if (!node) {
     elements.detailEmpty.hidden = false;
     elements.detailContent.hidden = true;
@@ -1789,11 +2550,24 @@ function renderDetail() {
   elements.detailStatus.textContent = node.status;
   elements.detailScene.textContent = node.scene_id ?? '—';
   elements.detailUpdatedAt.textContent = fmtDate(node.updated_at || node.created_at);
+  const detailInputs = [
+    elements.detailPromptInput,
+    elements.detailMediaTypeSelect,
+    elements.detailAspectSelect,
+    elements.detailStyleInput,
+    elements.detailSceneInput,
+    elements.detailStatusSelect,
+  ];
   const preserveDraft = state.detailDraft.dirty
     && state.detailDraft.nodeId === node.id
-    && document.activeElement === elements.detailPromptInput;
+    && detailInputs.includes(document.activeElement);
   if (!preserveDraft) {
     elements.detailPromptInput.value = node.prompt || '';
+    elements.detailMediaTypeSelect.value = node.media_type || 'image';
+    elements.detailAspectSelect.value = node.aspect || 'origin';
+    elements.detailStyleInput.value = node.style || '';
+    elements.detailSceneInput.value = node.scene_id ?? '';
+    elements.detailStatusSelect.value = node.status || 'pending';
     state.detailDraft = { nodeId: node.id, dirty: false };
   }
 
@@ -1840,6 +2614,60 @@ function hitNode(x, y) {
     }
   }
   return null;
+}
+
+function inputPort(node) {
+  return { x: node.x + NODE_WIDTH / 2, y: node.y };
+}
+
+function outputPort(node) {
+  return { x: node.x + NODE_WIDTH / 2, y: node.y + NODE_HEIGHT };
+}
+
+function hitPort(x, y, type = 'output') {
+  const nodes = state.project?.nodes || [];
+  const radius = 12;
+  for (let index = nodes.length - 1; index >= 0; index -= 1) {
+    const node = nodes[index];
+    const port = type === 'input' ? inputPort(node) : outputPort(node);
+    const distance = Math.hypot(x - port.x, y - port.y);
+    if (distance <= radius) {
+      return node;
+    }
+  }
+  return null;
+}
+
+function edgeTypeForNodes(source, target) {
+  if (target?.style === 'reference') return 'reference';
+  if (source?.media_type === 'image' && target?.media_type === 'video') return 'image_to_video';
+  return 'story_branch';
+}
+
+async function createEdgeBetweenNodes(sourceNodeId, targetNodeId) {
+  if (!state.project?.id || !sourceNodeId || !targetNodeId || sourceNodeId === targetNodeId) {
+    return;
+  }
+  const exists = (state.project.edges || []).some((edge) => (
+    edge.source_node_id === sourceNodeId && edge.target_node_id === targetNodeId
+  ));
+  if (exists) {
+    showToast('这条连线已存在');
+    return;
+  }
+  const source = state.project.nodes.find((node) => node.id === sourceNodeId);
+  const target = state.project.nodes.find((node) => node.id === targetNodeId);
+  await fetchJson('/api/edges', {
+    method: 'POST',
+    body: JSON.stringify({
+      projectId: state.project.id,
+      sourceNodeId,
+      targetNodeId,
+      edgeType: edgeTypeForNodes(source, target),
+    }),
+  });
+  await loadProject(state.project.id, { preserveSelection: true });
+  showToast('连线已创建');
 }
 
 function updateZoomLabel() {
@@ -2016,6 +2844,21 @@ function drawEdge(edge, nodesById) {
       : 'rgba(57,208,179,.55)';
   ctx.lineWidth = edge.edge_type === 'reference' ? 1.5 : 2.4;
   ctx.stroke();
+}
+
+function drawEdgePreview(sourceNode, toX, toY) {
+  const start = outputPort(sourceNode);
+  const endX = toX;
+  const endY = toY;
+  const curve = Math.max(80, Math.abs(endY - start.y) * 0.4);
+  ctx.beginPath();
+  ctx.moveTo(start.x, start.y);
+  ctx.bezierCurveTo(start.x, start.y + curve, endX, endY - curve, endX, endY);
+  ctx.strokeStyle = 'rgba(99,102,241,.82)';
+  ctx.lineWidth = 2;
+  ctx.setLineDash([8, 6]);
+  ctx.stroke();
+  ctx.setLineDash([]);
 }
 
 function drawNode(node) {
@@ -2221,6 +3064,12 @@ function renderCanvas() {
   if (state.showEdges) {
     (state.project?.edges || []).forEach((edge) => drawEdge(edge, nodesById));
   }
+  if (state.linking?.sourceNodeId) {
+    const sourceNode = nodesById.get(state.linking.sourceNodeId);
+    if (sourceNode) {
+      drawEdgePreview(sourceNode, state.linking.toX, state.linking.toY);
+    }
+  }
   nodes.forEach((node) => {
     if (node.preview_url) loadImage(node.preview_url);
     drawNode(node);
@@ -2279,6 +3128,10 @@ async function loadProject(projectId, { preserveSelection = true } = {}) {
 
 async function selectProject(projectId) {
   if (!projectId) return;
+  state.ui.projectRailOpen = false;
+  state.ui.canvasActionsOpen = false;
+  state.ui.minimapOpen = false;
+  renderPanelState();
   history.replaceState({}, '', `?projectId=${projectId}`);
   await loadProject(projectId, { preserveSelection: true });
 }
@@ -2410,6 +3263,33 @@ async function queueStoryboard() {
   }
 }
 
+async function retryFailedSessions() {
+  if (!state.project?.id) return;
+  const failedSessions = (state.project.sessions || []).filter((session) => session.status === 'error');
+  if (!failedSessions.length) {
+    showToast('当前没有失败任务');
+    return;
+  }
+
+  elements.retryFailedSessionsButton.disabled = true;
+  try {
+    for (const session of failedSessions) {
+      const node = state.project.nodes.find((item) => item.id === session.node_id);
+      await submitSession({
+        message: session.message || node?.prompt || 'retry task',
+        mediaType: session.media_type || node?.media_type || 'image',
+        aspect: node?.aspect || 'origin',
+        style: node?.style || '',
+        parentNodeId: node?.parent_node_id || null,
+      });
+    }
+    await loadProject(state.project.id, { preserveSelection: true });
+    showToast(`已重试 ${failedSessions.length} 个失败任务`);
+  } finally {
+    elements.retryFailedSessionsButton.disabled = false;
+  }
+}
+
 async function createUtilityNode(kind) {
   const projectId = await ensureProject();
   const worldCenter = currentWorldCenter();
@@ -2465,9 +3345,7 @@ function inferUploadMediaType(file) {
   return /\.(mp4|mov|webm)$/i.test(file?.name || '') ? 'video' : 'image';
 }
 
-async function uploadReferenceAsset(file) {
-  if (!file) return;
-  const projectId = await ensureProject();
+async function ensureUploadTargetNode() {
   let targetNode = selectedNode();
   if (!targetNode) {
     targetNode = await createUtilityNode('reference');
@@ -2475,6 +3353,13 @@ async function uploadReferenceAsset(file) {
   if (!targetNode?.id) {
     throw new Error('无法确定素材挂载节点');
   }
+  return targetNode;
+}
+
+async function uploadReferenceAsset(file, options = {}) {
+  if (!file) return;
+  const projectId = await ensureProject();
+  const targetNode = options.targetNode || await ensureUploadTargetNode();
   const payload = {
     projectId,
     nodeId: targetNode.id,
@@ -2488,9 +3373,22 @@ async function uploadReferenceAsset(file) {
     method: 'POST',
     body: JSON.stringify(payload),
   });
-  await loadProject(projectId, { preserveSelection: true });
+  return { projectId, targetNodeId: targetNode.id };
+}
+
+async function uploadReferenceFiles(files) {
+  const uploadList = Array.from(files || []).filter(Boolean);
+  if (!uploadList.length) return;
+  const targetNode = await ensureUploadTargetNode();
+  const total = uploadList.length;
+  for (let index = 0; index < total; index += 1) {
+    const file = uploadList[index];
+    await uploadReferenceAsset(file, { targetNode });
+    elements.batchStatus.textContent = `素材上传 ${index + 1}/${total}`;
+  }
+  await loadProject(state.project.id, { preserveSelection: true });
   centerOnSelected();
-  showToast(`已上传素材：${file.name}`);
+  showToast(total === 1 ? `已上传素材：${uploadList[0].name}` : `已上传 ${total} 个素材`);
 }
 
 async function saveNodePosition(node) {
@@ -2522,13 +3420,29 @@ async function savePrompt() {
   const node = selectedNode();
   if (!node) return;
   const prompt = elements.detailPromptInput.value.trim();
+  const mediaType = elements.detailMediaTypeSelect.value || 'image';
+  const aspect = elements.detailAspectSelect.value || 'origin';
+  const style = elements.detailStyleInput.value.trim();
+  const status = elements.detailStatusSelect.value || 'pending';
+  const sceneValue = elements.detailSceneInput.value.trim();
+  const sceneId = sceneValue ? Number(sceneValue) : null;
+  const patch = {
+    prompt,
+    mediaType,
+    aspect,
+    style,
+    status,
+  };
+  if (sceneValue) {
+    patch.sceneId = Number.isFinite(sceneId) ? Math.max(1, Math.round(sceneId)) : node.scene_id ?? 1;
+  }
   await fetchJson(`/api/nodes/${node.id}`, {
     method: 'PATCH',
-    body: JSON.stringify({ prompt }),
+    body: JSON.stringify(patch),
   });
   state.detailDraft = { nodeId: node.id, dirty: false };
   await loadProject(state.project.id, { preserveSelection: true });
-  showToast('提示词已保存');
+  showToast('节点参数已保存');
 }
 
 async function deleteSelectedNode() {
@@ -2634,6 +3548,35 @@ function panViewportToWorldCenter(worldX, worldY) {
 }
 
 elements.projectSelect.addEventListener('change', () => selectProject(elements.projectSelect.value));
+elements.projectRailToggleButton.addEventListener('click', (event) => {
+  event.stopPropagation();
+  toggleProjectRail();
+});
+elements.canvasActionToggleButton.addEventListener('click', (event) => {
+  event.stopPropagation();
+  toggleCanvasPopover('actions');
+});
+elements.minimapToggleButton.addEventListener('click', (event) => {
+  event.stopPropagation();
+  toggleCanvasPopover('minimap');
+});
+elements.leftPanelToggleButton.addEventListener('click', () => togglePanel('left'));
+elements.queuePanelToggleButton.addEventListener('click', () => togglePanel('queue'));
+elements.rightPanelToggleButton.addEventListener('click', () => togglePanel('right'));
+elements.leftPanelCloseButton.addEventListener('click', closePanels);
+elements.queuePanelCloseButton.addEventListener('click', closePanels);
+elements.rightPanelCloseButton.addEventListener('click', closePanels);
+elements.workspaceOverlay.addEventListener('click', closePanels);
+document.addEventListener('click', (event) => {
+  const target = event.target;
+  if (!(target instanceof Node)) return;
+  if (state.ui.projectRailOpen && !elements.projectRailToggleButton.contains(target) && !elements.projectRailPopover.contains(target)) {
+    closeProjectRail();
+  }
+  if (anyCanvasPopoverOpen() && !elements.canvasRightTools.contains(target)) {
+    closeCanvasPopovers();
+  }
+});
 elements.refreshButton.addEventListener('click', async () => {
   await loadProjects();
   if (state.project?.id) {
@@ -2650,11 +3593,14 @@ elements.clearDraftButton.addEventListener('click', () => {
 elements.createNoteButton.addEventListener('click', () => createUtilityNode('note'));
 elements.createRefButton.addEventListener('click', () => createUtilityNode('reference'));
 elements.uploadRefButton.addEventListener('click', () => elements.referenceUploadInput.click());
+elements.openAssetPickerButton.addEventListener('click', () => elements.referenceUploadInput.click());
 elements.queueModeSelect.addEventListener('change', updateBatchHint);
 elements.queueStoryboardButton.addEventListener('click', queueStoryboard);
 elements.clearStoryboardButton.addEventListener('click', () => {
   elements.storyboardInput.value = '';
 });
+elements.sessionFilterSelect.addEventListener('change', renderSessionList);
+elements.retryFailedSessionsButton.addEventListener('click', retryFailedSessions);
 elements.autoArrangeButton.addEventListener('click', autoArrangeNodes);
 elements.exportSubtitleButton.addEventListener('click', exportSubtitle);
 elements.exportVideoButton.addEventListener('click', exportVideo);
@@ -2740,12 +3686,58 @@ elements.detailPromptInput.addEventListener('input', () => {
   if (!node) return;
   state.detailDraft = { nodeId: node.id, dirty: true };
 });
+[
+  elements.detailMediaTypeSelect,
+  elements.detailAspectSelect,
+  elements.detailStyleInput,
+  elements.detailSceneInput,
+  elements.detailStatusSelect,
+].forEach((input) => {
+  const eventName = input?.tagName === 'SELECT' ? 'change' : 'input';
+  input?.addEventListener(eventName, () => {
+    const node = selectedNode();
+    if (!node) return;
+    state.detailDraft = { nodeId: node.id, dirty: true };
+  });
+});
 elements.referenceUploadInput.addEventListener('change', async (event) => {
-  const [file] = Array.from(event.target.files || []);
+  const files = Array.from(event.target.files || []);
   event.target.value = '';
-  if (!file) return;
+  if (!files.length) return;
   try {
-    await uploadReferenceAsset(file);
+    await uploadReferenceFiles(files);
+  } catch (error) {
+    showToast(error.message || '素材上传失败');
+  }
+});
+['dragenter', 'dragover'].forEach((eventName) => {
+  elements.assetDropZone.addEventListener(eventName, (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    elements.assetDropZone.classList.add('dragover');
+  });
+});
+['dragleave', 'dragend', 'drop'].forEach((eventName) => {
+  elements.assetDropZone.addEventListener(eventName, (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (eventName !== 'drop') {
+      elements.assetDropZone.classList.remove('dragover');
+    }
+  });
+});
+elements.assetDropZone.addEventListener('drop', async (event) => {
+  elements.assetDropZone.classList.remove('dragover');
+  const files = Array.from(event.dataTransfer?.files || []).filter((file) => {
+    const type = String(file.type || '');
+    return type.startsWith('image/') || type.startsWith('video/');
+  });
+  if (!files.length) {
+    showToast('仅支持图片或视频素材');
+    return;
+  }
+  try {
+    await uploadReferenceFiles(files);
   } catch (error) {
     showToast(error.message || '素材上传失败');
   }
@@ -2765,6 +3757,21 @@ elements.minimapCanvas.addEventListener('pointerdown', (event) => {
 
 elements.canvas.addEventListener('pointerdown', (event) => {
   const point = worldPointFromCanvas(event.clientX, event.clientY);
+  const sourcePortNode = hitPort(point.x, point.y, 'output');
+  if (sourcePortNode) {
+    state.selectedNodeId = sourcePortNode.id;
+    state.linking = {
+      sourceNodeId: sourcePortNode.id,
+      toX: point.x,
+      toY: point.y,
+    };
+    elements.canvas.setPointerCapture(event.pointerId);
+    renderNodeList();
+    renderDetail();
+    updateDraftHint();
+    renderCanvas();
+    return;
+  }
   const node = hitNode(point.x, point.y);
   elements.canvas.setPointerCapture(event.pointerId);
   if (node) {
@@ -2846,6 +3853,23 @@ elements.canvas.addEventListener('wheel', (event) => {
 
 window.addEventListener('resize', renderCanvas);
 window.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape') {
+    if (anyPanelOpen()) {
+      event.preventDefault();
+      closePanels();
+      return;
+    }
+    if (state.ui.projectRailOpen) {
+      event.preventDefault();
+      closeProjectRail();
+      return;
+    }
+    if (anyCanvasPopoverOpen()) {
+      event.preventDefault();
+      closeCanvasPopovers();
+      return;
+    }
+  }
   if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
     event.preventDefault();
     generateNode();
@@ -2877,6 +3901,7 @@ window.addEventListener('keydown', (event) => {
 
 async function bootstrap() {
   renderRecipeCards();
+  renderPanelState();
   updateZoomLabel();
   updateBatchHint();
   await ensureAuthenticated();

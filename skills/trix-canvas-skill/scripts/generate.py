@@ -11,23 +11,38 @@ from trix_adapter import TRIXAdapter
 import _common
 
 
+def _default_extension(media_type: str, mime: str) -> str:
+    mapping = {
+        "image/png": "png",
+        "image/jpeg": "jpeg",
+        "image/webp": "webp",
+        "image/gif": "gif",
+        "video/mp4": "mp4",
+        "video/quicktime": "mov",
+    }
+    return mapping.get(mime, "png" if media_type == "image" else "mp4")
+
+
+def _resolve_output_path(output: str, media_type: str, mime: str) -> str:
+    extension = _default_extension(media_type, mime)
+    if output:
+        root, suffix = os.path.splitext(output)
+        return output if suffix else f"{root or output}.{extension}"
+    return f"output_{media_type}.{extension}"
+
+
 def generate(prompt: str, media_type: str = "image", output: str = "") -> dict:
     """
     调用 AI 生成图片或视频。
     返回: { "ok": True, "path": "输出文件路径" } 或 { "ok": False, "error": "..." }
     """
-    adapter = TRIXAdapter(_common.AI_API_BASE, _common.AI_API_KEY)
+    adapter = TRIXAdapter(_common.CANVAS_BASE, _common.get_canvas_access_token())
     result = adapter.generate(prompt, media_type=media_type)
 
     if not result["ok"]:
         return result
 
-    # 保存到文件
-    ext = "png" if media_type == "image" else "mp4"
-    if output:
-        out_path = output
-    else:
-        out_path = f"output_{media_type}.{ext}"
+    out_path = _resolve_output_path(output, media_type, result["mime"])
 
     with open(out_path, "wb") as f:
         f.write(result["bytes"])

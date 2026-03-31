@@ -72,6 +72,7 @@ python3 skills/trix-canvas-skill/scripts/start_canvas.py \
 | `upload_file.py` | 上传本地图片/视频作为参考素材 | `project_id`, `file`, `--type`, `--prompt` |
 | `download_results.py` | 批量下载项目的 `files` | `project_id`, `--dest`, `--media-types` |
 | `check_env.py` | 端口、ffmpeg、目录自检 | 无参数 |
+| `sync_canvas_runtime.py` | 将 repo 下 `packages/trix-canvas-service` 同步回 skill 内嵌 runtime，或做一致性检查 | `--check` |
 | `start_all.js` | 兼容入口：自动补 runtime 目录、缺失依赖后，再转发到 skill runtime 的 `assets/canvas-service/start-all.js` | 透传 Node 参数 |
 | `parse_script.py` | 将剧本拆解成按镜头排序的 JSON | `script` 文本或文件路径 |
 | `workflow.py` | 一条命令自动完成解析、生成、轮询、字幕导出 | `script`, `--project-name`, `--concurrent` |
@@ -91,6 +92,7 @@ python3 skills/trix-canvas-skill/scripts/start_canvas.py \
 
 - `agents/openai.yaml` 已提供 UI/调用元数据，可直接作为技能包的一部分分发
 - `SKILL.md` + `scripts/` + `agents/openai.yaml` + `assets/canvas-service/` 构成完整可复用 skill
+- 如果你修改了 `packages/trix-canvas-service/`，在提交或发布前运行 `python3 skills/trix-canvas-skill/scripts/sync_canvas_runtime.py`，确保 skill 内嵌 runtime 与 repo runtime 一致
 
 ## Python API（`_common.py`）
 

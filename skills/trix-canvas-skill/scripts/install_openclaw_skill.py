@@ -8,7 +8,12 @@ import shutil
 import sys
 from pathlib import Path
 
-from _paths import SKILL_ROOT, ensure_canvas_node_runtime
+from _paths import (
+    SKILL_ROOT,
+    ensure_canvas_node_runtime,
+    resolve_canvas_service_dir,
+    sync_packaged_canvas_service,
+)
 
 AGENTS_HINT_START = "<!-- TRIX_CANVAS_SKILL_HINT_START -->"
 AGENTS_HINT_END = "<!-- TRIX_CANVAS_SKILL_HINT_END -->"
@@ -73,6 +78,7 @@ def install(
     workspace: str | None,
     install_deps: bool,
     update_agents_hint: bool,
+    sync_runtime: bool,
 ) -> Path:
     workspace_dir = resolve_workspace(agent_id, workspace)
     target_dir = workspace_dir / "skills" / SKILL_ROOT.name
@@ -84,6 +90,11 @@ def install(
         target_dir,
         ignore=shutil.ignore_patterns("__pycache__", "*.pyc", ".DS_Store", "runtime"),
     )
+    if sync_runtime:
+        sync_packaged_canvas_service(
+            resolve_canvas_service_dir(),
+            target_dir / "assets" / "canvas-service",
+        )
     if install_deps:
         ensure_canvas_node_runtime(target_dir / "assets" / "canvas-service")
     if update_agents_hint:
@@ -105,6 +116,11 @@ if __name__ == "__main__":
         action="store_true",
         help="Append a short hint to the target workspace AGENTS.md so OpenClaw knows when to load this skill",
     )
+    parser.add_argument(
+        "--no-sync-runtime",
+        action="store_true",
+        help="Skip syncing assets/canvas-service from local packages runtime before install",
+    )
     args = parser.parse_args()
 
     try:
@@ -113,6 +129,7 @@ if __name__ == "__main__":
             workspace=args.workspace or None,
             install_deps=args.install_deps,
             update_agents_hint=args.update_agents_md,
+            sync_runtime=not args.no_sync_runtime,
         )
         print(
             json.dumps(

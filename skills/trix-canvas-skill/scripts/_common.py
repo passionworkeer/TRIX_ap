@@ -45,7 +45,9 @@ def _load_canvas_access_token() -> str:
     return ""
 
 
-CANVAS_ACCESS_TOKEN = _load_canvas_access_token()
+def get_canvas_access_token() -> str:
+    """Read the latest Canvas token from env/file at call time."""
+    return _load_canvas_access_token()
 
 SAFE_EXTS = {
     ".png",
@@ -74,8 +76,9 @@ def _canvas_headers() -> dict:
         "Accept": "application/json",
         "Content-Type": "application/json",
     }
-    if CANVAS_ACCESS_TOKEN:
-        headers["Authorization"] = f"Bearer {CANVAS_ACCESS_TOKEN}"
+    token = get_canvas_access_token()
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
     return headers
 
 
@@ -158,8 +161,9 @@ def _assert_safe_download_url(url: str) -> str:
 def _download_bytes(url: str, timeout: int = 120) -> bytes:
     safe_url = _assert_safe_download_url(url)
     headers = {"User-Agent": "TRIX-Canvas-Skill/1.0"}
-    if CANVAS_ACCESS_TOKEN and _is_same_canvas_origin(safe_url):
-        headers["Authorization"] = f"Bearer {CANVAS_ACCESS_TOKEN}"
+    token = get_canvas_access_token()
+    if token and _is_same_canvas_origin(safe_url):
+        headers["Authorization"] = f"Bearer {token}"
     req = urllib.request.Request(safe_url, headers=headers)
     with _DIRECT_OPENER.open(req, timeout=timeout) as resp:
         chunks = []

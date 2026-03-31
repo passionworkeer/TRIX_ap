@@ -45,6 +45,7 @@ const NODES_DIR = join(DATA_ROOT, 'nodes');
 const EDGES_DIR = join(DATA_ROOT, 'edges');
 const FILES_DIR = join(DATA_ROOT, 'files');
 const SESSIONS_DIR = join(DATA_ROOT, 'sessions');
+const EXPORT_JOBS_DIR = join(DATA_ROOT, 'export-jobs');
 const BLOB_DIR = join(DATA_ROOT, 'blobs');
 
 const AI_API_BASE = (process.env.AI_API_BASE || '').replace(/\/$/, '');
@@ -56,6 +57,21 @@ const CANVAS_JSON_LIMIT = process.env.CANVAS_JSON_LIMIT || '50mb';
 const AI_REQUEST_TIMEOUT_MS = readPositiveNumber(process.env.CANVAS_AI_REQUEST_TIMEOUT_MS, 60_000);
 const REMOTE_FETCH_TIMEOUT_MS = readPositiveNumber(process.env.CANVAS_REMOTE_FETCH_TIMEOUT_MS, 30_000);
 const MAX_CONCURRENT_EXPORTS = readPositiveNumber(process.env.CANVAS_MAX_CONCURRENT_EXPORTS, 2);
+const MAX_CONCURRENT_SESSION_REFRESHES = readPositiveNumber(
+  process.env.CANVAS_MAX_CONCURRENT_SESSION_REFRESHES,
+  4,
+);
+const SESSION_REFRESH_MIN_INTERVAL_MS = readPositiveNumber(
+  process.env.CANVAS_SESSION_REFRESH_MIN_INTERVAL_MS,
+  2_000,
+);
+const SESSION_REFRESH_MAX_INTERVAL_MS = readPositiveNumber(
+  process.env.CANVAS_SESSION_REFRESH_MAX_INTERVAL_MS,
+  15_000,
+);
+const SESSION_BACKGROUND_REFRESH_ENABLED = !/^(0|false|no)$/i.test(
+  process.env.CANVAS_SESSION_BACKGROUND_REFRESH || 'true',
+);
 const MAX_REMOTE_DOWNLOAD_BYTES = readPositiveNumber(
   process.env.CANVAS_MAX_REMOTE_DOWNLOAD_BYTES,
   200 * 1024 * 1024,
@@ -85,6 +101,11 @@ const ALLOWED_UPLOAD_EXTENSIONS = new Set([
 ]);
 const SAFE_RECORD_ID_RE = /^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/;
 const inFlightSessionRefreshes = new Map();
+const scheduledSessionRefreshes = new Map();
+const sessionRefreshBackoffAttempts = new Map();
+const sessionRefreshWaiters = [];
+const inFlightVideoExportJobs = new Map();
+let activeSessionRefreshes = 0;
 
 const EXPORT_ASPECTS = new Map([
   ['origin', null],
@@ -102,6 +123,7 @@ const EXPORT_ASPECTS = new Map([
   EDGES_DIR,
   FILES_DIR,
   SESSIONS_DIR,
+  EXPORT_JOBS_DIR,
   BLOB_DIR,
 ].forEach((dir) => {
   if (!existsSync(dir)) {
@@ -112,7 +134,23 @@ const EXPORT_ASPECTS = new Map([
 const app = express();
 app.disable('x-powered-by');
 app.use(express.json({ limit: CANVAS_JSON_LIMIT }));
-app.use(express.static(join(__dirname, 'public')));
+app.use((req, res, next) => {
+  const pathname = req.path || '/';
+  const leaf = basename(pathname);
+  if (
+    !pathname.startsWith('/api/')
+    && !pathname.startsWith('/media/')
+    && (
+      leaf.startsWith('.')
+      || leaf === 'test.html'
+      || ['.bak', '.orig', '.rej', '.tmp', '.swp', '.swo'].some((suffix) => leaf.endsWith(suffix))
+    )
+  ) {
+    return res.status(404).json({ error: 'not found' });
+  }
+  return next();
+});
+app.use(express.static(join(__dirname, 'public'), { dotfiles: 'ignore' }));
 
 function isTrustedCanvasOrigin(origin) {
   return !origin || origin === APP_ORIGIN || CANVAS_ALLOWED_ORIGINS.has(origin);
@@ -594,6 +632,75 @@ function serializeSession(session) {
     createdAt: session.created_at,
     updatedAt: session.updated_at,
   };
+}
+
+function serializeExportJob(job) {
+  if (!job) {
+    return null;
+  }
+  return {
+    ...job,
+    projectId: job.project_id,
+    jobType: job.job_type,
+    outputUrl: job.output_url,
+    outputPath: job.output_path,
+    contentType: job.content_type,
+    createdAt: job.created_at,
+    updatedAt: job.updated_at,
+  };
+}
+
+function saveExportJob(job) {
+  job.updated_at = nowIso();
+  return writeRecord(EXPORT_JOBS_DIR, job.id, job);
+}
+
+function readExportJob(jobId) {
+  return readRecord(EXPORT_JOBS_DIR, jobId);
+}
+
+function createExportJob({ project_id, job_type = 'video', aspect = 'origin' }) {
+  const timestamp = nowIso();
+  const job = {
+    id: uuidv4(),
+    project_id,
+    job_type,
+    aspect,
+    status: 'queued',
+    output_url: null,
+    output_path: null,
+    content_type: job_type === 'video' ? 'video/mp4' : 'application/octet-stream',
+    segments: 0,
+    size: 0,
+    error: null,
+    created_at: timestamp,
+    updated_at: timestamp,
+  };
+  return writeRecord(EXPORT_JOBS_DIR, job.id, job);
+}
+
+function recoverInterruptedExportJobs() {
+  listRecords(EXPORT_JOBS_DIR)
+    .filter((job) => job?.status === 'queued' || job?.status === 'running')
+    .forEach((job) => {
+      saveExportJob({
+        ...job,
+        status: 'error',
+        error: job.error || 'Export interrupted by service restart',
+      });
+    });
+}
+
+function readBooleanFlag(value) {
+  if (Array.isArray(value)) {
+    return value.some((entry) => readBooleanFlag(entry));
+  }
+  return /^(1|true|yes|on)$/i.test(String(value || '').trim());
+}
+
+function prefersAsyncResponse(req) {
+  const prefer = Array.isArray(req.headers.prefer) ? req.headers.prefer.join(',') : req.headers.prefer;
+  return /\brespond-async\b/i.test(String(prefer || ''));
 }
 
 function serializeProject(project) {
@@ -1114,6 +1221,28 @@ async function withExportSlot(task) {
   }
 }
 
+async function withSessionRefreshSlot(task) {
+  if (activeSessionRefreshes >= MAX_CONCURRENT_SESSION_REFRESHES) {
+    await new Promise((resolvePromise) => sessionRefreshWaiters.push(resolvePromise));
+  }
+  activeSessionRefreshes += 1;
+  try {
+    return await task();
+  } finally {
+    activeSessionRefreshes = Math.max(0, activeSessionRefreshes - 1);
+    const next = sessionRefreshWaiters.shift();
+    if (next) {
+      next();
+    }
+  }
+}
+
+function buildExportStem(project, suffix = '') {
+  const stamp = nowIso().replace(/[-:.TZ]/g, '').slice(0, 14);
+  const label = suffix ? `_${suffix}` : '';
+  return `${sanitizeFilename(project.name || project.id)}${label}_${stamp}_${uuidv4().slice(0, 8)}`;
+}
+
 function runCommand(command, args, { timeoutMs = 120_000 } = {}) {
   return new Promise((resolvePromise, reject) => {
     const child = spawn(command, args, {
@@ -1368,6 +1497,9 @@ async function storeSessionResult(session, node, payload) {
     task_id: updatedSession.task_id,
   });
 
+  clearScheduledSessionRefresh(session.id);
+  sessionRefreshBackoffAttempts.delete(session.id);
+
   return { session: updatedSession, node: updatedNode };
 }
 
@@ -1384,7 +1516,75 @@ async function failSession(session, message) {
     status: 'error',
     error: message,
   });
+  clearScheduledSessionRefresh(session.id);
+  sessionRefreshBackoffAttempts.delete(session.id);
   return updatedSession;
+}
+
+function clearScheduledSessionRefresh(sessionId) {
+  const scheduled = scheduledSessionRefreshes.get(sessionId);
+  if (!scheduled) {
+    return;
+  }
+  clearTimeout(scheduled.timer);
+  scheduledSessionRefreshes.delete(sessionId);
+}
+
+function nextSessionRefreshDelay(session) {
+  const attempts = sessionRefreshBackoffAttempts.get(session.id) || 0;
+  const baseDelay = session.media_type === 'video' ? 2_500 : 1_000;
+  return Math.min(
+    SESSION_REFRESH_MAX_INTERVAL_MS,
+    Math.max(SESSION_REFRESH_MIN_INTERVAL_MS, baseDelay * (2 ** Math.min(attempts, 4))),
+  );
+}
+
+function scheduleSessionRefresh(sessionId, delayMs = SESSION_REFRESH_MIN_INTERVAL_MS) {
+  if (!SESSION_BACKGROUND_REFRESH_ENABLED) {
+    return;
+  }
+  const session = readRecord(SESSIONS_DIR, sessionId);
+  if (!session || session.status !== 'generating' || !session.task_id || !AI_API_BASE) {
+    clearScheduledSessionRefresh(sessionId);
+    return;
+  }
+
+  const safeDelay = Math.max(0, delayMs);
+  const dueAt = Date.now() + safeDelay;
+  const current = scheduledSessionRefreshes.get(sessionId);
+  if (current && current.dueAt <= dueAt) {
+    return;
+  }
+  if (current) {
+    clearTimeout(current.timer);
+  }
+
+  const timer = setTimeout(() => {
+    scheduledSessionRefreshes.delete(sessionId);
+    refreshSession(sessionId).catch((error) => {
+      console.error(`[session-refresh] ${sessionId}: ${error.message}`);
+    });
+  }, safeDelay);
+  timer.unref?.();
+  scheduledSessionRefreshes.set(sessionId, { timer, dueAt });
+}
+
+function refreshProjectSessions(sessionIds, { wait = false, force = false } = {}) {
+  const uniqueIds = [...new Set((sessionIds || []).map((id) => String(id || '').trim()).filter(Boolean))];
+  if (wait) {
+    return Promise.all(uniqueIds.map((sessionId) => refreshSession(sessionId, { force })));
+  }
+  uniqueIds.forEach((sessionId) => scheduleSessionRefresh(sessionId, 0));
+  return Promise.resolve([]);
+}
+
+function recoverGeneratingSessions() {
+  if (!SESSION_BACKGROUND_REFRESH_ENABLED) {
+    return;
+  }
+  listRecords(SESSIONS_DIR)
+    .filter((session) => session?.status === 'generating' && session?.task_id)
+    .forEach((session) => scheduleSessionRefresh(session.id, SESSION_REFRESH_MIN_INTERVAL_MS));
 }
 
 function defaultNodePosition(project, parentNodeId = null) {
@@ -1501,6 +1701,8 @@ async function createGenerationSession({
       status: 'generating',
       task_id: taskId,
     });
+    sessionRefreshBackoffAttempts.set(session.id, 0);
+    scheduleSessionRefresh(session.id, nextSessionRefreshDelay(runningSession));
     return { session: runningSession, node: readRecord(NODES_DIR, node.id) };
   } catch (error) {
     await failSession(session, error.message);
@@ -1508,17 +1710,20 @@ async function createGenerationSession({
   }
 }
 
-async function refreshSessionInternal(sessionId) {
+async function refreshSessionInternal(sessionId, { force = false } = {}) {
   const session = readRecord(SESSIONS_DIR, sessionId);
   if (!session) {
     return null;
   }
   if (session.status !== 'generating' || !session.task_id || !AI_API_BASE) {
+    clearScheduledSessionRefresh(sessionId);
+    sessionRefreshBackoffAttempts.delete(sessionId);
     return session;
   }
 
   const lastPolledAt = session.last_polled_at ? new Date(session.last_polled_at).getTime() : 0;
-  if (Date.now() - lastPolledAt < 2000) {
+  if (!force && Date.now() - lastPolledAt < SESSION_REFRESH_MIN_INTERVAL_MS) {
+    scheduleSessionRefresh(session.id, SESSION_REFRESH_MIN_INTERVAL_MS - (Date.now() - lastPolledAt));
     return session;
   }
 
@@ -1530,7 +1735,9 @@ async function refreshSessionInternal(sessionId) {
   writeRecord(SESSIONS_DIR, session.id, claimedSession);
 
   try {
-    const payload = await invokeAi(buildTaskPath(claimedSession.task_id), null, 'GET');
+    const payload = await withSessionRefreshSlot(() =>
+      invokeAi(buildTaskPath(claimedSession.task_id), null, 'GET'),
+    );
     const status = normalizeStatus(payload?.status || payload?.state || payload?.progress);
     const node = readRecord(NODES_DIR, claimedSession.node_id);
 
@@ -1548,6 +1755,8 @@ async function refreshSessionInternal(sessionId) {
         node,
         payload,
       );
+      clearScheduledSessionRefresh(session.id);
+      sessionRefreshBackoffAttempts.delete(session.id);
       return completed.session;
     }
 
@@ -1564,23 +1773,28 @@ async function refreshSessionInternal(sessionId) {
     updateNodeRecord(node.id, {
       status: 'generating',
     });
+    sessionRefreshBackoffAttempts.set(session.id, (sessionRefreshBackoffAttempts.get(session.id) || 0) + 1);
+    scheduleSessionRefresh(session.id, nextSessionRefreshDelay(next));
     return next;
   } catch (error) {
     return await failSession(claimedSession, error.message);
   }
 }
 
-async function refreshSession(sessionId) {
+async function refreshSession(sessionId, { force = false } = {}) {
   if (inFlightSessionRefreshes.has(sessionId)) {
     return inFlightSessionRefreshes.get(sessionId);
   }
-  const pending = refreshSessionInternal(sessionId)
+  const pending = refreshSessionInternal(sessionId, { force })
     .finally(() => {
       inFlightSessionRefreshes.delete(sessionId);
     });
   inFlightSessionRefreshes.set(sessionId, pending);
   return pending;
 }
+
+recoverInterruptedExportJobs();
+recoverGeneratingSessions();
 
 function projectSummaries() {
   return listRecords(PROJECTS_DIR)
@@ -1683,9 +1897,9 @@ async function exportSubtitle(project) {
     rows.push(row);
   }
 
-  const safeName = sanitizeFilename(project.name || project.id);
-  const srtPath = join(EXPORT_ROOT, `${safeName}.srt`);
-  const scriptPath = join(EXPORT_ROOT, `${safeName}_script.md`);
+  const exportStem = buildExportStem(project, 'subtitle');
+  const srtPath = join(EXPORT_ROOT, `${exportStem}.srt`);
+  const scriptPath = join(EXPORT_ROOT, `${exportStem}_script.md`);
 
   const srt = rows
     .map((row, index) => {
@@ -1715,7 +1929,7 @@ async function exportSubtitle(project) {
   };
 }
 
-async function exportVideo(project, aspect) {
+async function exportVideo(project, aspect, { outputToken = '' } = {}) {
   const preset = EXPORT_ASPECTS.get(aspect);
   if (!preset && aspect !== 'origin') {
     const error = new Error('invalid aspect');
@@ -1734,9 +1948,10 @@ async function exportVideo(project, aspect) {
   mkdirSync(tempRoot, { recursive: true });
   const concatPath = join(tempRoot, 'concat.txt');
   const safeAspect = String(aspect || 'origin').replace(/[^a-zA-Z0-9_-]/g, '_');
+  const exportStem = buildExportStem(project, `${safeAspect}${outputToken ? `_${outputToken}` : ''}`);
   const outPath = join(
     EXPORT_ROOT,
-    `${sanitizeFilename(project.name || project.id)}_${safeAspect}.mp4`,
+    `${exportStem}.mp4`,
   );
 
   return withExportSlot(async () => {
@@ -1809,6 +2024,64 @@ async function exportVideo(project, aspect) {
       rmSync(tempRoot, { recursive: true, force: true });
     }
   });
+}
+
+function buildVideoExportKey(projectId, aspect) {
+  return `${projectId}:${aspect || 'origin'}`;
+}
+
+function createVideoExportJob(projectId, aspect) {
+  const key = buildVideoExportKey(projectId, aspect);
+  const existing = inFlightVideoExportJobs.get(key);
+  if (existing) {
+    return existing;
+  }
+
+  const job = createExportJob({
+    project_id: projectId,
+    job_type: 'video',
+    aspect,
+  });
+  const promise = (async () => {
+    saveExportJob({
+      ...job,
+      status: 'running',
+    });
+    try {
+      const project = serializeProject(requireProject(projectId));
+      const result = await exportVideo(project, aspect, {
+        outputToken: job.id.slice(0, 8),
+      });
+      const completed = saveExportJob({
+        ...(readExportJob(job.id) || job),
+        status: 'completed',
+        output_url: result.url,
+        output_path: result.path,
+        size: result.size,
+        segments: result.segments,
+        aspect: result.aspect,
+        error: null,
+      });
+      return completed;
+    } catch (error) {
+      saveExportJob({
+        ...(readExportJob(job.id) || job),
+        status: 'error',
+        error: error.message,
+      });
+      throw error;
+    } finally {
+      inFlightVideoExportJobs.delete(key);
+    }
+  })();
+
+  const entry = {
+    key,
+    jobId: job.id,
+    promise,
+  };
+  inFlightVideoExportJobs.set(key, entry);
+  return entry;
 }
 
 app.get('/health', (_req, res) => {
@@ -1894,7 +2167,11 @@ app.post('/api/projects', (req, res, next) => {
 app.get(['/api/projects/:projectId', '/api/project/:projectId'], async (req, res, next) => {
   try {
     const project = requireProject(req.params.projectId);
-    await Promise.all((project.session_ids || []).map((sessionId) => refreshSession(sessionId)));
+    const shouldWaitForRefresh = readBooleanFlag(req.query.refreshSessions) || readBooleanFlag(req.query.refresh);
+    await refreshProjectSessions(project.session_ids || [], {
+      wait: shouldWaitForRefresh,
+      force: shouldWaitForRefresh,
+    });
     res.json({ data: serializeProject(requireProject(req.params.projectId)) });
   } catch (error) {
     next(error);
@@ -1948,10 +2225,43 @@ app.get('/api/projects/:projectId/export/subtitle', async (req, res, next) => {
 app.get('/api/projects/:projectId/export/video', async (req, res, next) => {
   try {
     const aspect = req.query.aspect ? String(req.query.aspect) : 'origin';
-    const project = serializeProject(requireProject(req.params.projectId));
-    res.json(await exportVideo(project, aspect));
+    const entry = createVideoExportJob(req.params.projectId, aspect);
+    if (readBooleanFlag(req.query.async) || prefersAsyncResponse(req)) {
+      return res.status(202).json({ data: serializeExportJob(readExportJob(entry.jobId)) });
+    }
+    const job = await entry.promise;
+    return res.json({
+      path: job.output_path,
+      url: job.output_url,
+      aspect: job.aspect,
+      segments: job.segments,
+      size: job.size,
+      exportJobId: job.id,
+    });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+app.post('/api/projects/:projectId/export/video', (req, res, next) => {
+  try {
+    const aspect = req.body?.aspect ? String(req.body.aspect) : 'origin';
+    const entry = createVideoExportJob(req.params.projectId, aspect);
+    res.status(202).json({ data: serializeExportJob(readExportJob(entry.jobId)) });
   } catch (error) {
     next(error);
+  }
+});
+
+app.get('/api/export-jobs/:jobId', (req, res, next) => {
+  try {
+    const job = readExportJob(req.params.jobId);
+    if (!job) {
+      return res.status(404).json({ error: '导出任务不存在' });
+    }
+    return res.json({ data: serializeExportJob(job) });
+  } catch (error) {
+    return next(error);
   }
 });
 

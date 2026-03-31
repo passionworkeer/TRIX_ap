@@ -88,6 +88,7 @@ const proxyApiKey =
   || process.env.MINIMAX_API_KEY
   || process.env.PROXY_UPSTREAM_KEY
   || (allowOpenClawFallback ? readOpenClawApiKey() : '');
+const proxyAccessToken = process.env.PROXY_ACCESS_TOKEN || '';
 
 const proxyEnv = buildChildEnv({
   PROXY_PORT: String(PXYPORT),
@@ -112,6 +113,7 @@ const serverEnv = buildChildEnv({
   CANVAS_HOST,
   CANVAS_BASE_URL: process.env.CANVAS_BASE_URL || defaultBaseUrl(CANVAS_HOST, PORT),
   AI_API_BASE: `http://127.0.0.1:${PXYPORT}`,
+  AI_API_KEY: proxyAccessToken,
   AI_GENERATE_PATH: '/generate',
   AI_TASK_PATH_TEMPLATE: '/tasks/:taskId',
 });

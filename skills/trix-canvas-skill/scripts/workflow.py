@@ -16,6 +16,15 @@ from check_env import check_all
 from parse_script import parse_script
 
 
+def _unwrap_payload_data(payload: dict | None) -> dict:
+    if isinstance(payload, dict):
+        data = payload.get("data")
+        if isinstance(data, dict):
+            return data
+        return payload
+    return {}
+
+
 def _poll_job(job: dict, timeout: int = 300) -> dict:
     payload = _common.wait_for_session(job["session_id"], timeout=timeout, poll_interval=2)
     return {**job, "result": payload}
@@ -34,28 +43,55 @@ def _queue_media_sessions(
     for scene in scenes:
         if media_type == "video" and parent_lookup:
             parent_node_id = parent_lookup.get(scene["index"])
+            if not parent_node_id:
+                jobs.append(
+                    {
+                        "scene_index": scene["index"],
+                        "scene_text": scene["text"],
+                        "media_type": media_type,
+                        "session_id": "",
+                        "node_id": "",
+                        "status": "error",
+                        "error": "missing parent image node",
+                    }
+                )
+                continue
         else:
             parent_node_id = previous_node_id
 
-        payload = _common.create_session(
-            message=scene["text"],
-            project_id=project_id,
-            media_type=media_type,
-            aspect=aspect,
-            style=style,
-            parent_node_id=parent_node_id,
-        )
-        data = payload.get("data", payload)
-        job = {
-            "scene_index": scene["index"],
-            "scene_text": scene["text"],
-            "media_type": media_type,
-            "session_id": data.get("sessionId", ""),
-            "node_id": data.get("nodeId", ""),
-            "status": data.get("status", ""),
-        }
+        try:
+            payload = _common.create_session(
+                message=scene["text"],
+                project_id=project_id,
+                media_type=media_type,
+                aspect=aspect,
+                style=style,
+                parent_node_id=parent_node_id,
+            )
+            data = _unwrap_payload_data(payload)
+            job = {
+                "scene_index": scene["index"],
+                "scene_text": scene["text"],
+                "media_type": media_type,
+                "session_id": str(data.get("sessionId") or ""),
+                "node_id": str(data.get("nodeId") or ""),
+                "status": data.get("status", "queued"),
+            }
+            if not job["session_id"]:
+                job["status"] = "error"
+                job["error"] = "sessionId missing from response"
+        except Exception as exc:  # noqa: BLE001
+            job = {
+                "scene_index": scene["index"],
+                "scene_text": scene["text"],
+                "media_type": media_type,
+                "session_id": "",
+                "node_id": "",
+                "status": "error",
+                "error": str(exc),
+            }
         jobs.append(job)
-        if media_type == "image":
+        if media_type == "image" and job.get("node_id"):
             previous_node_id = job["node_id"]
     return jobs
 
@@ -63,11 +99,35 @@ def _queue_media_sessions(
 def _wait_jobs(jobs: list[dict], concurrent: int) -> tuple[list[dict], list[dict]]:
     completed = []
     failed = []
+    queued = [job for job in jobs if job.get("session_id")]
+    missing = [job for job in jobs if not job.get("session_id")]
+    for job in missing:
+        error = job.get("error") or "sessionId missing from response"
+        failed.append({**job, "result": {"status": "error", "error": error}})
+        print(
+            f"  [FAIL] [queue] {job['media_type']} scene {job['scene_index']}: {error}"
+        )
+    if not queued:
+        return completed, failed
+
     with ThreadPoolExecutor(max_workers=max(1, concurrent)) as pool:
-        futures = {pool.submit(_poll_job, job): job for job in jobs if job.get("session_id")}
+        futures = {pool.submit(_poll_job, job): job for job in queued}
         for index, future in enumerate(as_completed(futures), 1):
             job = futures[future]
-            result = future.result()
+            try:
+                result = future.result()
+            except Exception as exc:  # noqa: BLE001
+                failed.append(
+                    {
+                        **job,
+                        "result": {"status": "error", "error": str(exc)},
+                    }
+                )
+                print(
+                    f"  [FAIL] [{index}/{len(futures)}] {job['media_type']} scene {job['scene_index']}: "
+                    f"{exc}"
+                )
+                continue
             payload = result["result"]
             status = str(payload.get("status", "")).lower()
             if status == "completed":
@@ -113,6 +173,10 @@ def run_workflow(
     print(f"  [OK] Parsed {len(scenes)} scenes")
 
     all_projects = []
+    project_summaries = []
+    total_image_failures = 0
+    total_video_failures = 0
+    total_subtitle_failures = 0
     for batch_index in range(batch):
         batch_name = (
             f"{project_name or 'Short Drama'}#{batch_index + 1}"
@@ -120,8 +184,10 @@ def run_workflow(
             else (project_name or "Short Drama")
         )
         print(f"\n[3/6] Creating project: {batch_name}")
-        project = _common.create_project(batch_name, script_text)
-        project_id = project["id"]
+        project = _unwrap_payload_data(_common.create_project(batch_name, script_text))
+        project_id = project.get("id")
+        if not project_id:
+            raise RuntimeError("project id missing from create_project response")
         all_projects.append(project_id)
         print(f"  [OK] Project created: {project_id}")
 
@@ -142,7 +208,7 @@ def run_workflow(
         print("\n[5/6] Waiting for image sessions...")
         image_completed, image_failed = _wait_jobs(image_jobs, concurrent)
         image_node_lookup = {
-            job["scene_index"]: job["node_id"] for job in image_jobs if job.get("node_id")
+            job["scene_index"]: job["node_id"] for job in image_completed if job.get("node_id")
         }
 
         video_completed = []
@@ -168,6 +234,7 @@ def run_workflow(
             print("\n[5.5/6] Skipping video generation")
 
         subtitle_result = None
+        subtitle_failed = False
         if not skip_subtitle:
             print("\n[6/6] Exporting subtitles...")
             from export_subtitle import export
@@ -176,19 +243,52 @@ def run_workflow(
             if subtitle_result["ok"]:
                 print(f"  [OK] SRT: {subtitle_result['srt']}")
                 print(f"  [OK] Script: {subtitle_result['script']}")
+            else:
+                subtitle_failed = True
+                print(f"  [FAIL] Subtitle export: {subtitle_result.get('error', 'unknown error')}")
         else:
             print("\n[6/6] Skipping subtitle export")
 
+        canvas_url = f"{os.environ.get('CANVAS_BASE_URL', 'http://localhost:8789')}/canvas?projectId={project_id}"
         print("\nProject summary")
         print(f"  Images: {len(image_completed)} completed / {len(image_failed)} failed")
         print(f"  Videos: {len(video_completed)} completed / {len(video_failed)} failed")
-        print(f"  Canvas: {os.environ.get('CANVAS_BASE_URL', 'http://localhost:8789')}/canvas?projectId={project_id}")
+        print(f"  Canvas: {canvas_url}")
+        total_image_failures += len(image_failed)
+        total_video_failures += len(video_failed)
+        total_subtitle_failures += 1 if subtitle_failed else 0
+        project_summaries.append(
+            {
+                "project_id": project_id,
+                "canvas_url": canvas_url,
+                "images": {
+                    "queued": len(image_jobs),
+                    "completed": len(image_completed),
+                    "failed": len(image_failed),
+                },
+                "videos": {
+                    "queued": 0 if skip_video else len(video_completed) + len(video_failed),
+                    "completed": len(video_completed),
+                    "failed": len(video_failed),
+                },
+                "subtitle": {
+                    "ok": False if subtitle_failed else True,
+                    "error": subtitle_result.get("error", "") if isinstance(subtitle_result, dict) else "",
+                },
+            }
+        )
 
+    total_failures = total_image_failures + total_video_failures + total_subtitle_failures
     return {
-        "ok": True,
+        "ok": total_failures == 0,
         "projects": all_projects,
+        "project_summaries": project_summaries,
         "scenes_per_project": len(scenes),
         "batch": batch,
+        "image_failures": total_image_failures,
+        "video_failures": total_video_failures,
+        "subtitle_failures": total_subtitle_failures,
+        "failed_jobs": total_failures,
     }
 
 
@@ -231,3 +331,5 @@ if __name__ == "__main__":
         style=args.style,
     )
     print(json.dumps(result, ensure_ascii=False, indent=2))
+    if not result.get("ok", False):
+        sys.exit(1)

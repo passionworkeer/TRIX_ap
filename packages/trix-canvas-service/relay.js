@@ -313,9 +313,15 @@ async function handleGenerate(req, res) {
   if (!prompt) {
     return sendJson(res, 400, { error: "prompt is required" });
   }
+  const requestedMediaType = String(payload.media_type || payload.mediaType || "").trim().toLowerCase();
   const lower = prompt.toLowerCase();
-  const isVideo = ["视频", "video", "animate", "animation"].some((term) => lower.includes(term)) && !["图片", "image"].some((term) => lower.includes(term));
-  const { aspect, cleaned } = parsePrompt(prompt);
+  const isVideo = requestedMediaType
+    ? requestedMediaType === "video"
+    : ["视频", "video", "animate", "animation"].some((term) => lower.includes(term))
+      && !["图片", "image"].some((term) => lower.includes(term));
+  const parsedPrompt = parsePrompt(prompt);
+  const aspect = String(payload.aspect || parsedPrompt.aspect || "1:1");
+  const cleaned = parsedPrompt.cleaned;
   const taskId = await (isVideo ? generateVideo(cleaned) : generateImage(cleaned, aspect));
   sendJson(res, 200, { task_id: taskId, status: "pending" });
 }
