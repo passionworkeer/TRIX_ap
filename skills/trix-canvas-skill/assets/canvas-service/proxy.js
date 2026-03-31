@@ -11,8 +11,9 @@
 
 import http from 'node:http';
 import https from 'node:https';
+import { timingSafeEqual } from 'node:crypto';
 
-const PORT = Number(process.env.PROXY_PORT || 8788);
+const PORT = Number(process.env.PROXY_PORT || 8790);
 const HOST = process.env.PROXY_HOST || '127.0.0.1';
 const AI_API_BASE          = process.env.AI_API_BASE          || 'https://api.minimaxi.com';
 const AI_API_KEY           = process.env.AI_API_KEY           || '';
@@ -20,12 +21,157 @@ const AI_GENERATE_PATH     = process.env.AI_GENERATE_PATH     || '/anthropic/v1/
 const AI_IMAGE_PATH        = process.env.AI_IMAGE_PATH        || '/v1/image_generation';
 const AI_MODEL             = process.env.AI_MODEL             || 'MiniMax-M2.7';
 const AI_IMAGE_MODEL       = process.env.AI_IMAGE_MODEL     || 'image-01';
+const MAX_BODY_BYTES       = Number(process.env.PROXY_MAX_BODY_BYTES || 256 * 1024);
+const REQUEST_TIMEOUT_MS   = Number(process.env.PROXY_REQUEST_TIMEOUT_MS || 120000);
+const TASK_TTL_MS          = Number(process.env.PROXY_TASK_TTL_MS || 60 * 60 * 1000);
+const SESSION_TTL_MS       = Number(process.env.PROXY_SESSION_TTL_MS || 60 * 60 * 1000);
+const ALLOWED_ORIGINS      = parseOriginList(process.env.PROXY_ALLOWED_ORIGINS || '');
+const PROXY_ALLOW_REMOTE   = /^(1|true|yes)$/i.test(process.env.PROXY_ALLOW_REMOTE || '');
+const PROXY_ACCESS_TOKEN   = (process.env.PROXY_ACCESS_TOKEN || '').trim();
 
 // In-memory stores for async polling
 // taskId -> { status, output, urls, error, createdAt }
 const tasks    = new Map();
 // sessionId -> { status, resultUrls, messages, error, task_id, createdAt }
 const sessions = new Map();
+
+function parseOriginList(raw) {
+  return new Set(
+    String(raw || '')
+      .split(',')
+      .map((value) => value.trim())
+      .filter(Boolean),
+  );
+}
+
+function isLoopbackHost(host) {
+  const normalized = String(host || '').trim().toLowerCase();
+  return normalized === '127.0.0.1'
+    || normalized === 'localhost'
+    || normalized === '::1'
+    || normalized === '[::1]';
+}
+
+function assertSafeProxyBind() {
+  if (!isLoopbackHost(HOST) && !PROXY_ALLOW_REMOTE) {
+    throw new Error(
+      'Refusing to expose proxy on a non-loopback host. Set PROXY_ALLOW_REMOTE=true to override.',
+    );
+  }
+  if (!isLoopbackHost(HOST) && !PROXY_ACCESS_TOKEN) {
+    throw new Error(
+      'Refusing to expose proxy on a non-loopback host without PROXY_ACCESS_TOKEN.',
+    );
+  }
+}
+
+assertSafeProxyBind();
+
+function matchesProxyAccessToken(candidate) {
+  if (!PROXY_ACCESS_TOKEN) {
+    return true;
+  }
+  if (!candidate) {
+    return false;
+  }
+  const received = Buffer.from(String(candidate));
+  const expected = Buffer.from(PROXY_ACCESS_TOKEN);
+  if (received.length !== expected.length) {
+    return false;
+  }
+  return timingSafeEqual(received, expected);
+}
+
+function getPresentedToken(req) {
+  const authorization = Array.isArray(req.headers.authorization)
+    ? req.headers.authorization[0]
+    : req.headers.authorization;
+  const match = typeof authorization === 'string'
+    ? authorization.match(/^Bearer\s+(.+)$/i)
+    : null;
+  return match?.[1]?.trim() || '';
+}
+
+function assertProxyAuthenticated(req, pathname) {
+  if (pathname === '/health') {
+    return;
+  }
+  if (!matchesProxyAccessToken(getPresentedToken(req))) {
+    const error = new Error('proxy authentication required');
+    error.status = 401;
+    throw error;
+  }
+}
+
+function setCorsHeaders(req, res) {
+  const origin = typeof req.headers.origin === 'string' ? req.headers.origin.trim() : '';
+  if (!origin || !ALLOWED_ORIGINS.has(origin)) {
+    return;
+  }
+  res.setHeader('Access-Control-Allow-Origin', origin);
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Vary', 'Origin');
+}
+
+function assertTrustedBrowserOrigin(req) {
+  const origin = typeof req.headers.origin === 'string' ? req.headers.origin.trim() : '';
+  if (!origin || ALLOWED_ORIGINS.has(origin)) {
+    return;
+  }
+  const error = new Error('origin not allowed');
+  error.status = 403;
+  throw error;
+}
+
+async function readJsonBody(req) {
+  if (req.method === 'GET' || req.method === 'HEAD') {
+    return {};
+  }
+  let raw = '';
+  let total = 0;
+  for await (const chunk of req) {
+    total += chunk.length;
+    if (total > MAX_BODY_BYTES) {
+      const error = new Error(`Request body too large (>${MAX_BODY_BYTES} bytes)`);
+      error.status = 413;
+      throw error;
+    }
+    raw += chunk;
+  }
+  if (!raw) {
+    return {};
+  }
+  try {
+    return JSON.parse(raw);
+  } catch {
+    const error = new Error('Invalid JSON body');
+    error.status = 400;
+    throw error;
+  }
+}
+
+function sendJson(res, status, body) {
+  res.writeHead(status, { 'Content-Type': 'application/json' });
+  res.end(JSON.stringify(body));
+}
+
+function cleanupExpiredEntries() {
+  const now = Date.now();
+  for (const [taskId, task] of tasks.entries()) {
+    if (now - (task.createdAt || now) > TASK_TTL_MS) {
+      tasks.delete(taskId);
+    }
+  }
+  for (const [sessionId, session] of sessions.entries()) {
+    if (now - (session.createdAt || now) > SESSION_TTL_MS) {
+      sessions.delete(sessionId);
+    }
+  }
+}
+
+const cleanupTimer = setInterval(cleanupExpiredEntries, Math.min(TASK_TTL_MS, SESSION_TTL_MS));
+cleanupTimer.unref();
 
 // ── HTTP/HTTPS forwarder ────────────────────────────────────────────────────
 
@@ -54,7 +200,7 @@ function apiRequest(method, path, body) {
       });
     });
     req.on('error', reject);
-    req.setTimeout(120000, () => { req.destroy(); reject(new Error('timeout')); });
+    req.setTimeout(REQUEST_TIMEOUT_MS, () => { req.destroy(); reject(new Error('timeout')); });
     if (body) req.write(JSON.stringify(body));
     req.end();
   });
@@ -168,7 +314,14 @@ async function handle(req, url, body) {
   if (req.method === 'POST' && pathname === '/generate') {
     const task_id = `tk_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     const mediaType = body?.media_type || body?.mediaType || 'image';
-    tasks.set(task_id, { status: 'pending', mediaType, output: null, urls: [], error: null });
+    tasks.set(task_id, {
+      status: 'pending',
+      mediaType,
+      output: null,
+      urls: [],
+      error: null,
+      createdAt: Date.now(),
+    });
 
     // Fire-and-forget AI call
     callAi(body).then(res => {
@@ -206,7 +359,14 @@ async function handle(req, url, body) {
     const sessionId = `sess_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     const task_id    = `tk_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     const mediaType  = body?.media_type || body?.mediaType || 'image';
-    sessions.set(sessionId, { task_id, status: 'generating', resultUrls: [], messages: [], error: null });
+    sessions.set(sessionId, {
+      task_id,
+      status: 'generating',
+      resultUrls: [],
+      messages: [],
+      error: null,
+      createdAt: Date.now(),
+    });
 
     callAi(body).then(res => {
       const s = sessions.get(sessionId);
@@ -241,24 +401,26 @@ async function handle(req, url, body) {
 
 const srv = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://localhost:${PORT}`);
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  if (req.method === 'OPTIONS') { res.writeHead(204); res.end(); return; }
+  setCorsHeaders(req, res);
+  if (req.method === 'OPTIONS') {
+    const origin = typeof req.headers.origin === 'string' ? req.headers.origin.trim() : '';
+    if (origin && !ALLOWED_ORIGINS.has(origin)) {
+      sendJson(res, 403, { error: 'origin not allowed' });
+      return;
+    }
+    res.writeHead(204);
+    res.end();
+    return;
+  }
   try {
-    const body = await new Promise(resolve => {
-      if (req.method === 'GET') { resolve({}); return; }
-      let d = '';
-      req.on('data', c => (d += c));
-      req.on('end', () => { try { resolve(JSON.parse(d)); } catch { resolve({}); } });
-    });
+    assertTrustedBrowserOrigin(req);
+    assertProxyAuthenticated(req, url.pathname);
+    const body = await readJsonBody(req);
     const result = await handle(req, url, body);
-    res.writeHead(result.status, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify(result.body));
+    sendJson(res, result.status, result.body);
   } catch (err) {
     console.error('[Proxy Error]', err.message);
-    res.writeHead(500, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ error: err.message }));
+    sendJson(res, err.status || 500, { error: err.message });
   }
 });
 
@@ -267,6 +429,9 @@ srv.listen(PORT, HOST, () => {
   console.log(`  Upstream: ${AI_API_BASE}${AI_GENERATE_PATH}`);
   console.log(`  Model:    ${AI_MODEL}`);
   console.log(`  Key:      ${AI_API_KEY ? '✓' : '✗'}`);
+  if (!isLoopbackHost(HOST)) {
+    console.warn('⚠ Proxy remote exposure enabled via PROXY_ALLOW_REMOTE=true');
+  }
 });
 
 srv.on('error', err => { console.error(err); process.exit(1); });

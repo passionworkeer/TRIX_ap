@@ -82,6 +82,73 @@ describe('locationService', () => {
       const locations = await getFriendsLocations();
       expect(locations).toEqual([]);
     });
+
+    it('should map joined profile data from profiles relation', async () => {
+      vi.mocked(supabase.auth.getUser).mockResolvedValue({
+        data: { user: mockUser },
+        error: null,
+      });
+
+      const friendsQuery = {
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            eq: vi.fn().mockResolvedValue({
+              data: [
+                {
+                  friend_id: 'friend-1',
+                  profiles: {
+                    username: 'Alice',
+                    avatar_url: 'https://example.com/alice.png',
+                    status: 'online',
+                  },
+                },
+              ],
+              error: null,
+            }),
+          }),
+        }),
+      };
+
+      const locationsQuery = {
+        select: vi.fn().mockReturnValue({
+          in: vi.fn().mockReturnValue({
+            eq: vi.fn().mockResolvedValue({
+              data: [
+                {
+                  user_id: 'friend-1',
+                  latitude: 31.2304,
+                  longitude: 121.4737,
+                  accuracy: 15,
+                  updated_at: '2026-03-31T10:00:00.000Z',
+                  is_sharing: true,
+                },
+              ],
+              error: null,
+            }),
+          }),
+        }),
+      };
+
+      vi.mocked(supabase.from)
+        .mockReturnValueOnce(friendsQuery as any)
+        .mockReturnValueOnce(locationsQuery as any);
+
+      const locations = await getFriendsLocations();
+
+      expect(locations).toEqual([
+        {
+          friendId: 'friend-1',
+          name: 'Alice',
+          avatar: 'https://example.com/alice.png',
+          latitude: 31.2304,
+          longitude: 121.4737,
+          accuracy: 15,
+          timestamp: '2026-03-31T10:00:00.000Z',
+          status: 'online',
+          isStudying: false,
+        },
+      ]);
+    });
   });
 
   describe('updateMyLocation', () => {

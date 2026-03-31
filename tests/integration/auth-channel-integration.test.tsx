@@ -116,13 +116,21 @@ vi.mock('../../src/config/supabase', () => ({
   updateLastActive: mockUpdateLastActive,
 }));
 
-vi.mock('../../src/services/sessionService', () => ({
+vi.mock('../../src/lib/authUtils', () => ({
+  logger: {
+    auth: { error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn() },
+    error: vi.fn(),
+  },
   upsertSession: mockUpsertSession,
-  revokeSession: mockRevokeSession,
-  checkSessionValidity: mockCheckSessionValidity,
+  updateLastActive: mockUpdateLastActive,
   touchSession: mockTouchSession,
-  clearLocalSessionId: mockClearLocalSessionId,
+  checkSessionValidity: mockCheckSessionValidity,
+  forceLogout: vi.fn(),
   getLocalSessionId: mockGetLocalSessionId,
+  getOrCreateDeviceId: vi.fn().mockReturnValue('device-123'),
+  AuthLogger: class {},
+  SESSION_VALIDITY_CHECK_MS: 30_000,
+  VALIDITY_CHECK_INTERVAL_HEARTBEATS: 10,
 }));
 
 vi.mock('../../src/utils/errorHandler', () => ({

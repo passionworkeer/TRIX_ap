@@ -211,8 +211,10 @@ final class AuthInterceptor: RequestInterceptor, @unchecked Sendable {
             return
         }
 
-        // Perform token refresh using URLSession (to avoid circular dependency with Alamofire)
-        let task = URLSession.shared.dataTask(with: request) { [weak self] data, response, error in
+        // Perform token refresh using a configured URLSession so debug/test proxy
+        // settings match the main API client path.
+        let refreshSession = URLSession(configuration: APIClient.makeURLSessionConfiguration())
+        let task = refreshSession.dataTask(with: request) { [weak self] data, response, error in
             guard let self = self else {
                 completion(.failure(AuthInterceptorError.unknown))
                 return

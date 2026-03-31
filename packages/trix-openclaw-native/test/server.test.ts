@@ -13,6 +13,10 @@ type TestPairing = {
   conversationId?: string;
 };
 
+function encodeUserSocketToken(token: string): string {
+  return `trix-auth.${Buffer.from(token, 'utf8').toString('base64url')}`;
+}
+
 function createTestServer(port: number, config: ServerConfig = {}): TrixNativeServer {
   return new TrixNativeServer({
     port,
@@ -110,6 +114,67 @@ describe('TrixNativeServer', () => {
     }).then((response) => response.json()) as { messages: Array<{ text: string }> };
     expect(messagesPayload.messages).toHaveLength(1);
     expect(messagesPayload.messages[0].text).toBe('hello multimodal');
+  });
+
+  it('requires websocket client auth via subprotocol instead of query string token', async () => {
+    const server = createTestServer(8810);
+    servers.push(server);
+    await server.start();
+
+    const state = await server.stateStore.read();
+    const pairing = await fetch('http://127.0.0.1:8810/api/pairings', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-trix-admin-token': state.adminToken,
+      },
+      body: JSON.stringify({ label: 'Browser' }),
+    }).then((response) => response.json()) as TestPairing;
+
+    const claim = await fetch(`http://127.0.0.1:8810/api/pairings/${pairing.code}/claim`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        secret: pairing.secret,
+        clientId: 'browser-ws-1',
+        deviceName: 'Browser',
+      }),
+    }).then((response) => response.json()) as { conversationId: string; clientToken: string };
+
+    const legacyCloseCode = await new Promise<number>((resolve, reject) => {
+      const socket = new WebSocket(
+        `ws://127.0.0.1:8810/ws?role=user&conversationId=${encodeURIComponent(claim.conversationId)}&clientId=browser-ws-1&clientToken=${encodeURIComponent(claim.clientToken)}`,
+      );
+      const timeout = setTimeout(() => {
+        socket.terminate();
+        reject(new Error('legacy query-string websocket token should be closed immediately'));
+      }, 500);
+
+      socket.once('close', (code) => {
+        clearTimeout(timeout);
+        resolve(code);
+      });
+      socket.once('error', () => {
+        // The ws client may emit an error before close; the close code is the assertion target.
+      });
+    });
+    expect(legacyCloseCode).toBe(1008);
+
+    await new Promise<void>((resolve, reject) => {
+      const socket = new WebSocket(
+        `ws://127.0.0.1:8810/ws?role=user&conversationId=${encodeURIComponent(claim.conversationId)}&clientId=browser-ws-1`,
+        ['trix-user', encodeUserSocketToken(claim.clientToken)],
+      );
+
+      socket.once('open', () => {
+        socket.close();
+        resolve();
+      });
+      socket.once('unexpected-response', (_, response) => {
+        reject(new Error(`subprotocol websocket auth failed with status ${response.statusCode ?? 0}`));
+      });
+      socket.once('error', reject);
+    });
   });
 
   it('accepts uploaded attachments and serves them back via message records', async () => {

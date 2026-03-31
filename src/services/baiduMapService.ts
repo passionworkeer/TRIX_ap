@@ -108,6 +108,13 @@ export async function loadBaiduMapSDK(): Promise<boolean> {
 
   sdkLoadAttempted = true;
 
+  if (!BAIDU_MAP_AK?.trim()) {
+    window.baiduMapError = 'Baidu Maps SDK disabled: missing API key';
+    sdkLoaded = false;
+    logger.warn('BaiduMapService', 'Skipping SDK load because VITE_BAIDU_MAP_AK is not configured');
+    return false;
+  }
+
   return new Promise((resolve) => {
     // Check if script already exists
     if (document.getElementById('baidu-map-sdk')) {

@@ -1,9 +1,6 @@
 ---
 name: trix-canvas-skill
-description: |
-  OpenClaw 风格 Canvas 技能：提供短剧剧本解析、分镜节点编排、图片/视频排队生成和结果下载。
-  技能包内自带 Canvas 服务 runtime，可安装进独立 OpenClaw workspace 使用，不依赖当前 monorepo 目录结构。
-  触发：用户说"用 Canvas"、"生成短剧"、"TRIX Canvas 工作流"、"做分镜画布"等。
+description: OpenClaw 风格 Canvas 技能，提供短剧剧本解析、分镜节点编排、图片/视频排队生成和结果下载。
 allowed-tools: Bash, Read, Glob
 ---
 
@@ -11,7 +8,7 @@ allowed-tools: Bash, Read, Glob
 
 ## 环境要求
 
-- **Canvas 服务**: `http://localhost:8789`
+- **Canvas 服务**: 默认监听 `127.0.0.1:8789`
 - **Python**: `python3`
 - **Node.js**: `node`（启动 Canvas 服务用）
 
@@ -42,6 +39,27 @@ python3 skills/trix-canvas-skill/scripts/start_canvas.py --with-proxy --open
 # python3 ~/.openclaw/workspace-trix-native/skills/trix-canvas-skill/scripts/start_canvas.py --with-proxy --open
 ```
 
+默认只绑定本机回环地址。需要对外暴露时，显式传环境变量：
+
+```bash
+CANVAS_HOST=0.0.0.0 \
+CANVAS_BASE_URL=https://your-host.example.com \
+python3 skills/trix-canvas-skill/scripts/start_canvas.py --with-proxy
+```
+
+或者直接指定浏览器访问地址：
+
+```bash
+python3 skills/trix-canvas-skill/scripts/start_canvas.py \
+  --host 0.0.0.0 \
+  --base-url https://your-host.example.com \
+  --with-proxy
+```
+
+如果开启了 `CANVAS_REQUIRE_AUTH=true`，浏览器首次访问 `/canvas` 时会自动弹出令牌登录面板；CLI / Python 脚本会优先读取 `CANVAS_ACCESS_TOKEN`，未显式设置时再回退读取 `CANVAS_AUTH_TOKEN_FILE` 并自动走 `Authorization: Bearer ...`。如果你要通过 URL 带 token，只使用 `#token=...` fragment，不要使用 `?token=...` 查询参数。
+如果未显式设置 `CANVAS_ACCESS_TOKEN`，服务会自动把生成的 token 写到 `CANVAS_AUTH_TOKEN_FILE`（默认 `runtime/data/.canvas-access-token`）并在启动日志里打印文件路径。
+如果你要把画布服务直接暴露到非回环地址但又不启用鉴权，必须显式设置 `CANVAS_ALLOW_INSECURE_PUBLIC=true`。
+
 ## 脚本索引
 
 所有脚本在 `skills/trix-canvas-skill/scripts/`。
@@ -54,6 +72,7 @@ python3 skills/trix-canvas-skill/scripts/start_canvas.py --with-proxy --open
 | `upload_file.py` | 上传本地图片/视频作为参考素材 | `project_id`, `file`, `--type`, `--prompt` |
 | `download_results.py` | 批量下载项目的 `files` | `project_id`, `--dest`, `--media-types` |
 | `check_env.py` | 端口、ffmpeg、目录自检 | 无参数 |
+| `start_all.js` | 兼容入口：自动补 runtime 目录、缺失依赖后，再转发到 skill runtime 的 `assets/canvas-service/start-all.js` | 透传 Node 参数 |
 | `parse_script.py` | 将剧本拆解成按镜头排序的 JSON | `script` 文本或文件路径 |
 | `workflow.py` | 一条命令自动完成解析、生成、轮询、字幕导出 | `script`, `--project-name`, `--concurrent` |
 | `generate.py` | 调用 AI Adapter 生成单个 media（image/video） | `--prompt`, `--type` |
@@ -143,11 +162,21 @@ openclaw agent --agent trix-native --session-id trix-canvas-demo --message \
 | 变量 | 默认值 | 说明 |
 |------|--------|------|
 | `CANVAS_BASE_URL` | `http://localhost:8789` | Canvas 服务地址（渲染 /session + /projects） |
+| `CANVAS_HOST` | `127.0.0.1` | Canvas 服务实际监听地址 |
 | `AI_API_BASE` | `""` | 生成服务地址（Canvas 后端会使用此 URL 调用第二跳生成接口；`start:all` 时会自动改为本地 proxy） |
 | `AI_API_KEY` | `""` | 上游 AIGC 的 Bearer Token |
 | `AI_GENERATE_PATH` | `/generate` | 创建任务路径 |
 | `AI_TASK_PATH_TEMPLATE` | `/tasks/:taskId` | 轮询路径模板 |
 | `AI_EXTRA_HEADERS` | `""` | 每行 `Key: Value`，用于补充上游 API 请求头 |
 | `CANVAS_REQUIRE_AUTH` | `false` | 是否开启 Canvas API 访问令牌鉴权 |
+| `CANVAS_ACCESS_TOKEN` | `""` | Canvas API / media 访问令牌；CLI 与 Python 封装会自动带上 |
+| `CANVAS_AUTH_TOKEN_FILE` | `runtime/data/.canvas-access-token` | 未显式设置访问令牌时，自动生成 token 的落盘路径 |
+| `CANVAS_ALLOWED_ORIGINS` | `""` | 若浏览器要从其他 origin 访问 Canvas API / media，显式填写允许来源；未列出的 `Origin` 会被拒绝 |
+| `CANVAS_ALLOW_INSECURE_PUBLIC` | `false` | 是否允许把未鉴权的 Canvas 服务直接暴露到非回环地址 |
+| `PROXY_ALLOWED_ORIGINS` | `""` | 若浏览器要直连 proxy，显式填写允许来源；默认拒绝带外部 `Origin` 的浏览器请求 |
+| `PROXY_ACCESS_TOKEN` | `""` | 当 proxy 暴露到非回环地址时必须配置的 Bearer 访问令牌 |
+| `RELAY_ALLOWED_ORIGINS` | `""` | 若浏览器要直连 relay，显式填写允许来源；默认拒绝带外部 `Origin` 的浏览器请求 |
+| `RELAY_ACCESS_TOKEN` | `""` | 当 relay 暴露到非回环地址时必须配置的 Bearer 访问令牌 |
+| `TRIX_CANVAS_ALLOW_OPENCLAW_CONFIG` | `false` | 是否允许 `start-all.js` 从 `~/.openclaw/openclaw.json` 回退读取上游 key；本机回环模式下也会自动允许 |
 | `TRIX_CANVAS_SERVICE_DIR` | `""` | 手动覆盖 skill 内置 canvas-service runtime 路径 |
 | `TRIX_CANVAS_RUNTIME_DIR` | `skills/trix-canvas-skill/runtime` | skill 运行时数据目录（含 data/exports） |

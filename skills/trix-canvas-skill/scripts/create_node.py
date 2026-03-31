@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 
 import _common
 
@@ -42,14 +43,18 @@ if __name__ == "__main__":
     parser.add_argument("--status", default="done")
     args = parser.parse_args()
 
-    result = run(
-        args.project_id,
-        args.file_id,
-        args.scene_id,
-        args.type,
-        args.x,
-        args.y,
-        args.prompt,
-        args.status,
-    )
-    print(json.dumps(result, ensure_ascii=False, indent=2))
+    try:
+        result = run(
+            args.project_id,
+            args.file_id,
+            args.scene_id,
+            args.type,
+            args.x,
+            args.y,
+            args.prompt,
+            args.status,
+        )
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+    except Exception as exc:  # noqa: BLE001
+        print(json.dumps({"error": str(exc)}, ensure_ascii=False))
+        sys.exit(1)

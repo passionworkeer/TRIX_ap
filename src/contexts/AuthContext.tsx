@@ -1,6 +1,17 @@
 import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { User, Session } from '@supabase/supabase-js';
-import { supabase, Profile } from '@/lib/supabase';
+import { supabase, type Profile } from '../lib/supabase';
+import {
+  logger,
+  getLocalSessionId,
+  upsertSession,
+  touchSession,
+  updateLastActive,
+  checkSessionValidity,
+  forceLogout,
+  SESSION_VALIDITY_CHECK_MS,
+  VALIDITY_CHECK_INTERVAL_HEARTBEATS,
+} from '../lib/authUtils';
 
 // ── Re-export shared auth utilities from web ──────────────────────────────────
 export {
@@ -15,7 +26,7 @@ export {
   AuthLogger,
   SESSION_VALIDITY_CHECK_MS,
   VALIDITY_CHECK_INTERVAL_HEARTBEATS,
-} from '@/lib/authUtils';
+} from '../lib/authUtils';
 
 export enum AuthErrorType {
   INVALID_CREDENTIALS = 'INVALID_CREDENTIALS',
@@ -53,11 +64,66 @@ interface AuthContextType {
   signIn: (email: string, password: string) => Promise<{ error: AuthError | null }>;
   signUp: (email: string, password: string, username: string) => Promise<{ error: AuthError | null }>;
   signOut: () => Promise<void>;
-  updateProfile: (nickname: string, bio: string) => Promise<{ error: Error | null }>;
+  updateProfile: (
+    nicknameOrInput: string | ProfileUpdateInput,
+    bio?: string,
+  ) => Promise<{ error: Error | null }>;
   refreshSession: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+type ProfileUpdateInput = {
+  username?: string;
+  display_name?: string;
+  full_name?: string;
+  nickname?: string;
+  bio?: string;
+};
+
+type ProfileUpdatePayload = {
+  username?: string;
+  display_name?: string;
+  full_name?: string;
+  bio?: string;
+};
+
+function buildProfileUpdatePayload(
+  nicknameOrInput: string | ProfileUpdateInput,
+  bio?: string,
+): ProfileUpdatePayload {
+  if (typeof nicknameOrInput === 'string') {
+    const payload: ProfileUpdatePayload = {
+      display_name: nicknameOrInput,
+    };
+
+    if (typeof bio === 'string') {
+      payload.bio = bio;
+    }
+
+    return payload;
+  }
+
+  const payload: ProfileUpdatePayload = {};
+
+  if (typeof nicknameOrInput.username === 'string') {
+    payload.username = nicknameOrInput.username;
+  }
+  if (typeof nicknameOrInput.display_name === 'string') {
+    payload.display_name = nicknameOrInput.display_name;
+  }
+  if (typeof nicknameOrInput.full_name === 'string') {
+    payload.full_name = nicknameOrInput.full_name;
+  }
+  if (typeof nicknameOrInput.nickname === 'string' && payload.display_name === undefined) {
+    payload.display_name = nicknameOrInput.nickname;
+  }
+  if (typeof nicknameOrInput.bio === 'string') {
+    payload.bio = nicknameOrInput.bio;
+  }
+
+  return payload;
+}
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
@@ -128,7 +194,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             }
           }
 
-          forceLogout(validity.reason, getLocalSessionId());
+          forceLogout(validity.reason ?? 'unknown', getLocalSessionId());
         }
       }
     }, SESSION_VALIDITY_CHECK_MS);
@@ -271,13 +337,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setProfile(null);
   };
 
-  const updateProfile = async (nickname: string, bio: string) => {
+  const updateProfile = async (
+    nicknameOrInput: string | ProfileUpdateInput,
+    bio?: string,
+  ) => {
     if (!user) return { error: new Error('No user logged in') };
 
     try {
+      const updates = buildProfileUpdatePayload(nicknameOrInput, bio);
+      if (Object.keys(updates).length === 0) {
+        return { error: null };
+      }
+
       const { error } = await supabase
         .from('profiles')
-        .update({ display_name: nickname, bio })
+        .update(updates)
         .eq('id', user.id);
 
       if (error) throw error;

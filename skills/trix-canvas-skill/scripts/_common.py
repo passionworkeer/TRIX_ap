@@ -4,10 +4,11 @@ from __future__ import annotations
 
 import json
 import os
-import sys
+import socket
 import time
 import urllib.error
 import urllib.request
+from ipaddress import ip_address
 from pathlib import Path
 from urllib.parse import urlencode, urlparse
 
@@ -17,10 +18,34 @@ from _paths import default_canvas_data_dir
 CANVAS_BASE = os.environ.get("CANVAS_BASE_URL", "http://localhost:8789").rstrip("/")
 AI_API_BASE = os.environ.get("AI_API_BASE", "")
 AI_API_KEY = os.environ.get("AI_API_KEY", "")
+ALLOW_PRIVATE_REMOTE_URLS = os.environ.get("CANVAS_ALLOW_PRIVATE_REMOTE_URLS", "").strip().lower() in {
+    "1",
+    "true",
+    "yes",
+}
+_CANVAS_BASE_PARSED = urlparse(CANVAS_BASE)
 
 CANVAS_LOCAL_DIR = Path(
     os.environ.get("CANVAS_DATA_DIR", str(default_canvas_data_dir()))
 ).resolve()
+CANVAS_AUTH_TOKEN_FILE = Path(
+    os.environ.get("CANVAS_AUTH_TOKEN_FILE", str(CANVAS_LOCAL_DIR / ".canvas-access-token"))
+).resolve()
+
+
+def _load_canvas_access_token() -> str:
+    explicit = os.environ.get("CANVAS_ACCESS_TOKEN", "").strip()
+    if explicit:
+        return explicit
+    try:
+        if CANVAS_AUTH_TOKEN_FILE.exists():
+            return CANVAS_AUTH_TOKEN_FILE.read_text(encoding="utf-8").strip()
+    except OSError:
+        return ""
+    return ""
+
+
+CANVAS_ACCESS_TOKEN = _load_canvas_access_token()
 
 SAFE_EXTS = {
     ".png",
@@ -40,11 +65,18 @@ MAX_DOWNLOAD_SIZE = 500 * 1024 * 1024  # 500 MB，上限防护
 _DIRECT_OPENER = urllib.request.build_opener(urllib.request.ProxyHandler({}))
 
 
+class CanvasRequestError(RuntimeError):
+    """Raised when the canvas HTTP API returns an error or cannot be reached."""
+
+
 def _canvas_headers() -> dict:
-    return {
+    headers = {
         "Accept": "application/json",
         "Content-Type": "application/json",
     }
+    if CANVAS_ACCESS_TOKEN:
+        headers["Authorization"] = f"Bearer {CANVAS_ACCESS_TOKEN}"
+    return headers
 
 
 def _request_json(method: str, path: str, body: dict | None = None, params: dict | None = None) -> dict:
@@ -59,11 +91,10 @@ def _request_json(method: str, path: str, body: dict | None = None, params: dict
             return json.loads(raw) if raw else {}
     except urllib.error.HTTPError as exc:
         err_body = exc.read().decode("utf-8") if exc.fp else ""
-        print(f"Canvas API 错误 {exc.code}: {err_body}", file=sys.stderr)
-        sys.exit(1)
+        detail = f": {err_body}" if err_body else ""
+        raise CanvasRequestError(f"Canvas API 错误 {exc.code}{detail}") from exc
     except urllib.error.URLError as exc:
-        print(f"网络错误: {exc.reason}", file=sys.stderr)
-        sys.exit(1)
+        raise CanvasRequestError(f"网络错误: {exc.reason}") from exc
 
 
 def _canvas_get(path: str, params: dict | None = None) -> dict:
@@ -82,8 +113,54 @@ def _canvas_delete(path: str) -> dict:
     return _request_json("DELETE", path)
 
 
+def _is_same_canvas_origin(url: str) -> bool:
+    parsed = urlparse(url)
+    return (
+        parsed.scheme == _CANVAS_BASE_PARSED.scheme
+        and parsed.netloc == _CANVAS_BASE_PARSED.netloc
+    )
+
+
+def _is_private_host(hostname: str) -> bool:
+    if not hostname:
+        return True
+    lowered = hostname.strip().lower()
+    if lowered == "localhost" or lowered.endswith(".local"):
+        return True
+    try:
+        return ip_address(lowered).is_private or ip_address(lowered).is_loopback or ip_address(lowered).is_link_local
+    except ValueError:
+        try:
+            infos = socket.getaddrinfo(lowered, None, proto=socket.IPPROTO_TCP)
+        except socket.gaierror as exc:
+            raise ValueError(f"无法解析下载地址主机: {hostname}") from exc
+        for info in infos:
+            address = info[4][0]
+            candidate = ip_address(address)
+            if candidate.is_private or candidate.is_loopback or candidate.is_link_local:
+                return True
+        return False
+
+
+def _assert_safe_download_url(url: str) -> str:
+    parsed = urlparse((url or "").strip())
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+        raise ValueError(f"非法下载地址: {url}")
+    if _is_same_canvas_origin(url):
+        return url
+    if ALLOW_PRIVATE_REMOTE_URLS:
+        return url
+    if _is_private_host(parsed.hostname or ""):
+        raise ValueError(f"禁止访问私有网络地址: {url}")
+    return url
+
+
 def _download_bytes(url: str, timeout: int = 120) -> bytes:
-    req = urllib.request.Request(url, headers={"User-Agent": "TRIX-Canvas-Skill/1.0"})
+    safe_url = _assert_safe_download_url(url)
+    headers = {"User-Agent": "TRIX-Canvas-Skill/1.0"}
+    if CANVAS_ACCESS_TOKEN and _is_same_canvas_origin(safe_url):
+        headers["Authorization"] = f"Bearer {CANVAS_ACCESS_TOKEN}"
+    req = urllib.request.Request(safe_url, headers=headers)
     with _DIRECT_OPENER.open(req, timeout=timeout) as resp:
         chunks = []
         downloaded = 0
@@ -217,10 +294,12 @@ def create_session(
     aspect: str = "origin",
     style: str = "",
     parent_node_id: str | None = None,
+    type: str | None = None,
 ) -> dict:
+    normalized_media_type = type or media_type
     body = {
         "message": message,
-        "mediaType": media_type,
+        "mediaType": normalized_media_type,
         "aspect": aspect,
         "style": style,
     }

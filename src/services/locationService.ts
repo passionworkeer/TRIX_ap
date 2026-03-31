@@ -51,15 +51,18 @@ export async function getFriendsLocations(): Promise<FriendLocation[]> {
 
   // Combine location data with friend profile data
   const friendLocations: FriendLocation[] = [];
+  type FriendProfile = {
+    username?: string;
+    avatar_url?: string;
+    status?: string;
+  };
 
   for (const loc of locations) {
     const friendship = friendships.find((f) => (f as { friend_id: string }).friend_id === loc.user_id);
     if (!friendship) continue;
 
-    const friendDataArray = (friendship as { users?: { username?: string; avatar_url?: string; status?: string }[] }).users;
-    if (!friendDataArray || friendDataArray.length === 0) continue;
-
-    const friendData = friendDataArray[0];
+    const joinedProfile = (friendship as { profiles?: FriendProfile | FriendProfile[] | null }).profiles;
+    const friendData = Array.isArray(joinedProfile) ? joinedProfile[0] : joinedProfile;
     if (!friendData) continue;
 
     friendLocations.push({

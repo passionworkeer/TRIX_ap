@@ -1,24 +1,33 @@
-import React, { memo } from 'react';
+import React, { memo, useEffect, useState } from 'react';
 import LazyImage from './LazyImage';
 
 interface AvatarProps {
-  name: string;
-  avatar?: string;
+  name?: string | null;
+  avatar?: string | null;
   size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
   className?: string;
   priority?: boolean;
 }
 
-const getInitial = (name: string): string => {
-  if (!name) return '?';
+const normalizeName = (name?: string | null): string => {
+  if (typeof name !== 'string') {
+    return '';
+  }
+
+  return name.trim();
+};
+
+const getInitial = (name?: string | null): string => {
+  const normalizedName = normalizeName(name);
+  if (!normalizedName) return '?';
 
   // 如果是中文名，取第一个字
-  if (/[\u4e00-\u9fa5]/.test(name)) {
-    return name.charAt(0);
+  if (/[\u4e00-\u9fa5]/.test(normalizedName)) {
+    return normalizedName.charAt(0);
   }
 
   // 如果是英文名，取首字母大写
-  return name.charAt(0).toUpperCase();
+  return normalizedName.charAt(0).toUpperCase();
 };
 
 const getSizeValue = (size: AvatarProps['size']): number => {
@@ -43,7 +52,7 @@ const getSizeClass = (size: AvatarProps['size']): string => {
   }
 };
 
-const getGradient = (name: string): string => {
+const getGradient = (name?: string | null): string => {
   const gradients: string[] = [
     'from-cyan-500 to-blue-600',
     'from-purple-500 to-pink-600',
@@ -55,8 +64,13 @@ const getGradient = (name: string): string => {
     'from-emerald-500 to-green-600',
   ];
 
+  const normalizedName = normalizeName(name);
+  if (!normalizedName) {
+    return gradients[0] || 'from-cyan-500 to-blue-600';
+  }
+
   // 根据名字生成一致的渐变
-  const index = name.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) % gradients.length;
+  const index = normalizedName.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) % gradients.length;
   return gradients[index] || gradients[0] || 'from-cyan-500 to-blue-600';
 };
 
@@ -64,14 +78,20 @@ const Avatar: React.FC<AvatarProps> = ({ name, avatar, size = 'md', className = 
   const sizeClass = getSizeClass(size);
   const sizeValue = getSizeValue(size);
   const avatarSrc = avatar?.trim() || '';
+  const displayName = normalizeName(name);
+  const [imageFailed, setImageFailed] = useState(false);
 
-  // 如果有头像 URL 且不为空，尝试渲染图片
-  if (avatarSrc) {
+  useEffect(() => {
+    setImageFailed(false);
+  }, [avatarSrc]);
+
+  // 如果有头像 URL 且不为空，优先渲染图片，失败后再回退到首字母。
+  if (avatarSrc && !imageFailed) {
     return (
       <div className={`${sizeClass} rounded-full overflow-hidden relative ${className}`}>
         <LazyImage
           src={avatarSrc}
-          alt={name}
+          alt={displayName || '用户头像'}
           width={sizeValue}
           height={sizeValue}
           priority={priority}
@@ -79,23 +99,17 @@ const Avatar: React.FC<AvatarProps> = ({ name, avatar, size = 'md', className = 
           className="w-full h-full object-cover"
           placeholderClassName=""
           onError={() => {
-            // 图片加载失败时不显示任何内容，会fallback到首字母
+            setImageFailed(true);
           }}
         />
-        {/* 回退到首字母 - 当 LazyImage 失败时显示 */}
-        <div
-          className={`${sizeClass} rounded-full bg-gradient-to-br ${getGradient(name)} flex items-center justify-center font-bold text-white shadow-lg absolute inset-0`}
-        >
-          {getInitial(name)}
-        </div>
       </div>
     );
   }
 
   // 没有头像，直接显示首字母
   return (
-    <div className={`${sizeClass} rounded-full bg-gradient-to-br ${getGradient(name)} flex items-center justify-center font-bold text-white shadow-lg ${className} hover:scale-105 transition-transform duration-300`}>
-      {getInitial(name)}
+    <div className={`${sizeClass} rounded-full bg-gradient-to-br ${getGradient(displayName)} flex items-center justify-center font-bold text-white shadow-lg ${className} hover:scale-105 transition-transform duration-300`}>
+      {getInitial(displayName)}
     </div>
   );
 };

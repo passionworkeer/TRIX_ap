@@ -5,12 +5,14 @@ import { spawn } from 'node:child_process';
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
+import { fileURLToPath } from 'node:url';
 
 const CANVAS_PORT = 8801;
 const CANVAS_URL = `http://127.0.0.1:${CANVAS_PORT}`;
 const MOCK_AI_PORT = 8802;
 const MOCK_AI_URL = `http://127.0.0.1:${MOCK_AI_PORT}`;
-const FIXTURE_VIDEO = resolve('public/videos/role1/idle.mp4');
+const CANVAS_SERVER_ENTRY = fileURLToPath(new URL('../../packages/trix-canvas-service/server.js', import.meta.url));
+const FIXTURE_VIDEO = fileURLToPath(new URL('../../public/videos/role1/idle.mp4', import.meta.url));
 const FIXTURE_IMAGE = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+XnV0AAAAASUVORK5CYII=',
   'base64',
@@ -31,7 +33,7 @@ function spawnCanvasServer() {
     AI_TASK_PATH_TEMPLATE: '/tasks/:taskId',
     CANVAS_ALLOW_PRIVATE_REMOTE_URLS: 'true',
   };
-  const proc = spawn('node', ['packages/trix-canvas-service/server.js'], {
+  const proc = spawn('node', [CANVAS_SERVER_ENTRY], {
     env,
     stdio: ['ignore', 'ignore', 'ignore'],
   });
@@ -52,8 +54,10 @@ async function spawnMockAiServer() {
       }
       const payload = body ? JSON.parse(body) : {};
       const mediaType = payload.media_type || payload.mediaType || 'image';
+      const prompt = String(payload.prompt || payload.message || '');
       const taskId = `task_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-      tasks.set(taskId, { polls: 0, mediaType });
+      const mode = prompt.toLowerCase().includes('bad-url') ? 'bad-url' : 'normal';
+      tasks.set(taskId, { polls: 0, mediaType, mode });
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ task_id: taskId, status: 'pending' }));
       return;
@@ -75,13 +79,15 @@ async function spawnMockAiServer() {
         return;
       }
 
-      const assetPath = task.mediaType === 'video' ? '/mock.mp4' : '/mock.png';
+      const assetPath = task.mode === 'bad-url'
+        ? 'http://127.0.0.1:1/missing.png'
+        : `${MOCK_AI_URL}${task.mediaType === 'video' ? '/mock.mp4' : '/mock.png'}`;
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(
         JSON.stringify({
           task_id: taskId,
           status: 'completed',
-          urls: [`${MOCK_AI_URL}${assetPath}`],
+          urls: [assetPath],
         }),
       );
       return;
@@ -131,7 +137,7 @@ async function waitForSession(sessionId, expected = 'completed', attempts = 180)
     if (data?.status === expected) {
       return data;
     }
-    if (data?.status === 'error') {
+    if (data?.status === 'error' && expected !== 'error') {
       throw new Error(`session failed: ${data?.error || 'unknown error'}`);
     }
     await new Promise((resolvePromise) => setTimeout(resolvePromise, 100));
@@ -142,6 +148,19 @@ async function waitForSession(sessionId, expected = 'completed', attempts = 180)
 async function postJson(path, body) {
   const response = await fetch(`${CANVAS_URL}${path}`, {
     method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const text = await response.text();
+  return {
+    response,
+    payload: text ? JSON.parse(text) : {},
+  };
+}
+
+async function patchJson(path, body) {
+  const response = await fetch(`${CANVAS_URL}${path}`, {
+    method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
@@ -182,6 +201,120 @@ test('Canvas service smoke flow', async (t) => {
       const detailReq = await fetch(`${CANVAS_URL}/api/project/${projectId}`);
       const detail = await detailReq.json();
       assert.equal(detail?.data?.id, projectId, 'project detail must match');
+    });
+
+    await t.test('cross-origin browser-style api requests are rejected', async () => {
+      const response = await fetch(`${CANVAS_URL}/api/session/change-project`, {
+        method: 'POST',
+        headers: {
+          Origin: 'https://evil.example',
+          'Content-Type': 'text/plain;charset=UTF-8',
+        },
+        body: '',
+      });
+      assert.equal(response.status, 403, 'foreign browser origin should be rejected');
+    });
+
+    await t.test('cross-project mutations are rejected', async () => {
+      const { payload: otherProject } = await postJson('/api/projects', {
+        name: 'isolation target',
+      });
+      const otherProjectId = otherProject.id;
+      assert.ok(otherProjectId, 'other project id must exist');
+
+      const nodeA = await postJson('/api/nodes', {
+        projectId,
+        prompt: 'node-a',
+      });
+      assert.equal(nodeA.response.status, 201, 'node creation in primary project should succeed');
+
+      const nodeB = await postJson('/api/nodes', {
+        projectId: otherProjectId,
+        prompt: 'node-b',
+      });
+      assert.equal(nodeB.response.status, 201, 'node creation in secondary project should succeed');
+
+      const fileB = await postJson('/api/upload', {
+        projectId: otherProjectId,
+        fileData: FIXTURE_IMAGE.toString('base64'),
+        filename: 'foreign.png',
+        mimeType: 'image/png',
+      });
+      assert.equal(fileB.response.status, 200, 'upload in secondary project should succeed');
+
+      const crossEdge = await postJson('/api/edges', {
+        projectId,
+        sourceNodeId: nodeA.payload.id,
+        targetNodeId: nodeB.payload.id,
+      });
+      assert.equal(crossEdge.response.status, 409, 'cross-project edge must be rejected');
+
+      const foreignUpload = await postJson('/api/upload', {
+        projectId,
+        nodeId: nodeB.payload.id,
+        fileData: FIXTURE_IMAGE.toString('base64'),
+        filename: 'cross-attach.png',
+        mimeType: 'image/png',
+      });
+      assert.equal(foreignUpload.response.status, 409, 'foreign-project node attachment must be rejected');
+
+      const patchForeignFile = await patchJson(`/api/nodes/${nodeA.payload.id}`, {
+        fileId: fileB.payload.id,
+      });
+      assert.equal(patchForeignFile.response.status, 409, 'foreign-project file patch must be rejected');
+
+      const patchForeignParent = await patchJson(`/api/nodes/${nodeA.payload.id}`, {
+        parentNodeId: nodeB.payload.id,
+      });
+      assert.equal(patchForeignParent.response.status, 409, 'foreign-project parent patch must be rejected');
+    });
+
+    await t.test('concurrent session refresh does not duplicate stored files', async () => {
+      const { payload: isolatedProject } = await postJson('/api/projects', {
+        name: 'poll-dedupe',
+      });
+      assert.ok(isolatedProject.id, 'isolated project id must exist');
+
+      const created = await postJson('/api/session', {
+        projectId: isolatedProject.id,
+        message: 'Poll dedupe image',
+        mediaType: 'image',
+        aspect: '1:1',
+      });
+      assert.equal(created.response.status, 200, 'session creation should succeed');
+
+      await Promise.all(
+        Array.from({ length: 12 }, () =>
+          fetch(`${CANVAS_URL}/api/session/${created.payload.data.sessionId}`),
+        ),
+      );
+
+      const session = await waitForSession(created.payload.data.sessionId);
+      assert.equal(session.status, 'completed', 'session should complete after concurrent polling');
+
+      const detailReq = await fetch(`${CANVAS_URL}/api/projects/${isolatedProject.id}`);
+      const detail = await detailReq.json();
+      assert.equal(detail?.data?.files?.length, 1, 'only one localized file should be created');
+      assert.equal(detail?.data?.nodes?.length, 1, 'project should still contain one node');
+    });
+
+    await t.test('invalid upstream result url marks session as error', async () => {
+      const { payload: isolatedProject } = await postJson('/api/projects', {
+        name: 'bad-url-project',
+      });
+      assert.ok(isolatedProject.id, 'isolated project id must exist');
+
+      const created = await postJson('/api/session', {
+        projectId: isolatedProject.id,
+        message: 'bad-url image',
+        mediaType: 'image',
+        aspect: '1:1',
+      });
+      assert.equal(created.response.status, 200, 'session creation should succeed');
+
+      const failed = await waitForSession(created.payload.data.sessionId, 'error');
+      assert.equal(failed.status, 'error', 'invalid remote result should fail the session');
+      assert.equal(failed.resultUrls?.length || 0, 0, 'failed session should not expose dead result urls');
     });
 
     await t.test('image session completes and stores media locally', async () => {

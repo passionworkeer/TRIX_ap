@@ -8,7 +8,7 @@ import {
 import { LuminaButton } from '../components/buttons';
 import { SurfaceCard } from '../components/cards';
 import { LuminaInput } from '../components/inputs';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '../../../../../../src/contexts/AuthContext';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -219,7 +219,6 @@ const SocialAccountRow = (props: SocialAccountRowProps) => {
 export default function ProfilePage() {
   const api = window.electronAPI;
   const { updateProfile, user } = useAuth();
-  const canEditProfile = true;
   const [socialAccounts, setSocialAccounts] = useState<SocialAccount[]>([]);
   const [achievements, setAchievements] = useState<Achievement[]>([]);
   const [profileStats, setProfileStats] = useState<{

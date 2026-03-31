@@ -10,7 +10,7 @@
     "proxy": "node proxy.js",
     "start:all": "node start-all.js",
     "test:smoke": "node --test ../../tests/smoke/trix-canvas-smoke.test.mjs",
-    "check": "node --check server.js && node --check proxy.js && node --check start-all.js"
+    "check": "node --check server.js && node --check proxy.js && node --check relay.js && node --check start-all.js"
   },
   "dependencies": {
     "dotenv": "^16.3.1",

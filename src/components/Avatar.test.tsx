@@ -70,6 +70,14 @@ describe('Avatar', () => {
     expect(screen.getByText('?')).toBeDefined();
   });
 
+  it('should handle missing name without crashing', async () => {
+    const Avatar = (await import('../components/Avatar')).default;
+
+    render(<Avatar name={undefined} />);
+
+    expect(screen.getByText('?')).toBeDefined();
+  });
+
   it('should use different gradients for different names', async () => {
     const Avatar = (await import('../components/Avatar')).default;
 

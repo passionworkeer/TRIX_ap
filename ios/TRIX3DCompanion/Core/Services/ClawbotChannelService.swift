@@ -12,6 +12,9 @@ import Combine
 import AVFoundation
 import UIKit
 
+private let userWebSocketProtocol = "trix-user"
+private let userWebSocketTokenProtocolPrefix = "trix-auth."
+
 // MARK: - Native WebSocket Client Adapter
 
 /// 原生 WebSocket 客户端适配器 - 替代 Socket.IO
@@ -46,12 +49,15 @@ private final class NativeWebSocketClient: NSObject, URLSessionWebSocketDelegate
 
     // MARK: - Connection
 
-    /// 连接 WebSocket - URL 格式: ws://host:port/ws?role=user&conversationId=xxx&clientId=xxx&clientToken=xxx
-    func connect(to url: URL) {
+    /// 连接 WebSocket - URL 格式: ws://host:port/ws?role=user&conversationId=xxx&clientId=xxx
+    func connect(to url: URL, protocols: [String] = []) {
         disconnect()
 
         var request = URLRequest(url: url)
         request.timeoutInterval = 15
+        if !protocols.isEmpty {
+            request.setValue(protocols.joined(separator: ", "), forHTTPHeaderField: "Sec-WebSocket-Protocol")
+        }
 
         webSocketTask = session.webSocketTask(with: request)
         webSocketTask?.resume()
@@ -169,7 +175,7 @@ private final class NativeWebSocketClient: NSObject, URLSessionWebSocketDelegate
 
 /// 统一协议接口 - 同时支持 Socket.IO 风格事件和原生 WebSocket
 private protocol WebSocketClientProtocol: AnyObject {
-    func connect(to url: URL)
+    func connect(to url: URL, protocols: [String])
     func disconnect()
     func send(_ data: Data, completion: @escaping (Error?) -> Void)
     func send(_ text: String, completion: @escaping (Error?) -> Void)
@@ -1567,7 +1573,7 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
         }
 
         // 构建 WebSocket URL with auth params
-        let wsFullUrl = buildWebSocketURL(base: wsUrl, conversationId: conversationId, token: token)
+        let wsFullUrl = buildWebSocketURL(base: wsUrl, conversationId: conversationId)
 
         guard let url = URL(string: wsFullUrl) else {
             await MainActor.run {
@@ -1576,28 +1582,47 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
             return
         }
 
-        wsClient.connect(to: url)
+        wsClient.connect(to: url, protocols: buildWebSocketProtocols(token: token))
     }
 
-    /// 构建带认证参数的 WebSocket URL
-    private func buildWebSocketURL(base: String, conversationId: String, token: String) -> String {
-        var url = base
+    /// 构建用户 WebSocket URL，敏感 token 通过子协议传输
+    private func buildWebSocketURL(base: String, conversationId: String) -> String {
+        guard var components = URLComponents(string: base) else {
+            return base
+        }
 
-        // 确保 base URL 包含 /ws
-        if !url.contains("/ws") {
-            if url.hasSuffix("/") {
-                url += "ws"
+        if !components.path.contains("/ws") {
+            if components.path.hasSuffix("/") {
+                components.path += "ws"
             } else {
-                url += "/ws"
+                components.path += "/ws"
             }
         }
 
-        // 添加认证参数
         let clientId = self.deviceId ?? getOrCreateDeviceId()
-        let separator = url.contains("?") ? "&" : "?"
-        url += "\(separator)role=user&conversationId=\(conversationId)&clientId=\(clientId)&clientToken=\(token)"
+        var queryItems = components.queryItems ?? []
+        queryItems.removeAll { item in
+            item.name == "role" || item.name == "conversationId" || item.name == "clientId" || item.name == "clientToken"
+        }
+        queryItems.append(URLQueryItem(name: "role", value: "user"))
+        queryItems.append(URLQueryItem(name: "conversationId", value: conversationId))
+        queryItems.append(URLQueryItem(name: "clientId", value: clientId))
+        components.queryItems = queryItems
 
-        return url
+        return components.string ?? base
+    }
+
+    private func buildWebSocketProtocols(token: String) -> [String] {
+        [userWebSocketProtocol, encodeWebSocketProtocolToken(token)]
+    }
+
+    private func encodeWebSocketProtocolToken(_ token: String) -> String {
+        let base64 = Data(token.utf8).base64EncodedString()
+        let base64Url = base64
+            .replacingOccurrences(of: "+", with: "-")
+            .replacingOccurrences(of: "/", with: "_")
+            .replacingOccurrences(of: "=", with: "")
+        return "\(userWebSocketTokenProtocolPrefix)\(base64Url)"
     }
 
     /// 设置 WebSocket 消息处理器
@@ -1773,9 +1798,9 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
         }
 
         DispatchQueue.global().asyncAfter(deadline: .now() + 2.0) { [weak self] in
-            let wsFullUrl = self?.buildWebSocketURL(base: wsUrl, conversationId: convId, token: token) ?? ""
+            let wsFullUrl = self?.buildWebSocketURL(base: wsUrl, conversationId: convId) ?? ""
             if let url = URL(string: wsFullUrl) {
-                self?.wsClient.connect(to: url)
+                self?.wsClient.connect(to: url, protocols: self?.buildWebSocketProtocols(token: token) ?? [])
             }
         }
     }
@@ -2197,9 +2222,21 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
         defaults.set(resolvedAccountId, forKey: "clawbot_account_id")
         defaults.set(userId, forKey: sessionDefaultsKey("app_user_id", accountId: resolvedAccountId))
         defaults.set(conversationId, forKey: sessionDefaultsKey("conversation_id", accountId: resolvedAccountId))
-        defaults.set(clientToken, forKey: sessionDefaultsKey("client_token", accountId: resolvedAccountId))
         defaults.set(websocketUrl, forKey: sessionDefaultsKey("websocket_url", accountId: resolvedAccountId))
         defaults.set(serverUrl, forKey: sessionDefaultsKey("server_url", accountId: resolvedAccountId))
+        defaults.removeObject(forKey: sessionDefaultsKey("client_token", accountId: resolvedAccountId))
+        UserDefaults.standard.removeObject(forKey: "clawbot_client_token")
+
+        let secureTokenKey = sessionKeychainKey("client_token", accountId: resolvedAccountId)
+        if let clientToken, !clientToken.isEmpty {
+            do {
+                try KeychainManager.shared.saveString(clientToken, forKey: secureTokenKey)
+            } catch {
+                SecureLogger.shared.error("Failed to save client token to Keychain: \(error)")
+            }
+        } else {
+            try? KeychainManager.shared.remove(forKey: secureTokenKey)
+        }
     }
 
     private func loadPersistedState() {
@@ -2214,13 +2251,28 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
             ?? defaults.string(forKey: "clawbot_app_user_id")
         conversationId = defaults.string(forKey: sessionDefaultsKey("conversation_id", accountId: resolvedAccountId))
             ?? defaults.string(forKey: "clawbot_conversation_id")
-        clientToken = defaults.string(forKey: sessionDefaultsKey("client_token", accountId: resolvedAccountId))
-            ?? defaults.string(forKey: "clawbot_client_token")
+        let secureTokenKey = sessionKeychainKey("client_token", accountId: resolvedAccountId)
+        clientToken = KeychainManager.shared.getString(forKey: secureTokenKey)
         websocketUrl = defaults.string(forKey: sessionDefaultsKey("websocket_url", accountId: resolvedAccountId))
             ?? defaults.string(forKey: "clawbot_websocket_url")
         serverUrl = defaults.string(forKey: sessionDefaultsKey("server_url", accountId: resolvedAccountId))
             ?? defaults.string(forKey: "clawbot_server_url")
         httpClient.overrideBaseURL = serverUrl
+
+        if clientToken == nil {
+            let legacyToken = defaults.string(forKey: sessionDefaultsKey("client_token", accountId: resolvedAccountId))
+                ?? defaults.string(forKey: "clawbot_client_token")
+            if let legacyToken, !legacyToken.isEmpty {
+                clientToken = legacyToken
+                do {
+                    try KeychainManager.shared.saveString(legacyToken, forKey: secureTokenKey)
+                } catch {
+                    SecureLogger.shared.error("Failed to migrate client token to Keychain: \(error)")
+                }
+                defaults.removeObject(forKey: sessionDefaultsKey("client_token", accountId: resolvedAccountId))
+                defaults.removeObject(forKey: "clawbot_client_token")
+            }
+        }
 
         if !isPaired {
             isPaired = defaults.bool(forKey: "clawbot_paired")
@@ -2231,16 +2283,22 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
     }
 
     private func clearPersistedState() {
+        let defaults = UserDefaults.standard
+        let resolvedAccountId = accountId
+            ?? defaults.string(forKey: "clawbot_active_account_id")
+            ?? defaults.string(forKey: "clawbot_account_id")
+            ?? "default"
         try? KeychainManager.shared.removePairedDevice()
-        UserDefaults.standard.removeObject(forKey: "clawbot_paired")
-        UserDefaults.standard.removeObject(forKey: "clawbot_device_id")
-        UserDefaults.standard.removeObject(forKey: "clawbot_conversation_id")
-        UserDefaults.standard.removeObject(forKey: "clawbot_client_token")
-        UserDefaults.standard.removeObject(forKey: "clawbot_websocket_url")
-        UserDefaults.standard.removeObject(forKey: "clawbot_server_url")
-        UserDefaults.standard.removeObject(forKey: "clawbot_account_id")
-        UserDefaults.standard.removeObject(forKey: "clawbot_active_account_id")
-        UserDefaults.standard.removeObject(forKey: "clawbot_app_user_id")
+        try? KeychainManager.shared.remove(forKey: sessionKeychainKey("client_token", accountId: resolvedAccountId))
+        defaults.removeObject(forKey: "clawbot_paired")
+        defaults.removeObject(forKey: "clawbot_device_id")
+        defaults.removeObject(forKey: "clawbot_conversation_id")
+        defaults.removeObject(forKey: "clawbot_client_token")
+        defaults.removeObject(forKey: "clawbot_websocket_url")
+        defaults.removeObject(forKey: "clawbot_server_url")
+        defaults.removeObject(forKey: "clawbot_account_id")
+        defaults.removeObject(forKey: "clawbot_active_account_id")
+        defaults.removeObject(forKey: "clawbot_app_user_id")
     }
 
     private func clearPersistedPairingState() {
@@ -2251,11 +2309,16 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
         defaults.removeObject(forKey: sessionDefaultsKey("websocket_url", accountId: resolvedAccountId))
         defaults.removeObject(forKey: sessionDefaultsKey("server_url", accountId: resolvedAccountId))
         defaults.removeObject(forKey: sessionDefaultsKey("app_user_id", accountId: resolvedAccountId))
+        try? KeychainManager.shared.remove(forKey: sessionKeychainKey("client_token", accountId: resolvedAccountId))
         clearPersistedState()
     }
 
     private func sessionDefaultsKey(_ suffix: String, accountId: String) -> String {
         "clawbot_session_\(accountId)_\(suffix)"
+    }
+
+    private func sessionKeychainKey(_ suffix: String, accountId: String) -> String {
+        "clawbot_session_\(accountId)_\(suffix)_secure"
     }
 
     // MARK: - Heartbeat
