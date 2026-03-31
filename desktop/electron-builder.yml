@@ -8,18 +8,17 @@ asar: true
 compression: maximum
 files:
   - package.json
+  - .env*
   - dist-desktop/main/**/*
   - dist-desktop/preload/**/*
-  - dist-desktop/renderer/assets/**/*
-  - dist-desktop/renderer/*.html
-  - dist-desktop/renderer/desktop/src/renderer/*.html
-  - '!**/3d/**'
-  - '!**/companion-check.html'
-  - '!**/env-check.html'
-  - '!**/pairing.html'
-  - '!**/manifest.json'
-  - '!**/sw.js'
-  - '!**/videos/**'
+  - dist-desktop/renderer/**/*
+  - '!dist-desktop/renderer/3d/**'
+  - '!dist-desktop/renderer/videos/**'
+  - '!dist-desktop/renderer/companion-check.html'
+  - '!dist-desktop/renderer/env-check.html'
+  - '!dist-desktop/renderer/pairing.html'
+  - '!dist-desktop/renderer/manifest.json'
+  - '!dist-desktop/renderer/sw.js'
   - '!**/dist/**'
   - node_modules/**/*
   - '!node_modules/@rollup/**/*'
@@ -41,12 +40,11 @@ extraResources:
     to: videos
     filter:
       - '**/*'
+asarUnpack:
+  - .env*
 win:
   target:
     - target: nsis
-      arch:
-        - x64
-    - target: msi
       arch:
         - x64
   icon: build/icon.ico
@@ -65,8 +63,6 @@ nsis:
   license: build/eula.txt
   uninstallerIcon: build/icon.ico
   runAfterFinish: true
-msi:
-  oneClick: false
 electronDist: ../node_modules/electron/dist
 electronVersion: 33.4.0
 electronDownload:

@@ -9,11 +9,11 @@ import Store from 'electron-store';
 
 // ── Load .env.local ──────────────────────────────────────────────────────────
 // In dev: app.getAppPath() = project root → desktop/.env.local
-// In packaged: .env.local is in asarUnpack at resources/app.asar.unpacked/
+// In packaged: .env.local is extracted via asarUnpack
 const envPaths = [
-  path.join(app.getAppPath(), 'desktop', '.env.local'),                    // dev mode
-  path.join(app.getAppPath(), 'app.asar.unpacked', '.env.local'),          // packaged: asarUnpack
-  path.join(path.dirname(app.getPath('exe')), '.env.local'),               // packaged: next to exe
+  path.join(app.getAppPath(), 'desktop', '.env.local'),   // dev mode
+  path.join(app.getAppPath(), '..', '.env.local'),         // packaged: asarUnpack extracts to app.asar.unpacked
+  path.join(path.dirname(app.getPath('exe')), '.env.local'), // packaged: next to exe
 ];
 for (const p of envPaths) {
   if (fs.existsSync(p)) {
