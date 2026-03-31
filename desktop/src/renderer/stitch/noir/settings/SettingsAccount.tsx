@@ -1,16 +1,12 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
 import { LogIn, LogOut, User, Shield, Eye, EyeOff, CheckCircle } from 'lucide-react';
 import { DarkCard } from '../components/DarkCard';
 import { DarkButton } from '../components/DarkButton';
+import { useAuth } from '@/contexts/AuthContext';
 import type { SettingsSharedState } from './SettingsContainer';
 
-interface Session {
-  user?: { email?: string };
-  access_token?: string;
-}
-
 export function SettingsAccount(_props: SettingsSharedState) {
-  const [session, setSession] = useState<Session | null>(null);
+  const { user, loading, signIn, signUp, signOut } = useAuth();
   const [authLoading, setAuthLoading] = useState(false);
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
   const [authEmail, setAuthEmail] = useState('');
@@ -20,44 +16,31 @@ export function SettingsAccount(_props: SettingsSharedState) {
   const [authSuccess, setAuthSuccess] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
 
-  const loadAuthSession = useCallback(async () => {
-    const api = window.electronAPI;
-    if (!api) return;
-    api.authGetSession().then((result) => {
-      if (result.success && result.data) setSession(result.data as Session);
-    }).catch(() => {});
-  }, []);
-
-  useEffect(() => { loadAuthSession(); }, [loadAuthSession]);
-
   const handleAuthSubmit = async () => {
     if (!authEmail.trim() || !authPassword) return;
-    const api = window.electronAPI;
-    if (!api) return;
     setAuthLoading(true);
     setAuthError(null);
     setAuthSuccess(null);
     try {
       if (authMode === 'signin') {
-        const result = await api.authSignIn(authEmail.trim(), authPassword);
-        if (result.success && result.data) {
-          setSession(result.data as Session);
+        const result = await signIn(authEmail.trim(), authPassword);
+        if (!result.error) {
           setAuthSuccess('登录成功');
           setAuthEmail('');
           setAuthPassword('');
           setAuthUsername('');
         } else {
-          setAuthError(result.error || '登录失败');
+          setAuthError(result.error.message || '登录失败');
         }
       } else {
-        const result = await api.authSignUp(authEmail.trim(), authPassword, authUsername.trim() || undefined);
-        if (result.success) {
+        const result = await signUp(authEmail.trim(), authPassword, authUsername.trim() || authEmail.trim().split('@')[0]);
+        if (!result.error) {
           setAuthSuccess('注册成功，请查收确认邮件');
           setAuthMode('signin');
           setAuthPassword('');
           setAuthUsername('');
         } else {
-          setAuthError(result.error || '注册失败');
+          setAuthError(result.error.message || '注册失败');
         }
       }
     } catch (err) {
@@ -68,10 +51,9 @@ export function SettingsAccount(_props: SettingsSharedState) {
   };
 
   const handleSignOut = async () => {
+    await signOut();
     const api = window.electronAPI;
-    if (!api) return;
-    await api.authSignOut();
-    setSession(null);
+    if (api) api.authSignOut().catch(() => {});
     setAuthSuccess(null);
   };
 
@@ -83,14 +65,16 @@ export function SettingsAccount(_props: SettingsSharedState) {
           <div style={{ fontSize: 14, fontWeight: 600, color: '#e5e2e1' }}>账户</div>
         </div>
 
-        {session ? (
+        {loading ? (
+          <div style={{ textAlign: 'center', padding: 20, color: '#919191', fontSize: 12 }}>验证登录状态...</div>
+        ) : user ? (
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 16px', borderRadius: 10, background: 'rgba(99,14,212,0.08)', border: '1px solid rgba(99,14,212,0.2)', marginBottom: 18 }}>
               <div style={{ width: 42, height: 42, borderRadius: '50%', background: 'linear-gradient(135deg, #630ed4, #7c3aed)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                 <User size={18} color="#ffffff" />
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 13, fontWeight: 600, color: '#e5e2e1', marginBottom: 2 }}>{session.user?.email || '已登录用户'}</div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: '#e5e2e1', marginBottom: 2 }}>{user.email || '已登录用户'}</div>
                 <div style={{ fontSize: 11, color: '#4ade80', display: 'flex', alignItems: 'center', gap: 4 }}><CheckCircle size={11} />已认证</div>
               </div>
               <span style={{ padding: '3px 10px', borderRadius: 999, background: 'rgba(74,222,128,0.1)', color: '#4ade80', fontSize: 11, fontWeight: 600, border: '1px solid rgba(74,222,128,0.2)', flexShrink: 0 }}>已登录</span>

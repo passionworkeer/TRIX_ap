@@ -389,7 +389,7 @@ export function setupIpcHandlers(): void {
     return Boolean(SUPABASE_URL && SUPABASE_URL.startsWith('http') && SUPABASE_ANON_KEY);
   }
 
-  function getSession(): { access_token?: string; user?: { id?: string; email?: string; created_at?: string } } | null {
+  function getSession(): { access_token?: string; refresh_token?: string; user?: { id?: string; email?: string; created_at?: string } } | null {
     const session = authStore.get('session');
     if (session && typeof session === 'object' && session !== null) return session as ReturnType<typeof getSession>;
     return null;
@@ -855,6 +855,17 @@ export function setupIpcHandlers(): void {
     } catch (e: unknown) {
       return { success: false, error: String(e) };
     }
+  });
+
+  /** Set session from renderer (Supabase SDK in renderer → main process electron-store) */
+  ipcMain.handle('auth:set-session', async (_event, sessionData: unknown) => {
+    if (!sessionData || typeof sessionData !== 'object') {
+      authStore.delete('session');
+      return { success: true };
+    }
+    authStore.set('session', sessionData);
+    log.info('Session synced from renderer');
+    return { success: true };
   });
 
   type NativeChannelStateSnapshot = {

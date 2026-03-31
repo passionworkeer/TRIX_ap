@@ -4,6 +4,7 @@ import './desktop.css';
 import '@/i18n';
 import { LuminaLayout } from './stitch/shared/LuminaLayout';
 import { AuthProvider } from '@/contexts/AuthContext';
+import { AuthSync } from './stitch/shared/AuthSync';
 
 // Global error handlers — show errors inline in the app
 window.onerror = (msg, src, line, col, err) => {
@@ -122,6 +123,7 @@ root.render(
   <React.StrictMode>
     <RenderErrorBoundary>
       <AuthProvider>
+        <AuthSync />
         <LuminaLayout />
       </AuthProvider>
     </RenderErrorBoundary>

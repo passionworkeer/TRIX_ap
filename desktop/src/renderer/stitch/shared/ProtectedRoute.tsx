@@ -18,9 +18,10 @@ const C = {
 interface ProtectedRouteProps {
   children: React.ReactNode;
   dark?: boolean;
+  onNavigate?: (route: string) => void;
 }
 
-export function ProtectedRoute({ children, dark = false }: ProtectedRouteProps) {
+export function ProtectedRoute({ children, dark = false, onNavigate }: ProtectedRouteProps) {
   const { user, loading } = useAuth();
 
   if (loading) {
@@ -125,9 +126,11 @@ export function ProtectedRoute({ children, dark = false }: ProtectedRouteProps) 
             size="md"
             label="前往账户设置"
             onClick={() => {
-              // Navigate to settings — this will be handled by LuminaLayout's handleNavigate
-              // The parent component should handle this via a callback or state
-              window.electronAPI?.showMainWindow?.();
+              if (onNavigate) {
+                onNavigate('settings');
+              } else {
+                window.electronAPI?.showMainWindow?.();
+              }
             }}
           />
         </div>

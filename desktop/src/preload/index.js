@@ -108,7 +108,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   authGetSession: () => ipcRenderer.invoke('auth:get-session'),
   authSignIn: (email, password) => ipcRenderer.invoke('auth:sign-in', email, password),
   authSignOut: () => ipcRenderer.invoke('auth:sign-out'),
-  authSignUp: (email, password) => ipcRenderer.invoke('auth:sign-up', email, password),
+  authSignUp: (email, password, username) => ipcRenderer.invoke('auth:sign-up', email, password, username),
+  authRefreshSession: () => ipcRenderer.invoke('auth:refresh-session'),
+  authSetSession: (sessionData) => ipcRenderer.invoke('auth:set-session', sessionData),
+  profileUpdate: (updates) => ipcRenderer.invoke('profile:update', updates),
 
   // === TrixNativeServer Chat API ===
   listConversations: () => ipcRenderer.invoke('trixnative:conversations'),

@@ -2,6 +2,7 @@ import React, { Component, useState, useCallback, Suspense, lazy } from 'react';
 import { LuminaTitleBar } from '../lumina/components/TitleBar';
 import { LuminaSidebar, type SidebarRoute } from '../lumina/components/Sidebar';
 import { WindowChrome } from './WindowChrome';
+import { ProtectedRoute } from './ProtectedRoute';
 
 // Noir pages (stitch/noir/pages/) — dark themed
 const NoirDashboard = lazy(() =>
@@ -191,7 +192,9 @@ export function LuminaLayout({ initialRoute = 'chat' }: LuminaLayoutProps) {
         return (
           <PageErrorBoundary>
             <Suspense fallback={<RouteLoading />}>
-              <LuminaStudy />
+              <ProtectedRoute onNavigate={handleNavigate}>
+                <LuminaStudy />
+              </ProtectedRoute>
             </Suspense>
           </PageErrorBoundary>
         );
@@ -199,7 +202,9 @@ export function LuminaLayout({ initialRoute = 'chat' }: LuminaLayoutProps) {
         return (
           <PageErrorBoundary>
             <Suspense fallback={<RouteLoading />}>
-              <LuminaSnapshot />
+              <ProtectedRoute onNavigate={handleNavigate}>
+                <LuminaSnapshot />
+              </ProtectedRoute>
             </Suspense>
           </PageErrorBoundary>
         );
@@ -207,7 +212,9 @@ export function LuminaLayout({ initialRoute = 'chat' }: LuminaLayoutProps) {
         return (
           <PageErrorBoundary>
             <Suspense fallback={<RouteLoading />}>
-              <LuminaProfile />
+              <ProtectedRoute onNavigate={handleNavigate}>
+                <LuminaProfile />
+              </ProtectedRoute>
             </Suspense>
           </PageErrorBoundary>
         );

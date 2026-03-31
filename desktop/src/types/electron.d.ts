@@ -282,7 +282,10 @@ export interface ElectronAPI {
   authGetSession: () => Promise<AuthResult>;
   authSignIn: (email: string, password: string) => Promise<AuthResult>;
   authSignOut: () => Promise<ApiResult<void>>;
-  authSignUp: (email: string, password: string) => Promise<AuthResult>;
+  authSignUp: (email: string, password: string, username?: string) => Promise<AuthResult>;
+  authRefreshSession: () => Promise<AuthResult>;
+  authSetSession: (sessionData: unknown) => Promise<ApiResult<void>>;
+  profileUpdate: (updates: Record<string, unknown>) => Promise<ApiResult<unknown>>;
 
   // Study Data (Supabase — requires login, falls back gracefully)
   listTodos: () => Promise<ApiResult<Array<{ id: string; title: string; completed: boolean; priority: string; deadline?: string }>>>;
