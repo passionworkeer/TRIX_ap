@@ -84,6 +84,7 @@ const ALLOWED_UPLOAD_EXTENSIONS = new Set([
   '.webm',
 ]);
 const SAFE_RECORD_ID_RE = /^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/;
+const inFlightSessionRefreshes = new Map();
 
 const EXPORT_ASPECTS = new Map([
   ['origin', null],
@@ -1320,26 +1321,19 @@ async function storeSessionResult(session, node, payload) {
 
   if (urls.length > 0) {
     const remoteUrl = urls[0];
-    try {
-      const downloaded = await downloadRemoteAsset(remoteUrl);
-      storedFile = storeFileBuffer({
-        bytes: downloaded.bytes,
-        filename: fileNameFromUrl(remoteUrl, `${session.media_type}-result`),
-        mime_type: downloaded.mimeType,
-        media_type: session.media_type,
-        project_id: session.project_id,
-        node_id: node.id,
-        prompt: session.message,
-        scene_id: node.scene_id,
-        source_url: downloaded.sourceUrl,
-      });
-      publicUrl = storedFile.url;
-    } catch (error) {
-      if (String(error?.code || '').startsWith('REMOTE_')) {
-        throw error;
-      }
-      publicUrl = remoteUrl;
-    }
+    const downloaded = await downloadRemoteAsset(remoteUrl);
+    storedFile = storeFileBuffer({
+      bytes: downloaded.bytes,
+      filename: fileNameFromUrl(remoteUrl, `${session.media_type}-result`),
+      mime_type: downloaded.mimeType,
+      media_type: session.media_type,
+      project_id: session.project_id,
+      node_id: node.id,
+      prompt: session.message,
+      scene_id: node.scene_id,
+      source_url: downloaded.sourceUrl,
+    });
+    publicUrl = storedFile.url;
   } else if (base64Results.length > 0) {
     const mimeType = session.media_type === 'video' ? 'video/mp4' : 'image/png';
     storedFile = storeFileBuffer({
@@ -1514,7 +1508,7 @@ async function createGenerationSession({
   }
 }
 
-async function refreshSession(sessionId) {
+async function refreshSessionInternal(sessionId) {
   const session = readRecord(SESSIONS_DIR, sessionId);
   if (!session) {
     return null;
@@ -1528,22 +1522,28 @@ async function refreshSession(sessionId) {
     return session;
   }
 
+  const claimedSession = {
+    ...session,
+    last_polled_at: nowIso(),
+    updated_at: nowIso(),
+  };
+  writeRecord(SESSIONS_DIR, session.id, claimedSession);
+
   try {
-    const payload = await invokeAi(buildTaskPath(session.task_id), null, 'GET');
+    const payload = await invokeAi(buildTaskPath(claimedSession.task_id), null, 'GET');
     const status = normalizeStatus(payload?.status || payload?.state || payload?.progress);
-    const node = readRecord(NODES_DIR, session.node_id);
+    const node = readRecord(NODES_DIR, claimedSession.node_id);
 
     if (!node) {
-      return await failSession(session, '关联节点不存在');
+      return await failSession(claimedSession, '关联节点不存在');
     }
 
     if (status === 'completed' || extractUrls(payload).length > 0 || extractBase64Result(payload).length > 0) {
       const completed = await storeSessionResult(
         {
-          ...session,
-          task_id: session.task_id,
+          ...claimedSession,
+          task_id: claimedSession.task_id,
           upstream_status: status || 'completed',
-          last_polled_at: nowIso(),
         },
         node,
         payload,
@@ -1552,13 +1552,12 @@ async function refreshSession(sessionId) {
     }
 
     if (status === 'error') {
-      return await failSession(session, payload?.error || payload?.message || '生成失败');
+      return await failSession(claimedSession, payload?.error || payload?.message || '生成失败');
     }
 
     const next = {
-      ...session,
+      ...claimedSession,
       upstream_status: status || 'generating',
-      last_polled_at: nowIso(),
       updated_at: nowIso(),
     };
     writeRecord(SESSIONS_DIR, session.id, next);
@@ -1567,8 +1566,20 @@ async function refreshSession(sessionId) {
     });
     return next;
   } catch (error) {
-    return await failSession(session, error.message);
+    return await failSession(claimedSession, error.message);
   }
+}
+
+async function refreshSession(sessionId) {
+  if (inFlightSessionRefreshes.has(sessionId)) {
+    return inFlightSessionRefreshes.get(sessionId);
+  }
+  const pending = refreshSessionInternal(sessionId)
+    .finally(() => {
+      inFlightSessionRefreshes.delete(sessionId);
+    });
+  inFlightSessionRefreshes.set(sessionId, pending);
+  return pending;
 }
 
 function projectSummaries() {

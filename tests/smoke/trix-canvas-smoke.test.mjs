@@ -54,8 +54,10 @@ async function spawnMockAiServer() {
       }
       const payload = body ? JSON.parse(body) : {};
       const mediaType = payload.media_type || payload.mediaType || 'image';
+      const prompt = String(payload.prompt || payload.message || '');
       const taskId = `task_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-      tasks.set(taskId, { polls: 0, mediaType });
+      const mode = prompt.toLowerCase().includes('bad-url') ? 'bad-url' : 'normal';
+      tasks.set(taskId, { polls: 0, mediaType, mode });
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ task_id: taskId, status: 'pending' }));
       return;
@@ -77,13 +79,15 @@ async function spawnMockAiServer() {
         return;
       }
 
-      const assetPath = task.mediaType === 'video' ? '/mock.mp4' : '/mock.png';
+      const assetPath = task.mode === 'bad-url'
+        ? 'http://127.0.0.1:1/missing.png'
+        : `${MOCK_AI_URL}${task.mediaType === 'video' ? '/mock.mp4' : '/mock.png'}`;
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(
         JSON.stringify({
           task_id: taskId,
           status: 'completed',
-          urls: [`${MOCK_AI_URL}${assetPath}`],
+          urls: [assetPath],
         }),
       );
       return;
@@ -133,7 +137,7 @@ async function waitForSession(sessionId, expected = 'completed', attempts = 180)
     if (data?.status === expected) {
       return data;
     }
-    if (data?.status === 'error') {
+    if (data?.status === 'error' && expected !== 'error') {
       throw new Error(`session failed: ${data?.error || 'unknown error'}`);
     }
     await new Promise((resolvePromise) => setTimeout(resolvePromise, 100));
@@ -263,6 +267,54 @@ test('Canvas service smoke flow', async (t) => {
         parentNodeId: nodeB.payload.id,
       });
       assert.equal(patchForeignParent.response.status, 409, 'foreign-project parent patch must be rejected');
+    });
+
+    await t.test('concurrent session refresh does not duplicate stored files', async () => {
+      const { payload: isolatedProject } = await postJson('/api/projects', {
+        name: 'poll-dedupe',
+      });
+      assert.ok(isolatedProject.id, 'isolated project id must exist');
+
+      const created = await postJson('/api/session', {
+        projectId: isolatedProject.id,
+        message: 'Poll dedupe image',
+        mediaType: 'image',
+        aspect: '1:1',
+      });
+      assert.equal(created.response.status, 200, 'session creation should succeed');
+
+      await Promise.all(
+        Array.from({ length: 12 }, () =>
+          fetch(`${CANVAS_URL}/api/session/${created.payload.data.sessionId}`),
+        ),
+      );
+
+      const session = await waitForSession(created.payload.data.sessionId);
+      assert.equal(session.status, 'completed', 'session should complete after concurrent polling');
+
+      const detailReq = await fetch(`${CANVAS_URL}/api/projects/${isolatedProject.id}`);
+      const detail = await detailReq.json();
+      assert.equal(detail?.data?.files?.length, 1, 'only one localized file should be created');
+      assert.equal(detail?.data?.nodes?.length, 1, 'project should still contain one node');
+    });
+
+    await t.test('invalid upstream result url marks session as error', async () => {
+      const { payload: isolatedProject } = await postJson('/api/projects', {
+        name: 'bad-url-project',
+      });
+      assert.ok(isolatedProject.id, 'isolated project id must exist');
+
+      const created = await postJson('/api/session', {
+        projectId: isolatedProject.id,
+        message: 'bad-url image',
+        mediaType: 'image',
+        aspect: '1:1',
+      });
+      assert.equal(created.response.status, 200, 'session creation should succeed');
+
+      const failed = await waitForSession(created.payload.data.sessionId, 'error');
+      assert.equal(failed.status, 'error', 'invalid remote result should fail the session');
+      assert.equal(failed.resultUrls?.length || 0, 0, 'failed session should not expose dead result urls');
     });
 
     await t.test('image session completes and stores media locally', async () => {

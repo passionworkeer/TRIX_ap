@@ -1015,6 +1015,7 @@ body::before{
           <button class="button ghost" id="clearDraftButton" type="button">清空草稿</button>
           <button class="button soft" id="createNoteButton" type="button">添加便签节点</button>
           <button class="button soft" id="createRefButton" type="button">添加参考节点</button>
+          <button class="button ghost" id="uploadRefButton" type="button">上传素材</button>
         </div>
         <div class="queue-note" id="draftHint">未选择父节点，新镜头会直接追加到当前项目。</div>
       </section>
@@ -1133,6 +1134,7 @@ body::before{
           <div class="row-actions">
             <button class="button primary" id="savePromptButton" type="button">保存提示词</button>
             <button class="button ghost" id="reusePromptButton" type="button">载入到草稿</button>
+            <button class="button ghost" id="uploadNodeAssetButton" type="button">上传素材</button>
             <button class="button ghost" id="openMediaButton" type="button">打开结果</button>
             <button class="button ghost" id="copyLinkButton" type="button">复制链接</button>
             <button class="button danger" id="deleteNodeButton" type="button">删除节点</button>
@@ -1173,6 +1175,7 @@ body::before{
 </div>
 
 <div class="toast" id="toast"></div>
+<input id="referenceUploadInput" type="file" accept="image/*,video/*" hidden />
 
 <div class="lightbox" id="lightbox">
   <button class="lightbox-close" id="lightboxClose" type="button">×</button>
@@ -1306,6 +1309,7 @@ const elements = {
   clearDraftButton: document.getElementById('clearDraftButton'),
   createNoteButton: document.getElementById('createNoteButton'),
   createRefButton: document.getElementById('createRefButton'),
+  uploadRefButton: document.getElementById('uploadRefButton'),
   draftHint: document.getElementById('draftHint'),
   storyboardInput: document.getElementById('storyboardInput'),
   queueModeSelect: document.getElementById('queueModeSelect'),
@@ -1348,9 +1352,11 @@ const elements = {
   detailPromptInput: document.getElementById('detailPromptInput'),
   savePromptButton: document.getElementById('savePromptButton'),
   reusePromptButton: document.getElementById('reusePromptButton'),
+  uploadNodeAssetButton: document.getElementById('uploadNodeAssetButton'),
   openMediaButton: document.getElementById('openMediaButton'),
   copyLinkButton: document.getElementById('copyLinkButton'),
   deleteNodeButton: document.getElementById('deleteNodeButton'),
+  referenceUploadInput: document.getElementById('referenceUploadInput'),
   toast: document.getElementById('toast'),
   lightbox: document.getElementById('lightbox'),
   lightboxClose: document.getElementById('lightboxClose'),
@@ -2463,6 +2469,53 @@ async function createUtilityNode(kind) {
   await loadProject(projectId, { preserveSelection: true });
   centerOnSelected();
   showToast(kind === 'note' ? '已添加便签节点' : '已添加参考节点');
+  return selectedNode();
+}
+
+async function fileToBase64(file) {
+  const buffer = await file.arrayBuffer();
+  let binary = '';
+  const bytes = new Uint8Array(buffer);
+  const chunkSize = 0x8000;
+  for (let index = 0; index < bytes.length; index += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(index, index + chunkSize));
+  }
+  return btoa(binary);
+}
+
+function inferUploadMediaType(file) {
+  const type = String(file?.type || '').toLowerCase();
+  if (type.startsWith('video/')) return 'video';
+  if (type.startsWith('image/')) return 'image';
+  return /\.(mp4|mov|webm)$/i.test(file?.name || '') ? 'video' : 'image';
+}
+
+async function uploadReferenceAsset(file) {
+  if (!file) return;
+  const projectId = await ensureProject();
+  let targetNode = selectedNode();
+  if (!targetNode) {
+    targetNode = await createUtilityNode('reference');
+  }
+  if (!targetNode?.id) {
+    throw new Error('无法确定素材挂载节点');
+  }
+  const payload = {
+    projectId,
+    nodeId: targetNode.id,
+    fileData: await fileToBase64(file),
+    filename: file.name || 'upload',
+    mimeType: file.type || undefined,
+    mediaType: inferUploadMediaType(file),
+    prompt: targetNode.prompt || '',
+  };
+  await fetchJson('/api/upload', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+  await loadProject(projectId, { preserveSelection: true });
+  centerOnSelected();
+  showToast(`已上传素材：${file.name}`);
 }
 
 async function saveNodePosition(node) {
@@ -2621,6 +2674,7 @@ elements.clearDraftButton.addEventListener('click', () => {
 });
 elements.createNoteButton.addEventListener('click', () => createUtilityNode('note'));
 elements.createRefButton.addEventListener('click', () => createUtilityNode('reference'));
+elements.uploadRefButton.addEventListener('click', () => elements.referenceUploadInput.click());
 elements.queueModeSelect.addEventListener('change', updateBatchHint);
 elements.queueStoryboardButton.addEventListener('click', queueStoryboard);
 elements.clearStoryboardButton.addEventListener('click', () => {
@@ -2643,6 +2697,7 @@ elements.reusePromptButton.addEventListener('click', () => {
   elements.mediaTypeSelect.value = node.media_type || 'image';
   showToast('已载入到草稿');
 });
+elements.uploadNodeAssetButton.addEventListener('click', () => elements.referenceUploadInput.click());
 elements.openMediaButton.addEventListener('click', () => {
   const node = selectedNode();
   if (!node?.preview_url) return;
@@ -2709,6 +2764,16 @@ elements.detailPromptInput.addEventListener('input', () => {
   const node = selectedNode();
   if (!node) return;
   state.detailDraft = { nodeId: node.id, dirty: true };
+});
+elements.referenceUploadInput.addEventListener('change', async (event) => {
+  const [file] = Array.from(event.target.files || []);
+  event.target.value = '';
+  if (!file) return;
+  try {
+    await uploadReferenceAsset(file);
+  } catch (error) {
+    showToast(error.message || '素材上传失败');
+  }
 });
 elements.authTokenInput.addEventListener('keydown', (event) => {
   if (event.key === 'Enter') {
