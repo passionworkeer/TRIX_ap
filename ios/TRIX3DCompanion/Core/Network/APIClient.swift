@@ -125,9 +125,7 @@ final class APIClient: APIClientProtocol, @unchecked Sendable {
         self.authInterceptor = AuthInterceptor()
 
         // Configure session with security features
-        let configuration = URLSessionConfiguration.default
-        configuration.timeoutIntervalForRequest = 30
-        configuration.timeoutIntervalForResource = 60
+        let configuration = Self.makeURLSessionConfiguration()
 
         // Create composite interceptor
         let compositeInterceptor = Interceptor(
@@ -171,6 +169,19 @@ final class APIClient: APIClientProtocol, @unchecked Sendable {
         self.encoder.keyEncodingStrategy = .convertToSnakeCase
 
         SecureLogger.shared.info("APIClient initialized with security features")
+    }
+
+    static func makeURLSessionConfiguration() -> URLSessionConfiguration {
+        let configuration = URLSessionConfiguration.default
+        configuration.timeoutIntervalForRequest = 30
+        configuration.timeoutIntervalForResource = 60
+
+        if let proxyDictionary = makeConnectionProxyDictionary(from: ProcessInfo.processInfo.environment) {
+            configuration.connectionProxyDictionary = proxyDictionary
+            SecureLogger.shared.info("APIClient configured explicit proxy settings from environment")
+        }
+
+        return configuration
     }
 
     // MARK: - Public Methods
@@ -450,6 +461,63 @@ final class APIClient: APIClientProtocol, @unchecked Sendable {
                 }
             }
         }
+    }
+
+    private static func makeConnectionProxyDictionary(from environment: [String: String]) -> [AnyHashable: Any]? {
+        let httpProxy = parseProxyURL(
+            environment["TRIX_HTTP_PROXY"]
+                ?? environment["HTTP_PROXY"]
+                ?? environment["http_proxy"]
+        )
+        let httpsProxy = parseProxyURL(
+            environment["TRIX_HTTPS_PROXY"]
+                ?? environment["HTTPS_PROXY"]
+                ?? environment["https_proxy"]
+        )
+        let noProxy = (
+            environment["TRIX_NO_PROXY"]
+                ?? environment["NO_PROXY"]
+                ?? environment["no_proxy"]
+        )?
+            .split(separator: ",")
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+
+        var dictionary: [AnyHashable: Any] = [:]
+
+        if let httpProxy {
+            dictionary["HTTPEnable"] = 1
+            dictionary["HTTPProxy"] = httpProxy.host
+            dictionary["HTTPPort"] = httpProxy.port
+        }
+
+        if let httpsProxy {
+            dictionary["HTTPSEnable"] = 1
+            dictionary["HTTPSProxy"] = httpsProxy.host
+            dictionary["HTTPSPort"] = httpsProxy.port
+        }
+
+        if let noProxy, !noProxy.isEmpty {
+            dictionary["ExceptionsList"] = noProxy
+        }
+
+        return dictionary.isEmpty ? nil : dictionary
+    }
+
+    private static func parseProxyURL(_ rawValue: String?) -> (host: String, port: Int)? {
+        guard let rawValue else { return nil }
+
+        let trimmed = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+
+        let candidate = trimmed.contains("://") ? trimmed : "http://\(trimmed)"
+        guard let url = URL(string: candidate),
+              let host = url.host,
+              !host.isEmpty else {
+            return nil
+        }
+
+        return (host: host, port: url.port ?? 80)
     }
 
     private func decodeResponse<T: Codable>(_ data: Data, as type: T.Type) throws -> T {

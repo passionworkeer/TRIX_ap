@@ -5,6 +5,7 @@
  */
 
 import http from "http";
+import { timingSafeEqual } from "node:crypto";
 import { fileURLToPath } from "url";
 import { dirname, join } from "path";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
@@ -18,6 +19,7 @@ const REQUEST_TIMEOUT_MS = Number(process.env.RELAY_REQUEST_TIMEOUT_MS || 120000
 const TASK_TTL_MS = Number(process.env.RELAY_TASK_TTL_MS || 60 * 60 * 1000);
 const ALLOWED_ORIGINS = parseOriginList(process.env.RELAY_ALLOWED_ORIGINS || "");
 const RELAY_ALLOW_REMOTE = /^(1|true|yes)$/i.test(process.env.RELAY_ALLOW_REMOTE || "");
+const RELAY_ACCESS_TOKEN = (process.env.RELAY_ACCESS_TOKEN || "").trim();
 
 const IMAGE_API_URL = process.env.IMAGE_API_URL || "";
 const IMAGE_API_METHOD = (process.env.IMAGE_API_METHOD || "POST").toUpperCase();
@@ -60,9 +62,50 @@ function assertSafeRelayBind() {
       "Refusing to expose relay on a non-loopback host. Set RELAY_ALLOW_REMOTE=true to override.",
     );
   }
+  if (!isLoopbackHost(RELAY_HOST) && !RELAY_ACCESS_TOKEN) {
+    throw new Error(
+      "Refusing to expose relay on a non-loopback host without RELAY_ACCESS_TOKEN.",
+    );
+  }
 }
 
 assertSafeRelayBind();
+
+function matchesRelayAccessToken(candidate) {
+  if (!RELAY_ACCESS_TOKEN) {
+    return true;
+  }
+  if (!candidate) {
+    return false;
+  }
+  const received = Buffer.from(String(candidate));
+  const expected = Buffer.from(RELAY_ACCESS_TOKEN);
+  if (received.length !== expected.length) {
+    return false;
+  }
+  return timingSafeEqual(received, expected);
+}
+
+function getPresentedToken(req) {
+  const authorization = Array.isArray(req.headers.authorization)
+    ? req.headers.authorization[0]
+    : req.headers.authorization;
+  const match = typeof authorization === "string"
+    ? authorization.match(/^Bearer\s+(.+)$/i)
+    : null;
+  return match?.[1]?.trim() || "";
+}
+
+function assertRelayAuthenticated(req, pathname) {
+  if (pathname === "/health") {
+    return;
+  }
+  if (!matchesRelayAccessToken(getPresentedToken(req))) {
+    const error = new Error("relay authentication required");
+    error.status = 401;
+    throw error;
+  }
+}
 
 function makeTaskId() {
   return "t_" + Math.random().toString(36).slice(2) + Date.now().toString(36);
@@ -92,6 +135,16 @@ function setCorsHeaders(req, res) {
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
   res.setHeader("Vary", "Origin");
+}
+
+function assertTrustedBrowserOrigin(req) {
+  const origin = typeof req.headers.origin === "string" ? req.headers.origin.trim() : "";
+  if (!origin || ALLOWED_ORIGINS.has(origin)) {
+    return;
+  }
+  const error = new Error("origin not allowed");
+  error.status = 403;
+  throw error;
 }
 
 function cleanupExpiredTasks() {
@@ -284,6 +337,7 @@ function handleTask(req, res) {
 
 const server = http.createServer(async (req, res) => {
   const { url, method } = req;
+  const pathname = new URL(url, `http://localhost:${RELAY_PORT}`).pathname;
   setCorsHeaders(req, res);
   if (method === "OPTIONS") {
     const origin = typeof req.headers.origin === "string" ? req.headers.origin.trim() : "";
@@ -292,6 +346,12 @@ const server = http.createServer(async (req, res) => {
     }
     res.writeHead(204);
     return res.end();
+  }
+  try {
+    assertTrustedBrowserOrigin(req);
+    assertRelayAuthenticated(req, pathname);
+  } catch (error) {
+    return sendJson(res, error.status || 401, { error: error.message });
   }
   if (url === "/generate" && method === "POST") {
     return handleGenerate(req, res);

@@ -56,7 +56,7 @@ python3 skills/trix-canvas-skill/scripts/start_canvas.py \
   --with-proxy
 ```
 
-如果开启了 `CANVAS_REQUIRE_AUTH=true`，浏览器首次访问 `/canvas` 时会自动弹出令牌登录面板；CLI / Python 脚本会优先读取 `CANVAS_ACCESS_TOKEN`，未显式设置时再回退读取 `CANVAS_AUTH_TOKEN_FILE` 并自动走 `Authorization: Bearer ...`。
+如果开启了 `CANVAS_REQUIRE_AUTH=true`，浏览器首次访问 `/canvas` 时会自动弹出令牌登录面板；CLI / Python 脚本会优先读取 `CANVAS_ACCESS_TOKEN`，未显式设置时再回退读取 `CANVAS_AUTH_TOKEN_FILE` 并自动走 `Authorization: Bearer ...`。如果你要通过 URL 带 token，只使用 `#token=...` fragment，不要使用 `?token=...` 查询参数。
 如果未显式设置 `CANVAS_ACCESS_TOKEN`，服务会自动把生成的 token 写到 `CANVAS_AUTH_TOKEN_FILE`（默认 `runtime/data/.canvas-access-token`）并在启动日志里打印文件路径。
 如果你要把画布服务直接暴露到非回环地址但又不启用鉴权，必须显式设置 `CANVAS_ALLOW_INSECURE_PUBLIC=true`。
 
@@ -171,8 +171,12 @@ openclaw agent --agent trix-native --session-id trix-canvas-demo --message \
 | `CANVAS_REQUIRE_AUTH` | `false` | 是否开启 Canvas API 访问令牌鉴权 |
 | `CANVAS_ACCESS_TOKEN` | `""` | Canvas API / media 访问令牌；CLI 与 Python 封装会自动带上 |
 | `CANVAS_AUTH_TOKEN_FILE` | `runtime/data/.canvas-access-token` | 未显式设置访问令牌时，自动生成 token 的落盘路径 |
-| `CANVAS_ALLOWED_ORIGINS` | `""` | 若你需要跨域 Cookie 访问，显式填写允许的来源，逗号分隔 |
+| `CANVAS_ALLOWED_ORIGINS` | `""` | 若浏览器要从其他 origin 访问 Canvas API / media，显式填写允许来源；未列出的 `Origin` 会被拒绝 |
 | `CANVAS_ALLOW_INSECURE_PUBLIC` | `false` | 是否允许把未鉴权的 Canvas 服务直接暴露到非回环地址 |
+| `PROXY_ALLOWED_ORIGINS` | `""` | 若浏览器要直连 proxy，显式填写允许来源；默认拒绝带外部 `Origin` 的浏览器请求 |
+| `PROXY_ACCESS_TOKEN` | `""` | 当 proxy 暴露到非回环地址时必须配置的 Bearer 访问令牌 |
+| `RELAY_ALLOWED_ORIGINS` | `""` | 若浏览器要直连 relay，显式填写允许来源；默认拒绝带外部 `Origin` 的浏览器请求 |
+| `RELAY_ACCESS_TOKEN` | `""` | 当 relay 暴露到非回环地址时必须配置的 Bearer 访问令牌 |
 | `TRIX_CANVAS_ALLOW_OPENCLAW_CONFIG` | `false` | 是否允许 `start-all.js` 从 `~/.openclaw/openclaw.json` 回退读取上游 key；本机回环模式下也会自动允许 |
 | `TRIX_CANVAS_SERVICE_DIR` | `""` | 手动覆盖 skill 内置 canvas-service runtime 路径 |
 | `TRIX_CANVAS_RUNTIME_DIR` | `skills/trix-canvas-skill/runtime` | skill 运行时数据目录（含 data/exports） |

@@ -29,7 +29,7 @@ CANVAS_REQUIRE_AUTH=true \
 npm start
 ```
 
-如果你打开了 `CANVAS_REQUIRE_AUTH=true` 但没有手动设置 `CANVAS_ACCESS_TOKEN`，服务会自动生成一个 token 并写入 `CANVAS_AUTH_TOKEN_FILE`（默认 `./data/.canvas-access-token`），启动日志会打印这个文件路径，但不会把 token 明文打印到终端。
+如果你打开了 `CANVAS_REQUIRE_AUTH=true` 但没有手动设置 `CANVAS_ACCESS_TOKEN`，服务会自动生成一个 token 并写入 `CANVAS_AUTH_TOKEN_FILE`（默认 `./data/.canvas-access-token`），启动日志会打印这个文件路径，但不会把 token 明文打印到终端。浏览器端推荐直接在登录面板粘贴 token，或使用 `#token=...` fragment；不要使用 `?token=...` 查询参数。
 
 如果你确实要把未鉴权的 Canvas 暴露到非回环地址，必须显式设置 `CANVAS_ALLOW_INSECURE_PUBLIC=true`；否则服务会直接拒绝启动。
 
@@ -92,11 +92,11 @@ packages/trix-canvas-service/
 如果这些都没配，本机回环模式下会尝试回退读取 `~/.openclaw/openclaw.json` 里的 `MINIMAX_API_KEY`。
 若你在非本机环境运行，请显式设置 `TRIX_CANVAS_ALLOW_OPENCLAW_CONFIG=true` 才会允许这一回退。
 
-`proxy.js` 默认也只允许绑定回环地址；若你确实要远程暴露 proxy，必须显式设置 `PROXY_ALLOW_REMOTE=true`。
+`proxy.js` 默认也只允许绑定回环地址；若你确实要远程暴露 proxy，必须显式设置 `PROXY_ALLOW_REMOTE=true`，并同时配置 `PROXY_ACCESS_TOKEN`，之后调用方需要带 `Authorization: Bearer <token>`。
 
 ## Relay 配置（可选）
 
-`relay.js` 是一个轻量适配器，用来把 `/generate` 和 `/tasks/:id` 请求转发到任意厂商。它默认也只监听 `127.0.0.1`。只需设置以下环境变量（见 `.env.example`），然后用 `node relay.js` 启动即可；若要远程暴露，需显式设置 `RELAY_ALLOW_REMOTE=true`：
+`relay.js` 是一个轻量适配器，用来把 `/generate` 和 `/tasks/:id` 请求转发到任意厂商。它默认也只监听 `127.0.0.1`。只需设置以下环境变量（见 `.env.example`），然后用 `node relay.js` 启动即可；若要远程暴露，需显式设置 `RELAY_ALLOW_REMOTE=true` 并配置 `RELAY_ACCESS_TOKEN`：
 
 - `RELAY_PORT`：监听端口（默认 8791）
 - `IMAGE_API_URL`, `IMAGE_API_METHOD`, `IMAGE_API_KEY`, `IMAGE_API_MODEL`
@@ -125,7 +125,7 @@ packages/trix-canvas-service/
 | `CANVAS_REQUIRE_AUTH` | `false` | 是否开启 Canvas API / media 访问令牌鉴权 |
 | `CANVAS_ACCESS_TOKEN` | 自动生成或显式提供 | 开启鉴权后使用的访问令牌；浏览器会弹出登录面板，CLI/skill 可直接带 Bearer |
 | `CANVAS_AUTH_TOKEN_FILE` | `./data/.canvas-access-token` | 未显式配置 `CANVAS_ACCESS_TOKEN` 时，自动生成 token 的落盘路径 |
-| `CANVAS_ALLOWED_ORIGINS` |  | 开启鉴权时允许携带 cookie 的跨域来源，逗号分隔 |
+| `CANVAS_ALLOWED_ORIGINS` |  | 若浏览器需要从其他 origin 访问 Canvas API / media，显式填写允许来源；未列出的 `Origin` 会被直接拒绝 |
 | `CANVAS_ALLOW_INSECURE_PUBLIC` | `false` | 是否允许把未鉴权的 Canvas 绑定到非回环地址 |
 | `AI_API_BASE` | (必填) | upstream AI 生成服务（canvas 会向 `/api/session` 直接请求） |
 | `AI_API_KEY` | (必填) | Bearer 鉴权 |
@@ -136,8 +136,9 @@ packages/trix-canvas-service/
 | `PROXY_UPSTREAM_KEY` |  | `proxy.js` 上游鉴权 |
 | `PROXY_PORT` | `8790` | `proxy.js` 监听端口 |
 | `PROXY_HOST` | `127.0.0.1` | `proxy.js` 监听地址 |
-| `PROXY_ALLOWED_ORIGINS` |  | 若你需要浏览器直连 proxy，再显式配置允许来源 |
+| `PROXY_ALLOWED_ORIGINS` |  | 若你需要浏览器直连 proxy，显式配置允许来源；默认拒绝带外部 `Origin` 的浏览器请求 |
 | `PROXY_ALLOW_REMOTE` | `false` | 是否允许把 proxy 绑定到非回环地址 |
+| `PROXY_ACCESS_TOKEN` |  | 当 proxy 绑定到非回环地址时，必须配置的 Bearer 访问令牌 |
 | `PROXY_MAX_BODY_BYTES` | `262144` | proxy 请求体上限 |
 | `PROXY_REQUEST_TIMEOUT_MS` | `120000` | proxy 上游请求超时 |
 | `PROXY_TASK_TTL_MS` | `3600000` | proxy 内存任务保留时长 |
@@ -155,8 +156,9 @@ packages/trix-canvas-service/
 | `RELAY_OUTPUT_PREFIX` | `http://localhost:8791/outputs` | base64 输出归属 URL |
 | `RELAY_PORT` | `8791` | Relay 监听端口 |
 | `RELAY_HOST` | `127.0.0.1` | Relay 监听地址 |
-| `RELAY_ALLOWED_ORIGINS` |  | 若你需要浏览器直连 relay，再显式配置允许来源 |
+| `RELAY_ALLOWED_ORIGINS` |  | 若你需要浏览器直连 relay，显式配置允许来源；默认拒绝带外部 `Origin` 的浏览器请求 |
 | `RELAY_ALLOW_REMOTE` | `false` | 是否允许把 relay 绑定到非回环地址 |
+| `RELAY_ACCESS_TOKEN` |  | 当 relay 绑定到非回环地址时，必须配置的 Bearer 访问令牌 |
 | `RELAY_MAX_BODY_BYTES` | `262144` | relay 请求体上限 |
 | `RELAY_REQUEST_TIMEOUT_MS` | `120000` | relay 上游请求超时 |
 | `RELAY_TASK_TTL_MS` | `3600000` | relay 内存任务保留时长 |

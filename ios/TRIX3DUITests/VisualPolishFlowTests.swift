@@ -60,6 +60,7 @@ final class VisualPolishFlowTests: XCTestCase {
 
     func test_captureLoginScreen() throws {
         app.launchArguments = baseLaunchArguments()
+        app.launchEnvironment = baseLaunchEnvironment()
         app.launch()
 
         XCTAssertTrue(element(withIdentifier: VisualUIIdentifiers.loginScene).waitForExistence(timeout: 5))
@@ -73,6 +74,7 @@ final class VisualPolishFlowTests: XCTestCase {
             "-AppleLanguages", "(en)",
             "-AppleLocale", "en_US"
         ]
+        app.launchEnvironment = baseLaunchEnvironment()
         app.launch()
 
         XCTAssertTrue(element(withIdentifier: VisualUIIdentifiers.loginScene).waitForExistence(timeout: 5))
@@ -83,6 +85,7 @@ final class VisualPolishFlowTests: XCTestCase {
 
     func test_captureLoginLoadingOverlay() throws {
         app.launchArguments = baseLaunchArguments() + ["--debug-show-login-loading"]
+        app.launchEnvironment = baseLaunchEnvironment()
         app.launch()
 
         XCTAssertTrue(element(withIdentifier: VisualUIIdentifiers.loginScene).waitForExistence(timeout: 8))
@@ -114,6 +117,12 @@ final class VisualPolishFlowTests: XCTestCase {
 
     private func launchAndAuthenticate(initialTab: String, expectedIdentifier: String) throws {
         app.launchArguments = baseLaunchArguments() + ["--initial-tab=\(initialTab)"]
+        let launchEnvironment = baseLaunchEnvironment()
+        try AuthenticatedBackendPreflight.ensureReachable(
+            baseURLString: launchEnvironment["TRIX_API_BASE_URL"] ?? "https://trix.love",
+            environment: launchEnvironment
+        )
+        app.launchEnvironment = launchEnvironment
         app.launch()
 
         if element(withIdentifier: expectedIdentifier).waitForExistence(timeout: 5) {
@@ -125,13 +134,11 @@ final class VisualPolishFlowTests: XCTestCase {
 
         let emailField = app.textFields[VisualUIIdentifiers.loginEmailField]
         XCTAssertTrue(emailField.waitForExistence(timeout: 8))
-        emailField.tap()
-        emailField.typeText(email)
+        XCTAssertTrue(focusAndTypeText(email, into: emailField))
 
         let passwordField = app.secureTextFields[VisualUIIdentifiers.loginPasswordField]
         XCTAssertTrue(passwordField.waitForExistence(timeout: 5))
-        passwordField.tap()
-        passwordField.typeText(password)
+        XCTAssertTrue(focusAndTypeText(password, into: passwordField))
 
         app.buttons[VisualUIIdentifiers.loginSubmitButton].tap()
 
@@ -147,6 +154,39 @@ final class VisualPolishFlowTests: XCTestCase {
         ]
     }
 
+    private func baseLaunchEnvironment() -> [String: String] {
+        var environment: [String: String] = [:]
+        let proxy = UITestProxyBridge.current()
+
+        if let email = config.email, !email.isEmpty {
+            environment["TRIX_TEST_EMAIL"] = email
+        }
+
+        if let password = config.password, !password.isEmpty {
+            environment["TRIX_TEST_PASSWORD"] = password
+        }
+
+        if let screenshotDirectory = config.screenshotDirectory, !screenshotDirectory.isEmpty {
+            environment["TRIX_UI_SCREENSHOT_DIR"] = screenshotDirectory
+        }
+
+        if let httpProxy = proxy.httpProxy {
+            environment["TRIX_HTTP_PROXY"] = httpProxy
+        }
+
+        if let httpsProxy = proxy.httpsProxy {
+            environment["TRIX_HTTPS_PROXY"] = httpsProxy
+        }
+
+        if let noProxy = proxy.noProxy, !noProxy.isEmpty {
+            environment["TRIX_NO_PROXY"] = noProxy
+        }
+
+        environment["TRIX_API_BASE_URL"] = ProcessInfo.processInfo.environment["TRIX_API_BASE_URL"] ?? "https://trix.love"
+        environment["TRIX_WEBSOCKET_URL"] = ProcessInfo.processInfo.environment["TRIX_WEBSOCKET_URL"] ?? "wss://trix.love"
+        return environment
+    }
+
     private func requiredCredential(
         _ keyPath: KeyPath<VisualTestConfig, String?>,
         name: String
@@ -159,6 +199,44 @@ final class VisualPolishFlowTests: XCTestCase {
 
     private func element(withIdentifier identifier: String) -> XCUIElement {
         app.descendants(matching: .any).matching(identifier: identifier).firstMatch
+    }
+
+    @discardableResult
+    private func focusAndTypeText(_ text: String, into element: XCUIElement, timeout: TimeInterval = 8) -> Bool {
+        guard element.waitForExistence(timeout: timeout) else { return false }
+
+        element.tap()
+        if !waitForKeyboard(timeout: 1.5) {
+            element.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+        }
+        _ = waitForKeyboard(timeout: timeout)
+
+        clearExistingText(in: element)
+        app.typeText(text)
+        return true
+    }
+
+    private func waitForKeyboard(timeout: TimeInterval) -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+
+        while Date() < deadline {
+            if app.keyboards.count > 0 {
+                return true
+            }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.2))
+        }
+
+        return app.keyboards.count > 0
+    }
+
+    private func clearExistingText(in element: XCUIElement) {
+        guard let rawValue = element.value as? String else { return }
+
+        let placeholder = (element.placeholderValue ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        let value = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !value.isEmpty, value != placeholder else { return }
+
+        app.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: value.count))
     }
 
     private func waitForAnyIdentifier(_ identifiers: [String], timeout: TimeInterval) -> Bool {

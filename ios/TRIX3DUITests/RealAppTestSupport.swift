@@ -1,4 +1,6 @@
+import CFNetwork
 import XCTest
+import Foundation
 
 struct LiveUITestConfig: Decodable {
     let email: String?
@@ -45,6 +47,286 @@ struct LiveUITestConfig: Decodable {
         let url = URL(fileURLWithPath: path)
         guard let data = try? Data(contentsOf: url) else { return nil }
         return try? JSONDecoder().decode(LiveUITestConfig.self, from: data)
+    }
+}
+
+struct UITestProxyBridge {
+    let httpProxy: String?
+    let httpsProxy: String?
+    let noProxy: String?
+
+    static func current() -> UITestProxyBridge {
+        let environment = ProcessInfo.processInfo.environment
+
+        let explicitHTTP = firstNonEmpty([
+            environment["TRIX_HTTP_PROXY"],
+            environment["HTTP_PROXY"],
+            environment["http_proxy"]
+        ])
+        let explicitHTTPS = firstNonEmpty([
+            environment["TRIX_HTTPS_PROXY"],
+            environment["HTTPS_PROXY"],
+            environment["https_proxy"]
+        ])
+        let explicitNoProxy = firstNonEmpty([
+            environment["TRIX_NO_PROXY"],
+            environment["NO_PROXY"],
+            environment["no_proxy"]
+        ])
+
+        if explicitHTTP != nil || explicitHTTPS != nil || explicitNoProxy != nil {
+            return UITestProxyBridge(
+                httpProxy: explicitHTTP,
+                httpsProxy: explicitHTTPS,
+                noProxy: explicitNoProxy
+            )
+        }
+
+        guard let unmanagedSettings = CFNetworkCopySystemProxySettings(),
+              let settings = unmanagedSettings.takeRetainedValue() as? [String: Any] else {
+            return UITestProxyBridge(httpProxy: nil, httpsProxy: nil, noProxy: nil)
+        }
+
+        let exceptions = (settings["ExceptionsList"] as? [String])?
+            .joined(separator: ",")
+
+        return UITestProxyBridge(
+            httpProxy: proxyURL(
+                settings: settings,
+                enabledKey: "HTTPEnable",
+                hostKey: "HTTPProxy",
+                portKey: "HTTPPort"
+            ),
+            httpsProxy: proxyURL(
+                settings: settings,
+                enabledKey: "HTTPSEnable",
+                hostKey: "HTTPSProxy",
+                portKey: "HTTPSPort"
+            ),
+            noProxy: exceptions
+        )
+    }
+
+    private static func firstNonEmpty(_ values: [String?]) -> String? {
+        values
+            .compactMap { $0?.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .first(where: { !$0.isEmpty })
+    }
+
+    private static func proxyURL(
+        settings: [String: Any],
+        enabledKey: String,
+        hostKey: String,
+        portKey: String
+    ) -> String? {
+        let enabled = (settings[enabledKey] as? NSNumber)?.boolValue ?? false
+        guard enabled,
+              let host = settings[hostKey] as? String,
+              !host.isEmpty else {
+            return nil
+        }
+
+        let port = (settings[portKey] as? NSNumber)?.intValue ?? 80
+        return "http://\(host):\(port)"
+    }
+}
+
+struct AuthenticatedBackendPreflight {
+    private struct Resolution: CustomStringConvertible {
+        let address: String
+        let suspicious: Bool
+
+        var description: String { address }
+    }
+
+    static func ensureReachable(
+        baseURLString: String,
+        environment: [String: String],
+        timeout: TimeInterval = 5
+    ) throws {
+        guard let baseURL = URL(string: baseURLString),
+              let host = baseURL.host else {
+            throw XCTSkip("Authenticated UI tests blocked: invalid API base URL \(baseURLString)")
+        }
+
+        let resolutions = resolve(host: host)
+        if !resolutions.isEmpty, resolutions.allSatisfy(\.suspicious) {
+            let joined = resolutions.map(\.address).joined(separator: ", ")
+            throw XCTSkip(
+                "Authenticated UI tests blocked: \(host) resolves only to suspicious addresses [\(joined)]. Check VPN/proxy/DNS on this Mac before running login-required flows."
+            )
+        }
+
+        try assertHTTPReachability(to: baseURL, environment: environment, timeout: timeout)
+    }
+
+    private static func resolve(host: String) -> [Resolution] {
+        let hostRef = CFHostCreateWithName(nil, host as CFString).takeRetainedValue()
+        guard CFHostStartInfoResolution(hostRef, .addresses, nil),
+              let values = CFHostGetAddressing(hostRef, nil)?.takeUnretainedValue() as? [Data] else {
+            return []
+        }
+
+        return values.compactMap { data in
+            data.withUnsafeBytes { rawBuffer -> Resolution? in
+                guard let sockaddr = rawBuffer.baseAddress?.assumingMemoryBound(to: sockaddr.self) else {
+                    return nil
+                }
+
+                switch Int32(sockaddr.pointee.sa_family) {
+                case AF_INET:
+                    guard rawBuffer.count >= MemoryLayout<sockaddr_in>.size else { return nil }
+                    let addr = rawBuffer.baseAddress!.assumingMemoryBound(to: sockaddr_in.self).pointee.sin_addr
+                    var copy = addr
+                    var buffer = [CChar](repeating: 0, count: Int(INET_ADDRSTRLEN))
+                    guard inet_ntop(AF_INET, &copy, &buffer, socklen_t(INET_ADDRSTRLEN)) != nil else {
+                        return nil
+                    }
+                    let ip = String(cString: buffer)
+                    return Resolution(address: ip, suspicious: isSuspiciousIPv4(ip))
+                case AF_INET6:
+                    guard rawBuffer.count >= MemoryLayout<sockaddr_in6>.size else { return nil }
+                    let addr = rawBuffer.baseAddress!.assumingMemoryBound(to: sockaddr_in6.self).pointee.sin6_addr
+                    var copy = addr
+                    var buffer = [CChar](repeating: 0, count: Int(INET6_ADDRSTRLEN))
+                    guard inet_ntop(AF_INET6, &copy, &buffer, socklen_t(INET6_ADDRSTRLEN)) != nil else {
+                        return nil
+                    }
+                    let ip = String(cString: buffer)
+                    return Resolution(address: ip, suspicious: false)
+                default:
+                    return nil
+                }
+            }
+        }
+    }
+
+    private static func isSuspiciousIPv4(_ ipAddress: String) -> Bool {
+        let octets = ipAddress.split(separator: ".").compactMap { Int($0) }
+        guard octets.count == 4 else { return false }
+
+        switch (octets[0], octets[1]) {
+        case (0, _), (10, _), (127, _):
+            return true
+        case (169, 254), (192, 168):
+            return true
+        case (172, 16...31):
+            return true
+        case (198, 18...19):
+            return true
+        default:
+            return false
+        }
+    }
+
+    private static func assertHTTPReachability(
+        to baseURL: URL,
+        environment: [String: String],
+        timeout: TimeInterval
+    ) throws {
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.timeoutIntervalForRequest = timeout
+        configuration.timeoutIntervalForResource = timeout
+        configuration.waitsForConnectivity = false
+
+        if let proxyDictionary = makeConnectionProxyDictionary(from: environment) {
+            configuration.connectionProxyDictionary = proxyDictionary
+        }
+
+        let session = URLSession(configuration: configuration)
+        var request = URLRequest(url: baseURL)
+        request.httpMethod = "HEAD"
+        request.cachePolicy = .reloadIgnoringLocalCacheData
+
+        let semaphore = DispatchSemaphore(value: 0)
+        var preflightError: String?
+
+        let task = session.dataTask(with: request) { _, response, error in
+            defer { semaphore.signal() }
+
+            if let error {
+                preflightError = error.localizedDescription
+                return
+            }
+
+            if response == nil {
+                preflightError = "missing HTTP response"
+            }
+        }
+
+        task.resume()
+        let waitResult = semaphore.wait(timeout: .now() + timeout + 1)
+        session.invalidateAndCancel()
+
+        if waitResult == .timedOut {
+            task.cancel()
+            throw XCTSkip(
+                "Authenticated UI tests blocked: preflight request to \(baseURL.absoluteString) timed out. Current network path cannot reach the backend."
+            )
+        }
+
+        if let preflightError {
+            throw XCTSkip(
+                "Authenticated UI tests blocked: preflight request to \(baseURL.absoluteString) failed with \(preflightError). Current network path cannot reach the backend."
+            )
+        }
+    }
+
+    private static func makeConnectionProxyDictionary(from environment: [String: String]) -> [AnyHashable: Any]? {
+        let httpProxy = parseProxyURL(
+            environment["TRIX_HTTP_PROXY"]
+                ?? environment["HTTP_PROXY"]
+                ?? environment["http_proxy"]
+        )
+        let httpsProxy = parseProxyURL(
+            environment["TRIX_HTTPS_PROXY"]
+                ?? environment["HTTPS_PROXY"]
+                ?? environment["https_proxy"]
+        )
+        let noProxy = (
+            environment["TRIX_NO_PROXY"]
+                ?? environment["NO_PROXY"]
+                ?? environment["no_proxy"]
+        )?
+            .split(separator: ",")
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+
+        var dictionary: [AnyHashable: Any] = [:]
+
+        if let httpProxy {
+            dictionary["HTTPEnable"] = 1
+            dictionary["HTTPProxy"] = httpProxy.host
+            dictionary["HTTPPort"] = httpProxy.port
+        }
+
+        if let httpsProxy {
+            dictionary["HTTPSEnable"] = 1
+            dictionary["HTTPSProxy"] = httpsProxy.host
+            dictionary["HTTPSPort"] = httpsProxy.port
+        }
+
+        if let noProxy, !noProxy.isEmpty {
+            dictionary["ExceptionsList"] = noProxy
+        }
+
+        return dictionary.isEmpty ? nil : dictionary
+    }
+
+    private static func parseProxyURL(_ rawValue: String?) -> (host: String, port: Int)? {
+        guard let rawValue else { return nil }
+
+        let trimmed = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+
+        let candidate = trimmed.contains("://") ? trimmed : "http://\(trimmed)"
+        guard let url = URL(string: candidate),
+              let host = url.host,
+              !host.isEmpty else {
+            return nil
+        }
+
+        return (host: host, port: url.port ?? 80)
     }
 }
 
@@ -149,7 +431,12 @@ class RealAppUITestCase: XCTestCase {
         }
 
         app.launchArguments = launchArguments
-        app.launchEnvironment = baseLaunchEnvironment()
+        let launchEnvironment = baseLaunchEnvironment()
+        try AuthenticatedBackendPreflight.ensureReachable(
+            baseURLString: launchEnvironment["TRIX_API_BASE_URL"] ?? "https://trix.love",
+            environment: launchEnvironment
+        )
+        app.launchEnvironment = launchEnvironment
         app.launch()
 
         if element(withIdentifier: expectedIdentifier).waitForExistence(timeout: 5) {
@@ -170,15 +457,15 @@ class RealAppUITestCase: XCTestCase {
 
         let emailField = textField(withIdentifier: AppUIIdentifiers.loginEmailField)
         XCTAssertTrue(emailField.waitForExistence(timeout: 8))
-        emailField.tap()
-        emailField.typeText(email)
+        XCTAssertTrue(focusAndTypeText(email, into: emailField))
 
         let passwordField = secureTextField(withIdentifier: AppUIIdentifiers.loginPasswordField)
         XCTAssertTrue(passwordField.waitForExistence(timeout: 5))
-        passwordField.tap()
-        passwordField.typeText(password)
+        XCTAssertTrue(focusAndTypeText(password, into: passwordField))
 
-        button(withIdentifier: AppUIIdentifiers.loginSubmitButton).tap()
+        let submitButton = button(withIdentifier: AppUIIdentifiers.loginSubmitButton)
+        XCTAssertTrue(waitForHittable(submitButton, timeout: 5))
+        submitButton.tap()
 
         if let expectedIdentifier {
             XCTAssertTrue(
@@ -430,8 +717,35 @@ class RealAppUITestCase: XCTestCase {
         }
         _ = waitForKeyboard(timeout: timeout)
 
+        clearExistingText(in: element)
         app.typeText(text)
         return true
+    }
+
+    private func clearExistingText(in element: XCUIElement) {
+        let deleteCount = existingTextDeleteCount(for: element)
+        guard deleteCount > 0 else { return }
+
+        let deleteSequence = String(repeating: XCUIKeyboardKey.delete.rawValue, count: deleteCount)
+        app.typeText(deleteSequence)
+    }
+
+    private func existingTextDeleteCount(for element: XCUIElement) -> Int {
+        guard let rawValue = element.value as? String else { return 0 }
+
+        let placeholder = (element.placeholderValue ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        let value = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        if value.isEmpty || (!placeholder.isEmpty && value == placeholder) {
+            return 0
+        }
+
+        if element.elementType == .secureTextField,
+           value.localizedCaseInsensitiveContains("secure") {
+            return 0
+        }
+
+        return value.count
     }
 
     func scrollToElement(_ element: XCUIElement, maxSwipes: Int = 5) {
@@ -545,6 +859,7 @@ class RealAppUITestCase: XCTestCase {
 
     private func baseLaunchEnvironment() -> [String: String] {
         var environment: [String: String] = [:]
+        let proxy = UITestProxyBridge.current()
 
         if let email = config.email, !email.isEmpty {
             environment["TRIX_TEST_EMAIL"] = email
@@ -565,6 +880,21 @@ class RealAppUITestCase: XCTestCase {
         if let serviceToken = config.serviceToken, !serviceToken.isEmpty {
             environment["TRIX_NATIVE_SERVICE_TOKEN"] = serviceToken
         }
+
+        if let httpProxy = proxy.httpProxy {
+            environment["TRIX_HTTP_PROXY"] = httpProxy
+        }
+
+        if let httpsProxy = proxy.httpsProxy {
+            environment["TRIX_HTTPS_PROXY"] = httpsProxy
+        }
+
+        if let noProxy = proxy.noProxy, !noProxy.isEmpty {
+            environment["TRIX_NO_PROXY"] = noProxy
+        }
+
+        environment["TRIX_API_BASE_URL"] = ProcessInfo.processInfo.environment["TRIX_API_BASE_URL"] ?? "https://trix.love"
+        environment["TRIX_WEBSOCKET_URL"] = ProcessInfo.processInfo.environment["TRIX_WEBSOCKET_URL"] ?? "wss://trix.love"
 
         return environment
     }

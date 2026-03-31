@@ -11,6 +11,7 @@
 
 import http from 'node:http';
 import https from 'node:https';
+import { timingSafeEqual } from 'node:crypto';
 
 const PORT = Number(process.env.PROXY_PORT || 8790);
 const HOST = process.env.PROXY_HOST || '127.0.0.1';
@@ -26,6 +27,7 @@ const TASK_TTL_MS          = Number(process.env.PROXY_TASK_TTL_MS || 60 * 60 * 1
 const SESSION_TTL_MS       = Number(process.env.PROXY_SESSION_TTL_MS || 60 * 60 * 1000);
 const ALLOWED_ORIGINS      = parseOriginList(process.env.PROXY_ALLOWED_ORIGINS || '');
 const PROXY_ALLOW_REMOTE   = /^(1|true|yes)$/i.test(process.env.PROXY_ALLOW_REMOTE || '');
+const PROXY_ACCESS_TOKEN   = (process.env.PROXY_ACCESS_TOKEN || '').trim();
 
 // In-memory stores for async polling
 // taskId -> { status, output, urls, error, createdAt }
@@ -56,9 +58,50 @@ function assertSafeProxyBind() {
       'Refusing to expose proxy on a non-loopback host. Set PROXY_ALLOW_REMOTE=true to override.',
     );
   }
+  if (!isLoopbackHost(HOST) && !PROXY_ACCESS_TOKEN) {
+    throw new Error(
+      'Refusing to expose proxy on a non-loopback host without PROXY_ACCESS_TOKEN.',
+    );
+  }
 }
 
 assertSafeProxyBind();
+
+function matchesProxyAccessToken(candidate) {
+  if (!PROXY_ACCESS_TOKEN) {
+    return true;
+  }
+  if (!candidate) {
+    return false;
+  }
+  const received = Buffer.from(String(candidate));
+  const expected = Buffer.from(PROXY_ACCESS_TOKEN);
+  if (received.length !== expected.length) {
+    return false;
+  }
+  return timingSafeEqual(received, expected);
+}
+
+function getPresentedToken(req) {
+  const authorization = Array.isArray(req.headers.authorization)
+    ? req.headers.authorization[0]
+    : req.headers.authorization;
+  const match = typeof authorization === 'string'
+    ? authorization.match(/^Bearer\s+(.+)$/i)
+    : null;
+  return match?.[1]?.trim() || '';
+}
+
+function assertProxyAuthenticated(req, pathname) {
+  if (pathname === '/health') {
+    return;
+  }
+  if (!matchesProxyAccessToken(getPresentedToken(req))) {
+    const error = new Error('proxy authentication required');
+    error.status = 401;
+    throw error;
+  }
+}
 
 function setCorsHeaders(req, res) {
   const origin = typeof req.headers.origin === 'string' ? req.headers.origin.trim() : '';
@@ -69,6 +112,16 @@ function setCorsHeaders(req, res) {
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   res.setHeader('Vary', 'Origin');
+}
+
+function assertTrustedBrowserOrigin(req) {
+  const origin = typeof req.headers.origin === 'string' ? req.headers.origin.trim() : '';
+  if (!origin || ALLOWED_ORIGINS.has(origin)) {
+    return;
+  }
+  const error = new Error('origin not allowed');
+  error.status = 403;
+  throw error;
 }
 
 async function readJsonBody(req) {
@@ -360,6 +413,8 @@ const srv = http.createServer(async (req, res) => {
     return;
   }
   try {
+    assertTrustedBrowserOrigin(req);
+    assertProxyAuthenticated(req, url.pathname);
     const body = await readJsonBody(req);
     const result = await handle(req, url, body);
     sendJson(res, result.status, result.body);

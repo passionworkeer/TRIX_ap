@@ -154,6 +154,19 @@ async function postJson(path, body) {
   };
 }
 
+async function patchJson(path, body) {
+  const response = await fetch(`${CANVAS_URL}${path}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const text = await response.text();
+  return {
+    response,
+    payload: text ? JSON.parse(text) : {},
+  };
+}
+
 test('Canvas service smoke flow', async (t) => {
   const mockAi = await spawnMockAiServer();
   const { proc, workdir } = spawnCanvasServer();
@@ -184,6 +197,72 @@ test('Canvas service smoke flow', async (t) => {
       const detailReq = await fetch(`${CANVAS_URL}/api/project/${projectId}`);
       const detail = await detailReq.json();
       assert.equal(detail?.data?.id, projectId, 'project detail must match');
+    });
+
+    await t.test('cross-origin browser-style api requests are rejected', async () => {
+      const response = await fetch(`${CANVAS_URL}/api/session/change-project`, {
+        method: 'POST',
+        headers: {
+          Origin: 'https://evil.example',
+          'Content-Type': 'text/plain;charset=UTF-8',
+        },
+        body: '',
+      });
+      assert.equal(response.status, 403, 'foreign browser origin should be rejected');
+    });
+
+    await t.test('cross-project mutations are rejected', async () => {
+      const { payload: otherProject } = await postJson('/api/projects', {
+        name: 'isolation target',
+      });
+      const otherProjectId = otherProject.id;
+      assert.ok(otherProjectId, 'other project id must exist');
+
+      const nodeA = await postJson('/api/nodes', {
+        projectId,
+        prompt: 'node-a',
+      });
+      assert.equal(nodeA.response.status, 201, 'node creation in primary project should succeed');
+
+      const nodeB = await postJson('/api/nodes', {
+        projectId: otherProjectId,
+        prompt: 'node-b',
+      });
+      assert.equal(nodeB.response.status, 201, 'node creation in secondary project should succeed');
+
+      const fileB = await postJson('/api/upload', {
+        projectId: otherProjectId,
+        fileData: FIXTURE_IMAGE.toString('base64'),
+        filename: 'foreign.png',
+        mimeType: 'image/png',
+      });
+      assert.equal(fileB.response.status, 200, 'upload in secondary project should succeed');
+
+      const crossEdge = await postJson('/api/edges', {
+        projectId,
+        sourceNodeId: nodeA.payload.id,
+        targetNodeId: nodeB.payload.id,
+      });
+      assert.equal(crossEdge.response.status, 409, 'cross-project edge must be rejected');
+
+      const foreignUpload = await postJson('/api/upload', {
+        projectId,
+        nodeId: nodeB.payload.id,
+        fileData: FIXTURE_IMAGE.toString('base64'),
+        filename: 'cross-attach.png',
+        mimeType: 'image/png',
+      });
+      assert.equal(foreignUpload.response.status, 409, 'foreign-project node attachment must be rejected');
+
+      const patchForeignFile = await patchJson(`/api/nodes/${nodeA.payload.id}`, {
+        fileId: fileB.payload.id,
+      });
+      assert.equal(patchForeignFile.response.status, 409, 'foreign-project file patch must be rejected');
+
+      const patchForeignParent = await patchJson(`/api/nodes/${nodeA.payload.id}`, {
+        parentNodeId: nodeB.payload.id,
+      });
+      assert.equal(patchForeignParent.response.status, 409, 'foreign-project parent patch must be rejected');
     });
 
     await t.test('image session completes and stores media locally', async () => {

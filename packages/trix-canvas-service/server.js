@@ -15,7 +15,7 @@ import {
 import { isIP } from 'net';
 import { basename, dirname, extname, join, resolve } from 'path';
 import { fileURLToPath } from 'url';
-import { spawnSync } from 'child_process';
+import { spawn } from 'child_process';
 import { tmpdir } from 'os';
 import { v4 as uuidv4 } from 'uuid';
 import dotenv from 'dotenv';
@@ -55,6 +55,7 @@ const AI_EXTRA_HEADERS = parseHeaderLines(process.env.AI_EXTRA_HEADERS || '');
 const CANVAS_JSON_LIMIT = process.env.CANVAS_JSON_LIMIT || '50mb';
 const AI_REQUEST_TIMEOUT_MS = readPositiveNumber(process.env.CANVAS_AI_REQUEST_TIMEOUT_MS, 60_000);
 const REMOTE_FETCH_TIMEOUT_MS = readPositiveNumber(process.env.CANVAS_REMOTE_FETCH_TIMEOUT_MS, 30_000);
+const MAX_CONCURRENT_EXPORTS = readPositiveNumber(process.env.CANVAS_MAX_CONCURRENT_EXPORTS, 2);
 const MAX_REMOTE_DOWNLOAD_BYTES = readPositiveNumber(
   process.env.CANVAS_MAX_REMOTE_DOWNLOAD_BYTES,
   200 * 1024 * 1024,
@@ -82,6 +83,7 @@ const ALLOWED_UPLOAD_EXTENSIONS = new Set([
   '.mov',
   '.webm',
 ]);
+const SAFE_RECORD_ID_RE = /^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/;
 
 const EXPORT_ASPECTS = new Map([
   ['origin', null],
@@ -110,24 +112,33 @@ const app = express();
 app.disable('x-powered-by');
 app.use(express.json({ limit: CANVAS_JSON_LIMIT }));
 app.use(express.static(join(__dirname, 'public')));
+
+function isTrustedCanvasOrigin(origin) {
+  return !origin || origin === APP_ORIGIN || CANVAS_ALLOWED_ORIGINS.has(origin);
+}
+
 app.use((req, res, next) => {
   const origin = typeof req.headers.origin === 'string' ? req.headers.origin.trim() : '';
+  const isProtectedPath = req.path.startsWith('/api/') || req.path.startsWith('/media/');
   if (origin) {
     appendVaryHeader(res, 'Origin');
   }
-  if (origin && CANVAS_ALLOWED_ORIGINS.has(origin)) {
+  if (origin && isTrustedCanvasOrigin(origin)) {
     res.setHeader('Access-Control-Allow-Origin', origin);
     res.setHeader('Access-Control-Allow-Credentials', 'true');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PATCH, DELETE, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   }
   if (req.method === 'OPTIONS') {
-    if (origin && !CANVAS_ALLOWED_ORIGINS.has(origin)) {
+    if (origin && isProtectedPath && !isTrustedCanvasOrigin(origin)) {
       return res.sendStatus(403);
     }
     return res.sendStatus(204);
   }
-  if ((req.path.startsWith('/api/') || req.path.startsWith('/media/')) && !isCanvasAuthExemptPath(req.path)) {
+  if (origin && isProtectedPath && !isTrustedCanvasOrigin(origin)) {
+    return res.status(403).json({ error: 'origin not allowed' });
+  }
+  if (isProtectedPath && !isCanvasAuthExemptPath(req.path)) {
     assertCanvasAuthenticated(req);
   }
   return next();
@@ -335,8 +346,16 @@ function httpError(message, statusCode = 400, code = '') {
   return error;
 }
 
+function assertSafeRecordId(id, label = 'record id') {
+  const normalized = String(id || '').trim();
+  if (!SAFE_RECORD_ID_RE.test(normalized)) {
+    throw httpError(`${label} 非法`, 400, 'RECORD_ID_INVALID');
+  }
+  return normalized;
+}
+
 function recordPath(dir, id) {
-  return join(dir, `${id}.json`);
+  return join(dir, `${assertSafeRecordId(id)}.json`);
 }
 
 function readRecord(dir, id) {
@@ -631,6 +650,45 @@ function requireProject(projectId) {
     throw error;
   }
   return project;
+}
+
+function requireNode(nodeId, { projectId = null } = {}) {
+  const node = readRecord(NODES_DIR, nodeId);
+  if (!node) {
+    const error = new Error('节点不存在');
+    error.statusCode = 404;
+    throw error;
+  }
+  if (projectId && node.project_id !== projectId) {
+    throw httpError('节点不属于当前项目', 409, 'NODE_PROJECT_MISMATCH');
+  }
+  return node;
+}
+
+function requireFile(fileId, { projectId = null } = {}) {
+  const file = readRecord(FILES_DIR, fileId);
+  if (!file) {
+    const error = new Error('文件不存在');
+    error.statusCode = 404;
+    throw error;
+  }
+  if (projectId && file.project_id !== projectId) {
+    throw httpError('文件不属于当前项目', 409, 'FILE_PROJECT_MISMATCH');
+  }
+  return file;
+}
+
+function requireSession(sessionId, { projectId = null } = {}) {
+  const session = readRecord(SESSIONS_DIR, sessionId);
+  if (!session) {
+    const error = new Error('会话不存在');
+    error.statusCode = 404;
+    throw error;
+  }
+  if (projectId && session.project_id !== projectId) {
+    throw httpError('会话不属于当前项目', 409, 'SESSION_PROJECT_MISMATCH');
+  }
+  return session;
 }
 
 function createProject({ name = 'Untitled project', script_text = '' } = {}) {
@@ -974,6 +1032,24 @@ function detectMediaFormat(bytes) {
   return null;
 }
 
+function decodeBase64Payload(raw) {
+  const normalized = String(raw ?? '')
+    .trim()
+    .replace(/^data:[^;]+;base64,/i, '')
+    .replace(/\s+/g, '');
+  if (!normalized) {
+    return null;
+  }
+  if (!/^[A-Za-z0-9+/]+={0,2}$/.test(normalized) || normalized.length % 4 !== 0) {
+    throw httpError('fileData 不是合法的 base64', 400, 'UPLOAD_BASE64_INVALID');
+  }
+  const bytes = Buffer.from(normalized, 'base64');
+  if (bytes.length === 0) {
+    throw httpError('上传文件为空', 400, 'UPLOAD_EMPTY');
+  }
+  return bytes;
+}
+
 function validateUploadedAsset({ bytes, filename, mimeType, mediaType }) {
   if (!Buffer.isBuffer(bytes) || bytes.length === 0) {
     throw httpError('上传文件为空', 400, 'UPLOAD_EMPTY');
@@ -987,9 +1063,13 @@ function validateUploadedAsset({ bytes, filename, mimeType, mediaType }) {
   const declaredMimeType = cleanMimeType || inferMimeType(safeFilename, '');
   const declaredExtension = extname(safeFilename).toLowerCase();
   const detected = detectMediaFormat(bytes);
-  const finalMimeType = detected?.mimeType || declaredMimeType;
-  const finalExtension = declaredExtension || detected?.extension || inferExtension(safeFilename, finalMimeType);
-  const finalMediaType = detected?.mediaType || mediaType || guessMediaType(finalMimeType, safeFilename);
+  const declaredMediaType = String(mediaType || '').trim().toLowerCase();
+  if (!detected) {
+    throw httpError('无法识别上传文件内容', 400, 'UPLOAD_CONTENT_UNRECOGNIZED');
+  }
+  const finalMimeType = detected.mimeType;
+  const finalExtension = detected.extension;
+  const finalMediaType = detected.mediaType;
 
   if (!finalMimeType || !ALLOWED_UPLOAD_MIME_TYPES.has(finalMimeType)) {
     throw httpError('不支持的上传文件类型', 400, 'UPLOAD_TYPE_UNSUPPORTED');
@@ -997,7 +1077,13 @@ function validateUploadedAsset({ bytes, filename, mimeType, mediaType }) {
   if (!finalExtension || !ALLOWED_UPLOAD_EXTENSIONS.has(finalExtension)) {
     throw httpError('不支持的上传文件扩展名', 400, 'UPLOAD_EXTENSION_UNSUPPORTED');
   }
-  if (detected && finalMediaType !== detected.mediaType) {
+  if (declaredMimeType && declaredMimeType !== finalMimeType) {
+    throw httpError('上传文件类型与内容不匹配', 400, 'UPLOAD_TYPE_MISMATCH');
+  }
+  if (declaredExtension && declaredExtension !== finalExtension) {
+    throw httpError('上传文件扩展名与内容不匹配', 400, 'UPLOAD_EXTENSION_MISMATCH');
+  }
+  if (declaredMediaType && declaredMediaType !== finalMediaType) {
     throw httpError('上传文件类型与内容不匹配', 400, 'UPLOAD_TYPE_MISMATCH');
   }
 
@@ -1006,6 +1092,60 @@ function validateUploadedAsset({ bytes, filename, mimeType, mediaType }) {
     mimeType: finalMimeType,
     mediaType: finalMediaType,
   };
+}
+
+let activeExportJobs = 0;
+const exportWaiters = [];
+
+async function withExportSlot(task) {
+  if (activeExportJobs >= MAX_CONCURRENT_EXPORTS) {
+    await new Promise((resolvePromise) => exportWaiters.push(resolvePromise));
+  }
+  activeExportJobs += 1;
+  try {
+    return await task();
+  } finally {
+    activeExportJobs = Math.max(0, activeExportJobs - 1);
+    const next = exportWaiters.shift();
+    if (next) {
+      next();
+    }
+  }
+}
+
+function runCommand(command, args, { timeoutMs = 120_000 } = {}) {
+  return new Promise((resolvePromise, reject) => {
+    const child = spawn(command, args, {
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    let stdout = '';
+    let stderr = '';
+    const timer = setTimeout(() => {
+      child.kill('SIGKILL');
+      const error = new Error(`${command} timeout after ${timeoutMs}ms`);
+      error.code = 'COMMAND_TIMEOUT';
+      reject(error);
+    }, timeoutMs);
+
+    child.stdout.on('data', (chunk) => {
+      stdout += chunk.toString();
+    });
+    child.stderr.on('data', (chunk) => {
+      stderr += chunk.toString();
+    });
+    child.on('error', (error) => {
+      clearTimeout(timer);
+      reject(error);
+    });
+    child.on('close', (status) => {
+      clearTimeout(timer);
+      resolvePromise({
+        status: status ?? 0,
+        stdout,
+        stderr,
+      });
+    });
+  });
 }
 
 function isPrivateIpAddress(address) {
@@ -1463,13 +1603,16 @@ function getMediaFilePath(file) {
   return existsSync(filePath) ? filePath : null;
 }
 
-function ffprobeDuration(filePath) {
-  const probe = spawnSync(
+async function ffprobeDuration(filePath) {
+  if (!filePath) {
+    return 3;
+  }
+  const probe = await runCommand(
     'ffprobe',
     ['-v', 'quiet', '-print_format', 'json', '-show_format', '-show_streams', filePath],
-    { encoding: 'utf8' },
-  );
-  if (probe.status !== 0) {
+    { timeoutMs: 30_000 },
+  ).catch(() => null);
+  if (!probe || probe.status !== 0) {
     return 3;
   }
   try {
@@ -1502,7 +1645,7 @@ function orderedNodes(project) {
   });
 }
 
-function exportSubtitle(project) {
+async function exportSubtitle(project) {
   const sortedNodes = orderedNodes(project);
   const videoNodes = sortedNodes.filter((node) => node.media_type === 'video' && node.file?.stored_filename);
   const nodes = videoNodes.length > 0 ? videoNodes : sortedNodes;
@@ -1513,10 +1656,11 @@ function exportSubtitle(project) {
   }
 
   let currentTime = 0;
-  const rows = nodes.map((node) => {
+  const rows = [];
+  for (const node of nodes) {
     const duration =
       node.media_type === 'video' && node.file?.stored_filename
-        ? ffprobeDuration(getMediaFilePath(node.file) || '')
+        ? await ffprobeDuration(getMediaFilePath(node.file))
         : 3;
     const row = {
       node,
@@ -1525,8 +1669,8 @@ function exportSubtitle(project) {
       duration,
     };
     currentTime += duration;
-    return row;
-  });
+    rows.push(row);
+  }
 
   const safeName = sanitizeFilename(project.name || project.id);
   const srtPath = join(EXPORT_ROOT, `${safeName}.srt`);
@@ -1560,7 +1704,7 @@ function exportSubtitle(project) {
   };
 }
 
-function exportVideo(project, aspect) {
+async function exportVideo(project, aspect) {
   const preset = EXPORT_ASPECTS.get(aspect);
   if (!preset && aspect !== 'origin') {
     const error = new Error('invalid aspect');
@@ -1584,74 +1728,76 @@ function exportVideo(project, aspect) {
     `${sanitizeFilename(project.name || project.id)}_${safeAspect}.mp4`,
   );
 
-  try {
-    const segmentPaths = [];
-    nodes.forEach((node, index) => {
-      const sourcePath = getMediaFilePath(node.file);
-      if (!sourcePath) {
-        return;
-      }
-      const duration = ffprobeDuration(sourcePath);
-      const segmentPath = join(tempRoot, `segment-${String(index).padStart(3, '0')}.mp4`);
-      const args = ['-y', '-hide_banner', '-loglevel', 'warning', '-i', sourcePath];
-      if (preset) {
+  return withExportSlot(async () => {
+    try {
+      const segmentPaths = [];
+      for (const [index, node] of nodes.entries()) {
+        const sourcePath = getMediaFilePath(node.file);
+        if (!sourcePath) {
+          continue;
+        }
+        const duration = await ffprobeDuration(sourcePath);
+        const segmentPath = join(tempRoot, `segment-${String(index).padStart(3, '0')}.mp4`);
+        const args = ['-y', '-hide_banner', '-loglevel', 'warning', '-i', sourcePath];
+        if (preset) {
+          args.push(
+            '-vf',
+            `scale=${preset.width}:${preset.height}:force_original_aspect_ratio=decrease,pad=${preset.width}:${preset.height}:(ow-iw)/2:(oh-ih)/2:black,fps=30`,
+          );
+        }
         args.push(
-          '-vf',
-          `scale=${preset.width}:${preset.height}:force_original_aspect_ratio=decrease,pad=${preset.width}:${preset.height}:(ow-iw)/2:(oh-ih)/2:black,fps=30`,
+          '-c:v',
+          'libx264',
+          '-preset',
+          'fast',
+          '-crf',
+          '23',
+          '-c:a',
+          'aac',
+          '-b:a',
+          '128k',
+          '-t',
+          String(duration),
+          segmentPath,
         );
+        const result = await runCommand('ffmpeg', args, { timeoutMs: 5 * 60_000 });
+        if (result.status !== 0) {
+          const error = new Error(`片段转码失败: ${result.stderr || result.stdout}`);
+          error.statusCode = 500;
+          throw error;
+        }
+        segmentPaths.push(segmentPath);
       }
-      args.push(
-        '-c:v',
-        'libx264',
-        '-preset',
-        'fast',
-        '-crf',
-        '23',
-        '-c:a',
-        'aac',
-        '-b:a',
-        '128k',
-        '-t',
-        String(duration),
-        segmentPath,
+
+      if (segmentPaths.length === 0) {
+        const error = new Error('没有可导出的视频文件');
+        error.statusCode = 400;
+        throw error;
+      }
+
+      writeFileSync(concatPath, segmentPaths.map((filePath) => `file '${filePath.replace(/'/g, "'\\''")}'`).join('\n'), 'utf8');
+      const result = await runCommand(
+        'ffmpeg',
+        ['-y', '-hide_banner', '-loglevel', 'warning', '-f', 'concat', '-safe', '0', '-i', concatPath, '-c:v', 'copy', '-c:a', 'aac', outPath],
+        { timeoutMs: 5 * 60_000 },
       );
-      const result = spawnSync('ffmpeg', args, { encoding: 'utf8' });
       if (result.status !== 0) {
-        const error = new Error(`片段转码失败: ${result.stderr || result.stdout}`);
+        const error = new Error(`视频拼接失败: ${result.stderr || result.stdout}`);
         error.statusCode = 500;
         throw error;
       }
-      segmentPaths.push(segmentPath);
-    });
 
-    if (segmentPaths.length === 0) {
-      const error = new Error('没有可导出的视频文件');
-      error.statusCode = 400;
-      throw error;
+      return {
+        path: outPath,
+        url: `/media/exports/${basename(outPath)}`,
+        aspect,
+        segments: segmentPaths.length,
+        size: statSync(outPath).size,
+      };
+    } finally {
+      rmSync(tempRoot, { recursive: true, force: true });
     }
-
-    writeFileSync(concatPath, segmentPaths.map((filePath) => `file '${filePath.replace(/'/g, "'\\''")}'`).join('\n'), 'utf8');
-    const result = spawnSync(
-      'ffmpeg',
-      ['-y', '-hide_banner', '-loglevel', 'warning', '-f', 'concat', '-safe', '0', '-i', concatPath, '-c:v', 'copy', '-c:a', 'aac', outPath],
-      { encoding: 'utf8' },
-    );
-    if (result.status !== 0) {
-      const error = new Error(`视频拼接失败: ${result.stderr || result.stdout}`);
-      error.statusCode = 500;
-      throw error;
-    }
-
-    return {
-      path: outPath,
-      url: `/media/exports/${basename(outPath)}`,
-      aspect,
-      segments: segmentPaths.length,
-      size: statSync(outPath).size,
-    };
-  } finally {
-    rmSync(tempRoot, { recursive: true, force: true });
-  }
+  });
 }
 
 app.get('/health', (_req, res) => {
@@ -1779,20 +1925,20 @@ app.get('/api/projects/:projectId/files', (req, res, next) => {
   }
 });
 
-app.get('/api/projects/:projectId/export/subtitle', (req, res, next) => {
+app.get('/api/projects/:projectId/export/subtitle', async (req, res, next) => {
   try {
     const project = serializeProject(requireProject(req.params.projectId));
-    res.json(exportSubtitle(project));
+    res.json(await exportSubtitle(project));
   } catch (error) {
     next(error);
   }
 });
 
-app.get('/api/projects/:projectId/export/video', (req, res, next) => {
+app.get('/api/projects/:projectId/export/video', async (req, res, next) => {
   try {
     const aspect = req.query.aspect ? String(req.query.aspect) : 'origin';
     const project = serializeProject(requireProject(req.params.projectId));
-    res.json(exportVideo(project, aspect));
+    res.json(await exportVideo(project, aspect));
   } catch (error) {
     next(error);
   }
@@ -1806,10 +1952,14 @@ app.post(['/api/upload', '/api/file/upload'], async (req, res, next) => {
       return res.status(400).json({ error: 'project_id 不能为空' });
     }
     requireProject(projectId);
+    const nodeId = body.node_id || body.nodeId || null;
+    if (nodeId) {
+      requireNode(String(nodeId), { projectId });
+    }
 
     let bytes = null;
     if (typeof body.fileData === 'string' || typeof body.file_data === 'string') {
-      bytes = Buffer.from(body.fileData || body.file_data, 'base64');
+      bytes = decodeBase64Payload(body.fileData ?? body.file_data);
     } else if (typeof body.external_url === 'string' || typeof body.externalUrl === 'string') {
       const remoteUrl = body.external_url || body.externalUrl;
       const downloaded = await downloadRemoteAsset(remoteUrl);
@@ -1836,14 +1986,14 @@ app.post(['/api/upload', '/api/file/upload'], async (req, res, next) => {
       mime_type: validatedAsset.mimeType,
       media_type: validatedAsset.mediaType,
       project_id: projectId,
-      node_id: body.node_id || body.nodeId || null,
+      node_id: nodeId,
       prompt: body.prompt || '',
       scene_id: body.scene_id ?? body.sceneId ?? null,
       source_url: body.source_url || body.sourceUrl || null,
     });
 
-    if (body.node_id || body.nodeId) {
-      updateNodeRecord(String(body.node_id || body.nodeId), { file_id: file.id, result_url: file.url });
+    if (nodeId) {
+      updateNodeRecord(String(nodeId), { file_id: file.id, result_url: file.url });
     }
 
     res.json(serializeFile(file));
@@ -1856,11 +2006,23 @@ app.post('/api/nodes', (req, res, next) => {
   try {
     const projectId = String(req.body?.project_id || req.body?.projectId || '');
     requireProject(projectId);
+    const parentNodeId = req.body?.parent_node_id || req.body?.parentNodeId || null;
+    const fileId = req.body?.file_id || req.body?.fileId || null;
+    const sessionId = req.body?.session_id || req.body?.sessionId || null;
+    if (parentNodeId) {
+      requireNode(String(parentNodeId), { projectId });
+    }
+    if (fileId) {
+      requireFile(String(fileId), { projectId });
+    }
+    if (sessionId) {
+      requireSession(String(sessionId), { projectId });
+    }
     const node = createNode({
       project_id: projectId,
-      session_id: req.body?.session_id || req.body?.sessionId || null,
-      file_id: req.body?.file_id || req.body?.fileId || null,
-      parent_node_id: req.body?.parent_node_id || req.body?.parentNodeId || null,
+      session_id: sessionId,
+      file_id: fileId,
+      parent_node_id: parentNodeId,
       scene_id: req.body?.scene_id ?? req.body?.sceneId ?? null,
       media_type: req.body?.media_type || req.body?.mediaType || 'image',
       x: req.body?.x ?? 60,
@@ -1898,11 +2060,35 @@ app.get('/api/nodes/:nodeId', (req, res, next) => {
 
 app.patch('/api/nodes/:nodeId', (req, res, next) => {
   try {
+    const currentNode = requireNode(req.params.nodeId);
+    const projectId = currentNode.project_id;
     const patch = {};
     const body = req.body || {};
+    const normalizeLinkedId = (value) => {
+      if (value === undefined) {
+        return undefined;
+      }
+      if (value === null) {
+        return null;
+      }
+      const next = String(value).trim();
+      return next ? next : null;
+    };
+    const fileId = normalizeLinkedId(body.file_id ?? body.fileId);
+    const parentNodeId = normalizeLinkedId(body.parent_node_id ?? body.parentNodeId);
+    if (fileId !== undefined) {
+      if (fileId) {
+        requireFile(fileId, { projectId });
+      }
+      patch.file_id = fileId;
+    }
+    if (parentNodeId !== undefined) {
+      if (parentNodeId) {
+        requireNode(parentNodeId, { projectId });
+      }
+      patch.parent_node_id = parentNodeId;
+    }
     [
-      ['file_id', body.file_id ?? body.fileId],
-      ['parent_node_id', body.parent_node_id ?? body.parentNodeId],
       ['scene_id', body.scene_id ?? body.sceneId],
       ['media_type', body.media_type ?? body.mediaType],
       ['prompt', body.prompt],
@@ -1954,9 +2140,8 @@ app.post('/api/edges', (req, res, next) => {
       return res.status(400).json({ error: 'project_id/source_node_id/target_node_id 必填' });
     }
     requireProject(projectId);
-    if (!readRecord(NODES_DIR, sourceNodeId) || !readRecord(NODES_DIR, targetNodeId)) {
-      return res.status(404).json({ error: '源节点或目标节点不存在' });
-    }
+    requireNode(sourceNodeId, { projectId });
+    requireNode(targetNodeId, { projectId });
     const edge = createEdge({
       project_id: projectId,
       source_node_id: sourceNodeId,
@@ -2005,6 +2190,9 @@ app.post('/api/session', async (req, res, next) => {
     }
 
     const targetProject = projectId || createProject({ name: message.slice(0, 24) || 'New project' }).id;
+    if (body.parent_node_id || body.parentNodeId) {
+      requireNode(String(body.parent_node_id || body.parentNodeId), { projectId: targetProject });
+    }
     const created = await createGenerationSession({
       message,
       project_id: targetProject,
