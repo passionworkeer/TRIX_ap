@@ -11,7 +11,12 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const RELAY_PORT = Number(process.env.RELAY_PORT || 8791);
+const RELAY_HOST = (process.env.RELAY_HOST || "127.0.0.1").trim() || "127.0.0.1";
 const OUT_DIR = join(__dirname, "outputs");
+const MAX_BODY_BYTES = Number(process.env.RELAY_MAX_BODY_BYTES || 256 * 1024);
+const REQUEST_TIMEOUT_MS = Number(process.env.RELAY_REQUEST_TIMEOUT_MS || 120000);
+const TASK_TTL_MS = Number(process.env.RELAY_TASK_TTL_MS || 60 * 60 * 1000);
+const ALLOWED_ORIGINS = parseOriginList(process.env.RELAY_ALLOWED_ORIGINS || "");
 
 const IMAGE_API_URL = process.env.IMAGE_API_URL || "";
 const IMAGE_API_METHOD = (process.env.IMAGE_API_METHOD || "POST").toUpperCase();
@@ -30,6 +35,15 @@ if (!existsSync(OUT_DIR)) {
 }
 
 const tasks = new Map();
+
+function parseOriginList(raw) {
+  return new Set(
+    String(raw || "")
+      .split(",")
+      .map((value) => value.trim())
+      .filter(Boolean),
+  );
+}
 
 function makeTaskId() {
   return "t_" + Math.random().toString(36).slice(2) + Date.now().toString(36);
@@ -50,6 +64,29 @@ function sendJson(res, status, payload) {
   res.end(JSON.stringify(payload));
 }
 
+function setCorsHeaders(req, res) {
+  const origin = typeof req.headers.origin === "string" ? req.headers.origin.trim() : "";
+  if (!origin || !ALLOWED_ORIGINS.has(origin)) {
+    return;
+  }
+  res.setHeader("Access-Control-Allow-Origin", origin);
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  res.setHeader("Vary", "Origin");
+}
+
+function cleanupExpiredTasks() {
+  const now = Date.now();
+  for (const [taskId, task] of tasks.entries()) {
+    if (now - (task.createdAt || now) > TASK_TTL_MS) {
+      tasks.delete(taskId);
+    }
+  }
+}
+
+const cleanupTimer = setInterval(cleanupExpiredTasks, TASK_TTL_MS);
+cleanupTimer.unref();
+
 function buildHeaders(apiKey) {
   const headers = {
     "Content-Type": "application/json",
@@ -66,6 +103,7 @@ async function fetchVendor({ url, method, payload, apiKey }) {
     method,
     headers: buildHeaders(apiKey),
     body: JSON.stringify(payload),
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
   });
   const text = await response.text();
   let data = {};
@@ -185,7 +223,14 @@ async function generateVideo(prompt) {
 
 async function handleGenerate(req, res) {
   let body = "";
-  for await (const chunk of req) body += chunk;
+  let total = 0;
+  for await (const chunk of req) {
+    total += chunk.length;
+    if (total > MAX_BODY_BYTES) {
+      return sendJson(res, 413, { error: "Request body too large" });
+    }
+    body += chunk;
+  }
   let payload;
   try {
     payload = JSON.parse(body);
@@ -220,10 +265,12 @@ function handleTask(req, res) {
 
 const server = http.createServer(async (req, res) => {
   const { url, method } = req;
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  setCorsHeaders(req, res);
   if (method === "OPTIONS") {
+    const origin = typeof req.headers.origin === "string" ? req.headers.origin.trim() : "";
+    if (origin && !ALLOWED_ORIGINS.has(origin)) {
+      return sendJson(res, 403, { error: "origin not allowed" });
+    }
     res.writeHead(204);
     return res.end();
   }
@@ -237,10 +284,13 @@ const server = http.createServer(async (req, res) => {
     return sendJson(res, 200, { status: "ok", service: "trix-canvas-relay" });
   }
   sendJson(res, 404, { error: "not found" });
+}).on("error", (error) => {
+  console.error(error);
+  process.exit(1);
 });
 
-server.listen(RELAY_PORT, "0.0.0.0", () => {
-  console.log(`Canvas relay listening at http://0.0.0.0:${RELAY_PORT}`);
+server.listen(RELAY_PORT, RELAY_HOST, () => {
+  console.log(`Canvas relay listening at http://${RELAY_HOST}:${RELAY_PORT}`);
   console.log(`  image -> ${IMAGE_API_URL || "(not configured)"}`);
   console.log(`  video -> ${VIDEO_API_URL || "(not configured)"}`);
 });

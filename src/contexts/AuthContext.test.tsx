@@ -31,7 +31,20 @@ const mockProfile = {
 };
 
 // Use vi.hoisted to create mocks before vi.mock is called
-const { mockSignInWithPassword, mockSignUp, mockSignOut, mockGetSession, mockGetUser, mockOnAuthStateChange, mockFrom, mockUpdateLastActive } = vi.hoisted(() => ({
+const {
+  mockSignInWithPassword,
+  mockSignUp,
+  mockSignOut,
+  mockGetSession,
+  mockGetUser,
+  mockOnAuthStateChange,
+  mockFrom,
+  mockUpdateLastActive,
+  mockUpsertSession,
+  mockTouchSession,
+  mockCheckSessionValidity,
+  mockGetLocalSessionId,
+} = vi.hoisted(() => ({
   mockSignInWithPassword: vi.fn(),
   mockSignUp: vi.fn(),
   mockSignOut: vi.fn(),
@@ -39,6 +52,10 @@ const { mockSignInWithPassword, mockSignUp, mockSignOut, mockGetSession, mockGet
   mockGetUser: vi.fn(),
   mockOnAuthStateChange: vi.fn(),
   mockUpdateLastActive: vi.fn().mockResolvedValue(true),
+  mockUpsertSession: vi.fn().mockResolvedValue({ id: 'session-123' }),
+  mockTouchSession: vi.fn().mockResolvedValue(undefined),
+  mockCheckSessionValidity: vi.fn().mockResolvedValue({ isValid: true, reason: 'valid' }),
+  mockGetLocalSessionId: vi.fn().mockReturnValue(null),
   mockFrom: vi.fn(() => ({
     select: vi.fn(() => ({
       eq: vi.fn(() => ({
@@ -76,6 +93,23 @@ vi.mock('../config/supabase', () => ({
     bio: null
   },
   updateLastActive: mockUpdateLastActive
+}));
+
+vi.mock('../lib/authUtils', () => ({
+  logger: {
+    auth: { error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn() },
+    error: vi.fn(),
+  },
+  upsertSession: mockUpsertSession,
+  updateLastActive: mockUpdateLastActive,
+  touchSession: mockTouchSession,
+  checkSessionValidity: mockCheckSessionValidity,
+  forceLogout: vi.fn(),
+  getLocalSessionId: mockGetLocalSessionId,
+  getOrCreateDeviceId: vi.fn().mockReturnValue('device-123'),
+  AuthLogger: class {},
+  SESSION_VALIDITY_CHECK_MS: 30_000,
+  VALIDITY_CHECK_INTERVAL_HEARTBEATS: 10,
 }));
 
 // Mock error handler to avoid toast errors in tests

@@ -10,6 +10,20 @@ import { fileURLToPath } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const OPENCLAW_CONFIG = join(process.env.HOME || '', '.openclaw', 'openclaw.json');
+const CANVAS_HOST = (process.env.CANVAS_HOST || '127.0.0.1').trim() || '127.0.0.1';
+const PROXY_HOST = (process.env.PROXY_HOST || '127.0.0.1').trim() || '127.0.0.1';
+
+function isLoopbackHost(host) {
+  return ['127.0.0.1', 'localhost', '::1'].includes(host);
+}
+
+function defaultBaseUrl(host, port) {
+  const publicHost = host === '0.0.0.0' || host === '::' ? '127.0.0.1' : host;
+  const formattedHost = publicHost.includes(':') && !publicHost.startsWith('[')
+    ? `[${publicHost}]`
+    : publicHost;
+  return `http://${formattedHost}:${port}`;
+}
 
 function readOpenClawApiKey() {
   try {
@@ -22,15 +36,18 @@ function readOpenClawApiKey() {
 
 const PORT = Number(process.env.CANVAS_PORT || 8789);
 const PXYPORT = Number(process.env.PROXY_PORT || 8790);
+const allowOpenClawFallback = /^(1|true|yes)$/i.test(process.env.TRIX_CANVAS_ALLOW_OPENCLAW_CONFIG || '')
+  || (isLoopbackHost(CANVAS_HOST) && isLoopbackHost(PROXY_HOST));
 const proxyApiKey =
   process.env.AI_API_KEY
   || process.env.MINIMAX_API_KEY
   || process.env.PROXY_UPSTREAM_KEY
-  || readOpenClawApiKey();
+  || (allowOpenClawFallback ? readOpenClawApiKey() : '');
 
 const proxyEnv = {
   ...process.env,
   PROXY_PORT: String(PXYPORT),
+  PROXY_HOST,
   AI_API_BASE:
     process.env.PROXY_UPSTREAM_BASE
     || process.env.AI_PROVIDER_BASE
@@ -49,7 +66,8 @@ const proxyEnv = {
 const serverEnv = {
   ...process.env,
   CANVAS_PORT: String(PORT),
-  CANVAS_BASE_URL: process.env.CANVAS_BASE_URL || `http://127.0.0.1:${PORT}`,
+  CANVAS_HOST,
+  CANVAS_BASE_URL: process.env.CANVAS_BASE_URL || defaultBaseUrl(CANVAS_HOST, PORT),
   AI_API_BASE: `http://127.0.0.1:${PXYPORT}`,
   AI_GENERATE_PATH: '/generate',
   AI_TASK_PATH_TEMPLATE: '/tasks/:taskId',
@@ -90,11 +108,11 @@ process.on('SIGTERM', () => shutdown('signal'));
 
 if (!proxyApiKey) {
   console.warn(
-    'Proxy upstream key is empty. Set AI_API_KEY/MINIMAX_API_KEY/PROXY_UPSTREAM_KEY, or provide ~/.openclaw/openclaw.json.',
+    'Proxy upstream key is empty. Set AI_API_KEY/MINIMAX_API_KEY/PROXY_UPSTREAM_KEY, or allow ~/.openclaw/openclaw.json via TRIX_CANVAS_ALLOW_OPENCLAW_CONFIG=true.',
   );
 }
 
-console.log(`Starting proxy on :${PXYPORT} and canvas on :${PORT}`);
+console.log(`Starting proxy on ${PROXY_HOST}:${PXYPORT} and canvas on ${CANVAS_HOST}:${PORT}`);
 spawnChild('proxy', 'proxy.js', proxyEnv);
 setTimeout(() => {
   spawnChild('server', 'server.js', serverEnv);

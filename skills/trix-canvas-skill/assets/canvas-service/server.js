@@ -23,8 +23,9 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
+const HOST = (process.env.CANVAS_HOST || '127.0.0.1').trim() || '127.0.0.1';
 const PORT = Number(process.env.CANVAS_PORT || 8789);
-const APP_ORIGIN = process.env.CANVAS_BASE_URL || `http://localhost:${PORT}`;
+const APP_ORIGIN = process.env.CANVAS_BASE_URL || defaultBaseUrl(HOST, PORT);
 const CANVAS_REQUIRE_AUTH = /^(1|true|yes)$/i.test(process.env.CANVAS_REQUIRE_AUTH || '');
 const CANVAS_ACCESS_TOKEN = (
   process.env.CANVAS_ACCESS_TOKEN
@@ -47,12 +48,36 @@ const AI_GENERATE_PATH = process.env.AI_GENERATE_PATH || '/generate';
 const AI_TASK_PATH_TEMPLATE = process.env.AI_TASK_PATH_TEMPLATE || '/tasks/:taskId';
 const AI_API_KEY = process.env.AI_API_KEY || '';
 const AI_EXTRA_HEADERS = parseHeaderLines(process.env.AI_EXTRA_HEADERS || '');
-const MAX_REMOTE_DOWNLOAD_BYTES = Number(
-  process.env.CANVAS_MAX_REMOTE_DOWNLOAD_BYTES || 200 * 1024 * 1024,
+const CANVAS_JSON_LIMIT = process.env.CANVAS_JSON_LIMIT || '50mb';
+const AI_REQUEST_TIMEOUT_MS = readPositiveNumber(process.env.CANVAS_AI_REQUEST_TIMEOUT_MS, 60_000);
+const REMOTE_FETCH_TIMEOUT_MS = readPositiveNumber(process.env.CANVAS_REMOTE_FETCH_TIMEOUT_MS, 30_000);
+const MAX_REMOTE_DOWNLOAD_BYTES = readPositiveNumber(
+  process.env.CANVAS_MAX_REMOTE_DOWNLOAD_BYTES,
+  200 * 1024 * 1024,
 );
+const MAX_UPLOAD_BYTES = readPositiveNumber(process.env.CANVAS_MAX_UPLOAD_BYTES, 200 * 1024 * 1024);
 const ALLOW_PRIVATE_REMOTE_URLS = /^true$/i.test(
   process.env.CANVAS_ALLOW_PRIVATE_REMOTE_URLS || '',
 );
+const ALLOWED_UPLOAD_MIME_TYPES = new Set([
+  'image/png',
+  'image/jpeg',
+  'image/webp',
+  'image/gif',
+  'video/mp4',
+  'video/quicktime',
+  'video/webm',
+]);
+const ALLOWED_UPLOAD_EXTENSIONS = new Set([
+  '.png',
+  '.jpg',
+  '.jpeg',
+  '.webp',
+  '.gif',
+  '.mp4',
+  '.mov',
+  '.webm',
+]);
 
 const EXPORT_ASPECTS = new Map([
   ['origin', null],
@@ -78,7 +103,8 @@ const EXPORT_ASPECTS = new Map([
 });
 
 const app = express();
-app.use(express.json({ limit: '50mb' }));
+app.disable('x-powered-by');
+app.use(express.json({ limit: CANVAS_JSON_LIMIT }));
 app.use(express.static(join(__dirname, 'public')));
 app.use((req, res, next) => {
   const origin = typeof req.headers.origin === 'string' ? req.headers.origin.trim() : '';
@@ -120,6 +146,19 @@ function parseHeaderLines(raw) {
       }
     });
   return headers;
+}
+
+function defaultBaseUrl(host, port) {
+  const publicHost = !host || host === '0.0.0.0' || host === '::' ? '127.0.0.1' : host;
+  const formattedHost = publicHost.includes(':') && !publicHost.startsWith('[')
+    ? `[${publicHost}]`
+    : publicHost;
+  return `http://${formattedHost}:${port}`;
+}
+
+function readPositiveNumber(value, fallback) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 }
 
 function parseOriginList(raw) {
@@ -741,7 +780,7 @@ function deleteProject(projectId) {
 }
 
 async function requestJson(url, options = {}) {
-  const response = await fetch(url, options);
+  const response = await fetchWithTimeout(url, options, AI_REQUEST_TIMEOUT_MS);
   const rawText = await response.text();
   let payload = null;
   try {
@@ -756,6 +795,24 @@ async function requestJson(url, options = {}) {
     throw error;
   }
   return payload;
+}
+
+async function fetchWithTimeout(url, options = {}, timeoutMs = 30_000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, {
+      ...options,
+      signal: options.signal || controller.signal,
+    });
+  } catch (error) {
+    if (error?.name === 'AbortError') {
+      throw httpError('请求超时', 504, 'REQUEST_TIMEOUT');
+    }
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 function buildAiHeaders() {
@@ -801,13 +858,105 @@ function buildGeneratePayload(session) {
 
 async function downloadRemoteAsset(url) {
   const safeUrl = await assertSafeRemoteUrl(url);
-  const response = await fetch(safeUrl);
+  const response = await fetchWithTimeout(
+    safeUrl,
+    {
+      headers: {
+        'User-Agent': 'TRIX-Canvas/1.0',
+      },
+      redirect: 'manual',
+    },
+    REMOTE_FETCH_TIMEOUT_MS,
+  );
+  if (response.status >= 300 && response.status < 400) {
+    throw httpError('remote url 不允许跳转', 400, 'REMOTE_URL_REDIRECT');
+  }
   if (!response.ok) {
     throw new Error(`下载结果失败: ${response.status}`);
   }
-  const mimeType = response.headers.get('content-type') || inferMimeType(url);
+  const mimeType = (response.headers.get('content-type') || inferMimeType(url)).split(';')[0].trim();
   const bytes = await readResponseBuffer(response);
   return { bytes, mimeType, sourceUrl: safeUrl };
+}
+
+function detectMediaFormat(bytes) {
+  if (!bytes || bytes.length < 4) {
+    return null;
+  }
+  if (
+    bytes.length >= 8
+    && bytes[0] === 0x89
+    && bytes[1] === 0x50
+    && bytes[2] === 0x4e
+    && bytes[3] === 0x47
+    && bytes[4] === 0x0d
+    && bytes[5] === 0x0a
+    && bytes[6] === 0x1a
+    && bytes[7] === 0x0a
+  ) {
+    return { mimeType: 'image/png', extension: '.png', mediaType: 'image' };
+  }
+  if (bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) {
+    return { mimeType: 'image/jpeg', extension: '.jpg', mediaType: 'image' };
+  }
+  if (bytes.length >= 6) {
+    const signature = bytes.subarray(0, 6).toString('ascii');
+    if (signature === 'GIF87a' || signature === 'GIF89a') {
+      return { mimeType: 'image/gif', extension: '.gif', mediaType: 'image' };
+    }
+  }
+  if (
+    bytes.length >= 12
+    && bytes.subarray(0, 4).toString('ascii') === 'RIFF'
+    && bytes.subarray(8, 12).toString('ascii') === 'WEBP'
+  ) {
+    return { mimeType: 'image/webp', extension: '.webp', mediaType: 'image' };
+  }
+  if (bytes.length >= 12 && bytes.subarray(4, 8).toString('ascii') === 'ftyp') {
+    const brand = bytes.subarray(8, 12).toString('ascii');
+    if (brand === 'qt  ') {
+      return { mimeType: 'video/quicktime', extension: '.mov', mediaType: 'video' };
+    }
+    return { mimeType: 'video/mp4', extension: '.mp4', mediaType: 'video' };
+  }
+  if (bytes.length >= 4 && bytes[0] === 0x1a && bytes[1] === 0x45 && bytes[2] === 0xdf && bytes[3] === 0xa3) {
+    return { mimeType: 'video/webm', extension: '.webm', mediaType: 'video' };
+  }
+  return null;
+}
+
+function validateUploadedAsset({ bytes, filename, mimeType, mediaType }) {
+  if (!Buffer.isBuffer(bytes) || bytes.length === 0) {
+    throw httpError('上传文件为空', 400, 'UPLOAD_EMPTY');
+  }
+  if (bytes.length > MAX_UPLOAD_BYTES) {
+    throw httpError('上传文件过大', 413, 'UPLOAD_TOO_LARGE');
+  }
+
+  const safeFilename = sanitizeFilename(filename || 'upload');
+  const cleanMimeType = String(mimeType || '').split(';')[0].trim().toLowerCase();
+  const declaredMimeType = cleanMimeType || inferMimeType(safeFilename, '');
+  const declaredExtension = extname(safeFilename).toLowerCase();
+  const detected = detectMediaFormat(bytes);
+  const finalMimeType = detected?.mimeType || declaredMimeType;
+  const finalExtension = declaredExtension || detected?.extension || inferExtension(safeFilename, finalMimeType);
+  const finalMediaType = detected?.mediaType || mediaType || guessMediaType(finalMimeType, safeFilename);
+
+  if (!finalMimeType || !ALLOWED_UPLOAD_MIME_TYPES.has(finalMimeType)) {
+    throw httpError('不支持的上传文件类型', 400, 'UPLOAD_TYPE_UNSUPPORTED');
+  }
+  if (!finalExtension || !ALLOWED_UPLOAD_EXTENSIONS.has(finalExtension)) {
+    throw httpError('不支持的上传文件扩展名', 400, 'UPLOAD_EXTENSION_UNSUPPORTED');
+  }
+  if (detected && finalMediaType !== detected.mediaType) {
+    throw httpError('上传文件类型与内容不匹配', 400, 'UPLOAD_TYPE_MISMATCH');
+  }
+
+  return {
+    filename: declaredExtension ? safeFilename : `${safeFilename}${finalExtension}`,
+    mimeType: finalMimeType,
+    mediaType: finalMediaType,
+  };
 }
 
 function isPrivateIpAddress(address) {
@@ -1625,11 +1774,18 @@ app.post(['/api/upload', '/api/file/upload'], async (req, res, next) => {
       return res.status(400).json({ error: '请传入 fileData(base64) 或 external_url' });
     }
 
+    const validatedAsset = validateUploadedAsset({
+      bytes,
+      filename: body.filename || fileNameFromUrl(body.source_url || body.sourceUrl || 'upload'),
+      mimeType: body.mime_type || body.mimeType || inferMimeType(body.filename || ''),
+      mediaType: body.media_type || body.mediaType || guessMediaType(body.mime_type || body.mimeType || '', body.filename || ''),
+    });
+
     const file = storeFileBuffer({
       bytes,
-      filename: body.filename || 'upload',
-      mime_type: body.mime_type || body.mimeType || inferMimeType(body.filename || ''),
-      media_type: body.media_type || body.mediaType || guessMediaType(body.mime_type || body.mimeType || '', body.filename || ''),
+      filename: validatedAsset.filename,
+      mime_type: validatedAsset.mimeType,
+      media_type: validatedAsset.mediaType,
       project_id: projectId,
       node_id: body.node_id || body.nodeId || null,
       prompt: body.prompt || '',
@@ -1865,16 +2021,13 @@ app.use((error, _req, res, _next) => {
 });
 
 const server = createServer(app);
-server.listen(PORT, '0.0.0.0', () => {
+server.listen(PORT, HOST, () => {
   console.log(`TRIX Canvas Service running at ${APP_ORIGIN}`);
   console.log(`  Canvas UI: ${APP_ORIGIN}/canvas`);
   console.log(`  Health:    ${APP_ORIGIN}/health`);
   console.log(`  Data dir:  ${DATA_ROOT}`);
   console.log(`  Export dir:${EXPORT_ROOT}`);
   console.log(`  Auth:      ${CANVAS_REQUIRE_AUTH ? 'enabled' : 'disabled'}`);
-  if (CANVAS_REQUIRE_AUTH && !process.env.CANVAS_ACCESS_TOKEN) {
-    console.log(`  Access token (generated): ${CANVAS_ACCESS_TOKEN}`);
-  }
   if (!AI_API_BASE) {
     console.warn('⚠ AI_API_BASE 未配置，生成接口会返回错误状态');
   }

@@ -43,10 +43,12 @@ def start(
         sys.exit(1)
 
     env = os.environ.copy()
+    env["CANVAS_HOST"] = host
     env["CANVAS_PORT"] = str(port)
     env["CANVAS_BASE_URL"] = f"http://{host}:{port}"
     env.setdefault("CANVAS_DATA_DIR", str(default_canvas_data_dir()))
     env.setdefault("CANVAS_EXPORT_DIR", str(default_canvas_export_dir()))
+    env.setdefault("PROXY_HOST", "127.0.0.1")
     command = ["node", "start-all.js" if with_proxy else "server.js"]
 
     print(f"🚀 启动 Canvas 服务: {env['CANVAS_BASE_URL']}")
@@ -54,6 +56,8 @@ def start(
         print("   模式: proxy + canvas")
     else:
         print("   模式: canvas only")
+    if env.get("CANVAS_REQUIRE_AUTH", "").lower() in {"1", "true", "yes"}:
+        print("   鉴权: enabled（浏览器首次访问会提示输入 CANVAS_ACCESS_TOKEN）")
 
     proc = subprocess.Popen(
         command,

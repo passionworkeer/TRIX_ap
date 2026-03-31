@@ -618,6 +618,38 @@ body::before{
   font-size:22px;
   cursor:pointer;
 }
+.auth-gate{
+  position:fixed;
+  inset:0;
+  z-index:180;
+  display:none;
+  align-items:center;
+  justify-content:center;
+  padding:24px;
+  background:rgba(4,8,11,.78);
+  backdrop-filter:blur(18px);
+}
+.auth-gate.show{display:flex}
+.auth-panel{
+  width:min(420px,100%);
+  display:flex;
+  flex-direction:column;
+  gap:14px;
+  padding:22px;
+  border-radius:26px;
+  border:1px solid rgba(255,255,255,.08);
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02)),
+    linear-gradient(180deg, rgba(8,12,17,.98), rgba(9,14,20,.96));
+  box-shadow:var(--shadow);
+}
+.auth-status{
+  min-height:18px;
+  color:var(--muted);
+  font-size:12px;
+  line-height:1.6;
+}
+.auth-status.error{color:#ffd4d4}
 @media (max-width: 1480px){
   .workspace{grid-template-columns:320px minmax(0,1fr) 320px}
   .recipe-grid{grid-template-columns:1fr}
@@ -855,6 +887,22 @@ body::before{
   <video id="lightboxVideo" controls hidden></video>
 </div>
 
+<div class="auth-gate" id="authGate" hidden>
+  <div class="auth-panel">
+    <div class="card-title">
+      <div class="section-kicker">Canvas Access</div>
+      <div class="section-title">输入访问令牌</div>
+      <div class="section-copy">当前 Canvas 已开启 API / media 鉴权。登录后页面会自动继续载入项目和素材。</div>
+    </div>
+    <input class="input" id="authTokenInput" type="password" placeholder="CANVAS_ACCESS_TOKEN" autocomplete="off" />
+    <div class="row-actions">
+      <button class="button primary" id="authLoginButton" type="button">登录画布</button>
+      <button class="button ghost" id="authRetryButton" type="button">重新检测</button>
+    </div>
+    <div class="auth-status" id="authStatus">等待访问令牌。</div>
+  </div>
+</div>
+
 <script>
 const API_BASE = window.location.origin;
 const NODE_WIDTH = 228;
@@ -926,6 +974,11 @@ const state = {
   projects: [],
   project: null,
   selectedNodeId: null,
+  auth: {
+    requiresAuth: false,
+    authenticated: true,
+    pending: false,
+  },
   viewport: { scale: 1, tx: 120, ty: 120 },
   dragging: null,
   panning: null,
@@ -1006,6 +1059,11 @@ const elements = {
   lightboxClose: document.getElementById('lightboxClose'),
   lightboxImage: document.getElementById('lightboxImage'),
   lightboxVideo: document.getElementById('lightboxVideo'),
+  authGate: document.getElementById('authGate'),
+  authTokenInput: document.getElementById('authTokenInput'),
+  authLoginButton: document.getElementById('authLoginButton'),
+  authRetryButton: document.getElementById('authRetryButton'),
+  authStatus: document.getElementById('authStatus'),
 };
 
 const ctx = elements.canvas.getContext('2d');
@@ -1020,6 +1078,7 @@ function showToast(message, timeout = 2800) {
 
 async function fetchJson(path, options = {}) {
   const response = await fetch(`${API_BASE}${path}`, {
+    credentials: 'same-origin',
     headers: {
       'Content-Type': 'application/json',
       ...(options.headers || {}),
@@ -1029,9 +1088,93 @@ async function fetchJson(path, options = {}) {
   const text = await response.text();
   const payload = text ? JSON.parse(text) : {};
   if (!response.ok) {
+    if (response.status === 401) {
+      state.auth.requiresAuth = true;
+      state.auth.authenticated = false;
+      updateAuthGate();
+    }
     throw new Error(payload.error || payload.detail || `${response.status} ${response.statusText}`);
   }
   return payload;
+}
+
+function updateAuthGate() {
+  const show = state.auth.requiresAuth && !state.auth.authenticated;
+  elements.authGate.hidden = !show;
+  elements.authGate.classList.toggle('show', show);
+}
+
+function setAuthStatus(message, isError = false) {
+  elements.authStatus.textContent = message;
+  elements.authStatus.classList.toggle('error', isError);
+}
+
+function stripTokenParamFromUrl() {
+  const url = new URL(window.location.href);
+  if (!url.searchParams.has('token')) return;
+  url.searchParams.delete('token');
+  window.history.replaceState({}, '', url.toString());
+}
+
+async function refreshAuthStatus() {
+  const payload = await fetchJson('/api/auth/status');
+  state.auth.requiresAuth = Boolean(payload.requiresAuth);
+  state.auth.authenticated = Boolean(payload.authenticated);
+  updateAuthGate();
+  return state.auth;
+}
+
+async function loginCanvasWithToken(token) {
+  const cleanToken = String(token || '').trim();
+  if (!cleanToken) {
+    setAuthStatus('请输入访问令牌。', true);
+    return false;
+  }
+  state.auth.pending = true;
+  elements.authLoginButton.disabled = true;
+  elements.authRetryButton.disabled = true;
+  setAuthStatus('正在验证访问令牌…');
+  try {
+    await fetchJson('/api/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ token: cleanToken }),
+    });
+    await refreshAuthStatus();
+    stripTokenParamFromUrl();
+    elements.authTokenInput.value = '';
+    setAuthStatus('访问已授权。');
+    showToast('已登录 Canvas');
+    return true;
+  } catch (error) {
+    setAuthStatus(error.message || '访问令牌无效。', true);
+    throw error;
+  } finally {
+    state.auth.pending = false;
+    elements.authLoginButton.disabled = false;
+    elements.authRetryButton.disabled = false;
+    updateAuthGate();
+  }
+}
+
+async function ensureAuthenticated() {
+  const url = new URL(window.location.href);
+  const tokenFromUrl = url.searchParams.get('token') || '';
+  await refreshAuthStatus();
+  if (!state.auth.requiresAuth || state.auth.authenticated) {
+    if (tokenFromUrl) stripTokenParamFromUrl();
+    return;
+  }
+  if (tokenFromUrl) {
+    elements.authTokenInput.value = tokenFromUrl;
+    try {
+      await loginCanvasWithToken(tokenFromUrl);
+      return;
+    } catch {
+      // Fall through to manual entry after the inline error is shown.
+    }
+  }
+  setAuthStatus('需要访问令牌后才能读取项目与媒体。');
+  throw new Error('Canvas authentication required');
 }
 
 function getData(payload) {
@@ -2148,6 +2291,41 @@ elements.detailVideo.addEventListener('dblclick', () => {
     openLightbox(new URL(node.preview_url, API_BASE).toString(), true);
   }
 });
+elements.authLoginButton.addEventListener('click', async () => {
+  try {
+    await loginCanvasWithToken(elements.authTokenInput.value);
+    if (state.auth.authenticated) {
+      await loadProjects();
+      const projectId = new URLSearchParams(window.location.search).get('projectId');
+      if (projectId) {
+        await selectProject(projectId);
+      } else if (state.projects[0]?.id) {
+        await selectProject(state.projects[0].id);
+      }
+    }
+  } catch {
+    // Status is already surfaced inline.
+  }
+});
+elements.authRetryButton.addEventListener('click', async () => {
+  try {
+    await refreshAuthStatus();
+    if (state.auth.authenticated) {
+      setAuthStatus('访问已授权。');
+      await loadProjects();
+    } else {
+      setAuthStatus('仍未授权，请输入访问令牌。');
+    }
+  } catch (error) {
+    setAuthStatus(error.message || '无法检测鉴权状态。', true);
+  }
+});
+elements.authTokenInput.addEventListener('keydown', (event) => {
+  if (event.key === 'Enter') {
+    event.preventDefault();
+    elements.authLoginButton.click();
+  }
+});
 
 elements.minimapCanvas.addEventListener('pointerdown', (event) => {
   const world = pointerToMinimapWorld(event.clientX, event.clientY);
@@ -2271,6 +2449,7 @@ async function bootstrap() {
   renderRecipeCards();
   updateZoomLabel();
   updateBatchHint();
+  await ensureAuthenticated();
   await loadProjects();
   const projectId = new URLSearchParams(window.location.search).get('projectId');
   if (projectId) {
@@ -2303,7 +2482,9 @@ async function bootstrap() {
 
 bootstrap().catch((error) => {
   console.error(error);
-  showToast(error.message || '初始化失败');
+  if (error.message !== 'Canvas authentication required') {
+    showToast(error.message || '初始化失败');
+  }
 });
 </script>
 </body>

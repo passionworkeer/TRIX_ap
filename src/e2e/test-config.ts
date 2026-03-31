@@ -23,6 +23,8 @@ export async function waitForI18n(page: Page) {
   await page.addInitScript(() => {
     localStorage.setItem('language', 'zh');
     localStorage.setItem('i18nextLng', 'zh');
+    sessionStorage.setItem('language', 'zh');
+    sessionStorage.setItem('i18nextLng', 'zh');
   });
 }
 
@@ -138,9 +140,11 @@ export async function mockSession(page: Page, userId = 'test-user-123', email = 
       user: mockUser
     };
 
-    // Store in localStorage (Supabase storage key format)
+    // Store in both localStorage and sessionStorage because runtime auth now
+    // normalizes sessions into sessionStorage for security.
     const storageKey = `sb-__SUPABASE_PROJECT_REF_REDACTED__-auth-token`;
     localStorage.setItem(storageKey, JSON.stringify(mockSession));
+    sessionStorage.setItem(storageKey, JSON.stringify(mockSession));
 
     // Mock the Supabase client's auth methods
     // @ts-ignore - We're intentionally mocking the window object
@@ -157,9 +161,14 @@ export async function mockSession(page: Page, userId = 'test-user-123', email = 
     // @ts-ignore
     window.fetch = async function(...args) {
       const [url, options] = args;
+      const requestUrl = typeof url === 'string'
+        ? url
+        : (typeof Request !== 'undefined' && url instanceof Request)
+          ? url.url
+          : String(url);
 
       // Mock Supabase auth session endpoint
-      if (typeof url === 'string' && url.includes('/auth/v1/session')) {
+      if (requestUrl.includes('/auth/v1/session')) {
         return new Response(JSON.stringify(mockSession), {
           status: 200,
           headers: { 'Content-Type': 'application/json' }
@@ -167,7 +176,7 @@ export async function mockSession(page: Page, userId = 'test-user-123', email = 
       }
 
       // Mock Supabase auth user endpoint
-      if (typeof url === 'string' && url.includes('/auth/v1/user')) {
+      if (requestUrl.includes('/auth/v1/user')) {
         return new Response(JSON.stringify(mockUser), {
           status: 200,
           headers: { 'Content-Type': 'application/json' }
@@ -175,7 +184,7 @@ export async function mockSession(page: Page, userId = 'test-user-123', email = 
       }
 
       // Mock Supabase profiles endpoint
-      if (typeof url === 'string' && url.includes('/rest/v1/profiles')) {
+      if (requestUrl.includes('/rest/v1/profiles')) {
         return new Response(JSON.stringify({
           id: userId,
           username: 'TestUser',
@@ -192,7 +201,7 @@ export async function mockSession(page: Page, userId = 'test-user-123', email = 
       }
 
       // Mock Supabase user_stats endpoint
-      if (typeof url === 'string' && url.includes('/rest/v1/user_stats')) {
+      if (requestUrl.includes('/rest/v1/user_stats')) {
         return new Response(JSON.stringify([{
           id: userId,
           total_study_time: 3600,
@@ -208,7 +217,7 @@ export async function mockSession(page: Page, userId = 'test-user-123', email = 
       }
 
       // Mock Supabase points_transactions endpoint
-      if (typeof url === 'string' && url.includes('/rest/v1/points_transactions')) {
+      if (requestUrl.includes('/rest/v1/points_transactions')) {
         return new Response(JSON.stringify([
           {
             id: '1',
@@ -233,7 +242,7 @@ export async function mockSession(page: Page, userId = 'test-user-123', email = 
       }
 
       // Mock Supabase mall_items endpoint (Points Mall)
-      if (typeof url === 'string' && url.includes('/rest/v1/mall_items')) {
+      if (requestUrl.includes('/rest/v1/mall_items')) {
         return new Response(JSON.stringify([
           {
             id: 'item-1',
@@ -275,7 +284,7 @@ export async function mockSession(page: Page, userId = 'test-user-123', email = 
       }
 
       // Mock Supabase user_points endpoint (Points balance)
-      if (typeof url === 'string' && url.includes('/rest/v1/user_points')) {
+      if (requestUrl.includes('/rest/v1/user_points')) {
         return new Response(JSON.stringify({
           user_id: userId,
           balance: 100,
@@ -289,7 +298,7 @@ export async function mockSession(page: Page, userId = 'test-user-123', email = 
       }
 
       // Mock Supabase user_purchased_items endpoint (Owned items)
-      if (typeof url === 'string' && url.includes('/rest/v1/user_purchased_items')) {
+      if (requestUrl.includes('/rest/v1/user_purchased_items')) {
         // Check if this is a select or insert operation
         if (options && options.method === 'POST') {
           // Return the inserted item for purchase tests
@@ -313,7 +322,7 @@ export async function mockSession(page: Page, userId = 'test-user-123', email = 
       }
 
       // Mock Supabase outfits endpoint (Wardrobe/Avatar outfits)
-      if (typeof url === 'string' && url.includes('/rest/v1/outfits')) {
+      if (requestUrl.includes('/rest/v1/outfits')) {
         return new Response(JSON.stringify([
           {
             id: 'outfit-1',
@@ -366,7 +375,7 @@ export async function mockSession(page: Page, userId = 'test-user-123', email = 
       }
 
       // Mock Supabase user_outfits endpoint (User's owned outfits)
-      if (typeof url === 'string' && url.includes('/rest/v1/user_outfits')) {
+      if (requestUrl.includes('/rest/v1/user_outfits')) {
         return new Response(JSON.stringify([
           {
             id: 'user-outfit-1',

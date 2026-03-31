@@ -11,7 +11,7 @@ allowed-tools: Bash, Read, Glob
 
 ## 环境要求
 
-- **Canvas 服务**: `http://localhost:8789`
+- **Canvas 服务**: 默认监听 `127.0.0.1:8789`
 - **Python**: `python3`
 - **Node.js**: `node`（启动 Canvas 服务用）
 
@@ -42,6 +42,16 @@ python3 skills/trix-canvas-skill/scripts/start_canvas.py --with-proxy --open
 # python3 ~/.openclaw/workspace-trix-native/skills/trix-canvas-skill/scripts/start_canvas.py --with-proxy --open
 ```
 
+默认只绑定本机回环地址。需要对外暴露时，显式传环境变量：
+
+```bash
+CANVAS_HOST=0.0.0.0 \
+CANVAS_BASE_URL=https://your-host.example.com \
+python3 skills/trix-canvas-skill/scripts/start_canvas.py --with-proxy
+```
+
+如果开启了 `CANVAS_REQUIRE_AUTH=true`，浏览器首次访问 `/canvas` 时会自动弹出令牌登录面板；CLI / Python 脚本则读取 `CANVAS_ACCESS_TOKEN` 并自动走 `Authorization: Bearer ...`。
+
 ## 脚本索引
 
 所有脚本在 `skills/trix-canvas-skill/scripts/`。
@@ -54,6 +64,7 @@ python3 skills/trix-canvas-skill/scripts/start_canvas.py --with-proxy --open
 | `upload_file.py` | 上传本地图片/视频作为参考素材 | `project_id`, `file`, `--type`, `--prompt` |
 | `download_results.py` | 批量下载项目的 `files` | `project_id`, `--dest`, `--media-types` |
 | `check_env.py` | 端口、ffmpeg、目录自检 | 无参数 |
+| `start_all.js` | 兼容入口：直接转发到 skill runtime 的 `assets/canvas-service/start-all.js` | 透传 Node 参数 |
 | `parse_script.py` | 将剧本拆解成按镜头排序的 JSON | `script` 文本或文件路径 |
 | `workflow.py` | 一条命令自动完成解析、生成、轮询、字幕导出 | `script`, `--project-name`, `--concurrent` |
 | `generate.py` | 调用 AI Adapter 生成单个 media（image/video） | `--prompt`, `--type` |
@@ -143,11 +154,15 @@ openclaw agent --agent trix-native --session-id trix-canvas-demo --message \
 | 变量 | 默认值 | 说明 |
 |------|--------|------|
 | `CANVAS_BASE_URL` | `http://localhost:8789` | Canvas 服务地址（渲染 /session + /projects） |
+| `CANVAS_HOST` | `127.0.0.1` | Canvas 服务实际监听地址 |
 | `AI_API_BASE` | `""` | 生成服务地址（Canvas 后端会使用此 URL 调用第二跳生成接口；`start:all` 时会自动改为本地 proxy） |
 | `AI_API_KEY` | `""` | 上游 AIGC 的 Bearer Token |
 | `AI_GENERATE_PATH` | `/generate` | 创建任务路径 |
 | `AI_TASK_PATH_TEMPLATE` | `/tasks/:taskId` | 轮询路径模板 |
 | `AI_EXTRA_HEADERS` | `""` | 每行 `Key: Value`，用于补充上游 API 请求头 |
 | `CANVAS_REQUIRE_AUTH` | `false` | 是否开启 Canvas API 访问令牌鉴权 |
+| `CANVAS_ACCESS_TOKEN` | `""` | Canvas API / media 访问令牌；CLI 与 Python 封装会自动带上 |
+| `CANVAS_ALLOWED_ORIGINS` | `""` | 若你需要跨域 Cookie 访问，显式填写允许的来源，逗号分隔 |
+| `TRIX_CANVAS_ALLOW_OPENCLAW_CONFIG` | `false` | 是否允许 `start-all.js` 从 `~/.openclaw/openclaw.json` 回退读取上游 key；本机回环模式下也会自动允许 |
 | `TRIX_CANVAS_SERVICE_DIR` | `""` | 手动覆盖 skill 内置 canvas-service runtime 路径 |
 | `TRIX_CANVAS_RUNTIME_DIR` | `skills/trix-canvas-skill/runtime` | skill 运行时数据目录（含 data/exports） |

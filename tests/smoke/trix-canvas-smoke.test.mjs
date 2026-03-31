@@ -5,12 +5,14 @@ import { spawn } from 'node:child_process';
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
+import { fileURLToPath } from 'node:url';
 
 const CANVAS_PORT = 8801;
 const CANVAS_URL = `http://127.0.0.1:${CANVAS_PORT}`;
 const MOCK_AI_PORT = 8802;
 const MOCK_AI_URL = `http://127.0.0.1:${MOCK_AI_PORT}`;
-const FIXTURE_VIDEO = resolve('public/videos/role1/idle.mp4');
+const CANVAS_SERVER_ENTRY = fileURLToPath(new URL('../../packages/trix-canvas-service/server.js', import.meta.url));
+const FIXTURE_VIDEO = fileURLToPath(new URL('../../public/videos/role1/idle.mp4', import.meta.url));
 const FIXTURE_IMAGE = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+XnV0AAAAASUVORK5CYII=',
   'base64',
@@ -31,7 +33,7 @@ function spawnCanvasServer() {
     AI_TASK_PATH_TEMPLATE: '/tasks/:taskId',
     CANVAS_ALLOW_PRIVATE_REMOTE_URLS: 'true',
   };
-  const proc = spawn('node', ['packages/trix-canvas-service/server.js'], {
+  const proc = spawn('node', [CANVAS_SERVER_ENTRY], {
     env,
     stdio: ['ignore', 'ignore', 'ignore'],
   });
