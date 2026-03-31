@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { LuminaButton } from '../lumina/components/buttons';
 
@@ -23,8 +23,19 @@ interface ProtectedRouteProps {
 
 export function ProtectedRoute({ children, dark = false, onNavigate }: ProtectedRouteProps) {
   const { user, loading } = useAuth();
+  const [showContent, setShowContent] = useState(false);
 
-  if (loading) {
+  // If loading takes more than 3s (e.g. Supabase offline), skip to login prompt
+  useEffect(() => {
+    if (!loading) {
+      setShowContent(true);
+      return;
+    }
+    const timer = setTimeout(() => setShowContent(true), 3000);
+    return () => clearTimeout(timer);
+  }, [loading]);
+
+  if (loading && !showContent) {
     return (
       <div
         style={{

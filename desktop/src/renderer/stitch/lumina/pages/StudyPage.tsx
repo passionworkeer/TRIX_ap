@@ -1836,7 +1836,7 @@ export default function StudyPage() {
                   今日专注任务
                 </div>
                 <div style={{ fontSize: 11, color: C.onSurfaceVariant, opacity: 0.7 }}>
-                  2026年3月22日 · 周日
+                  {new Date().toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'short' })}
                 </div>
               </div>
               <button
