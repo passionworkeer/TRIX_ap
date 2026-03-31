@@ -12,7 +12,7 @@
 import http from 'node:http';
 import https from 'node:https';
 
-const PORT = Number(process.env.PROXY_PORT || 8788);
+const PORT = Number(process.env.PROXY_PORT || 8790);
 const HOST = process.env.PROXY_HOST || '127.0.0.1';
 const AI_API_BASE          = process.env.AI_API_BASE          || 'https://api.minimaxi.com';
 const AI_API_KEY           = process.env.AI_API_KEY           || '';

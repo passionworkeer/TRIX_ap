@@ -62,8 +62,8 @@ packages/trix-canvas-service/
 
 `npm run start:all` 会：
 
-1. 启动 `proxy.js`（默认端口 `8788`）
-2. 自动把 Canvas 服务的 `AI_API_BASE` 指向 `http://127.0.0.1:8788`
+1. 启动 `proxy.js`（默认端口 `8790`，避免占用 `trix-native` 通道默认的 `8788`）
+2. 自动把 Canvas 服务的 `AI_API_BASE` 指向 `http://127.0.0.1:8790`
 3. 将 Canvas 生成接口固定为 `/generate` + `/tasks/:taskId`
 
 它优先读取这些环境变量：
@@ -81,10 +81,10 @@ packages/trix-canvas-service/
 
 `relay.js` 是一个轻量适配器，用来把 `/generate` 和 `/tasks/:id` 请求转发到任意厂商。只需设置以下环境变量（见 `.env.example`），然后用 `node relay.js` 启动即可：
 
-- `RELAY_PORT`：监听端口（默认 8788）
+- `RELAY_PORT`：监听端口（默认 8791）
 - `IMAGE_API_URL`, `IMAGE_API_METHOD`, `IMAGE_API_KEY`, `IMAGE_API_MODEL`
 - `VIDEO_API_URL`, `VIDEO_API_METHOD`, `VIDEO_API_KEY`, `VIDEO_API_MODEL`
-- `RELAY_OUTPUT_PREFIX`：如果仓库需要本地 assets，可把 base64 写入 outputs 并用 `http://localhost:8788/outputs/...` 访问
+- `RELAY_OUTPUT_PREFIX`：如果仓库需要本地 assets，可把 base64 写入 outputs 并用 `http://localhost:8791/outputs/...` 访问
 
 ## 授权与开放
 
@@ -110,6 +110,7 @@ packages/trix-canvas-service/
 | `AI_TASK_PATH_TEMPLATE` | `/tasks/:taskId` | 轮询路径模板 |
 | `PROXY_UPSTREAM_BASE` | `https://api.minimaxi.com` | `proxy.js` 上游 base URL |
 | `PROXY_UPSTREAM_KEY` |  | `proxy.js` 上游鉴权 |
+| `PROXY_PORT` | `8790` | `proxy.js` 监听端口 |
 | `PROXY_HOST` | `127.0.0.1` | `proxy.js` 监听地址 |
 | `PROXY_IMAGE_PATH` | `/v1/image_generation` | `proxy.js` 图片接口 |
 | `PROXY_IMAGE_MODEL` | `image-01` | `proxy.js` 图片模型 |
@@ -121,5 +122,5 @@ packages/trix-canvas-service/
 | `VIDEO_API_URL` |  | Relay 发送视频 prompt 的供应商地址 |
 | `VIDEO_API_KEY` |  | 视频供应商鉴权 |
 | `VIDEO_API_MODEL` | `veo-3.1-fast` | 可选模型标识 |
-| `RELAY_OUTPUT_PREFIX` | `http://localhost:8788/outputs` | base64 输出归属 URL |
-| `RELAY_PORT` | `8788` | Relay 监听端口 |
+| `RELAY_OUTPUT_PREFIX` | `http://localhost:8791/outputs` | base64 输出归属 URL |
+| `RELAY_PORT` | `8791` | Relay 监听端口 |

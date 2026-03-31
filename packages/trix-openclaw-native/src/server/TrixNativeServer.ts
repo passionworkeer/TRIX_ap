@@ -273,7 +273,7 @@ export class TrixNativeServer {
       .filter(Boolean);
   }
 
-  private readUserSocketClientToken(request: http.IncomingMessage, searchParams: URLSearchParams): string | undefined {
+  private readUserSocketClientToken(request: http.IncomingMessage): string | undefined {
     const protocolToken = this.readWebSocketProtocols(request)
       .find((entry) => entry.startsWith(WS_TOKEN_PROTOCOL_PREFIX));
     if (protocolToken) {
@@ -284,10 +284,10 @@ export class TrixNativeServer {
           return decoded;
         }
       } catch {
-        // Fall back to legacy query-string token handling below.
+        return undefined;
       }
     }
-    return searchParams.get('clientToken') ?? undefined;
+    return undefined;
   }
 
   private async resolveAuthenticatedAppUser(request: http.IncomingMessage): Promise<{ id: string } | null> {
@@ -1752,7 +1752,10 @@ export class TrixNativeServer {
       if (!conversationId) {
         throw new HttpError(400, 'conversationId required');
       }
-      await this.assertClientToken(conversationId, this.readUserSocketClientToken(request, searchParams));
+      if (!this.readWebSocketProtocols(request).includes(USER_WS_PROTOCOL)) {
+        throw new HttpError(401, 'User websocket protocol required');
+      }
+      await this.assertClientToken(conversationId, this.readUserSocketClientToken(request));
     }
 
     this.sockets.set(socket, {

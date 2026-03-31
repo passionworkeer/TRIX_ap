@@ -21,7 +21,7 @@ function readOpenClawApiKey() {
 }
 
 const PORT = Number(process.env.CANVAS_PORT || 8789);
-const PXYPORT = Number(process.env.PROXY_PORT || 8788);
+const PXYPORT = Number(process.env.PROXY_PORT || 8790);
 const proxyApiKey =
   process.env.AI_API_KEY
   || process.env.MINIMAX_API_KEY

@@ -10,7 +10,7 @@ import { dirname, join } from "path";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const RELAY_PORT = Number(process.env.RELAY_PORT || 8788);
+const RELAY_PORT = Number(process.env.RELAY_PORT || 8791);
 const OUT_DIR = join(__dirname, "outputs");
 
 const IMAGE_API_URL = process.env.IMAGE_API_URL || "";
