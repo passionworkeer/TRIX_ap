@@ -103,7 +103,38 @@ desktop/dist-desktop/
 
 ---
 
-## 4. Known Issues — Non-Blocking
+### 2.6 Stress Tests
+
+| Metric | Result |
+|--------|--------|
+| HTTP 吞吐量 | **897 req/s** |
+| HTTP 错误率 | **0%** |
+| HTTP p50 延迟 | **18.2ms** |
+| HTTP p99 延迟 | **41.4ms** |
+| WS 并发连接 | **50/50 认证成功** |
+| WS 吞吐量 | **69 msg/s** |
+| 内存占用 | **542 MB / 5 进程**（正常范围） |
+| 窗口稳定性 | **10/10 快速切换，无崩溃** |
+| Gateway 响应 | **1.09ms** |
+
+### 2.7 集成测试覆盖
+
+| 模块 | 覆盖 | 评分 |
+|------|------|------|
+| IPC 边界测试 | 5/9 | B+ |
+| Supabase Auth | 4/4 全链路 | A |
+| Settings 页面 | 13/13 完整实现 | A |
+| TRIX Native 流程 | 6/7（reactions 为预期错误） | A |
+| OpenClaw Plugin | 4/5（startAccount 在外部插件） | A |
+| 设计系统 | 6/6 路由全支持 | A |
+| 系统托盘菜单 | 6/8（float 窗口切换缺失） | B |
+| Cron 任务系统 | 全 CRUD + 持久化 | A |
+
+**综合集成评分: B+**
+
+---
+
+## 4. 已知问题 — Non-Blocking
 
 ### 4.1 Pre-existing TypeScript Errors (4)
 

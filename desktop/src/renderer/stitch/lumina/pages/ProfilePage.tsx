@@ -8,6 +8,7 @@ import {
 import { LuminaButton } from '../components/buttons';
 import { SurfaceCard } from '../components/cards';
 import { LuminaInput } from '../components/inputs';
+import { useAuth } from '@/contexts/AuthContext';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -217,7 +218,8 @@ const SocialAccountRow = (props: SocialAccountRowProps) => {
 
 export default function ProfilePage() {
   const api = window.electronAPI;
-  const canEditProfile = false;
+  const { updateProfile, user } = useAuth();
+  const canEditProfile = true;
   const [socialAccounts, setSocialAccounts] = useState<SocialAccount[]>([]);
   const [achievements, setAchievements] = useState<Achievement[]>([]);
   const [profileStats, setProfileStats] = useState<{
@@ -238,6 +240,10 @@ export default function ProfilePage() {
 
   // Achievement detail
   const [selectedAchievement, setSelectedAchievement] = useState<Achievement | null>(null);
+
+  // Save profile
+  const [saveLoading, setSaveLoading] = useState(false);
+  const [saveToast, setSaveToast] = useState<{ type: 'success' | 'error'; msg: string } | null>(null);
 
   // Load achievements + profile stats from IPC (Supabase via main process)
   useEffect(() => {
@@ -278,19 +284,29 @@ export default function ProfilePage() {
   }
 
   function openEditModal() {
-    if (!canEditProfile) return;
     setEditNickname(profileStats.displayName);
     setEditLocation('');
     setEditModalOpen(true);
   }
 
-  function saveProfile() {
-    if (!canEditProfile) {
-      setEditModalOpen(false);
-      return;
+  async function saveProfile() {
+    setSaveLoading(true);
+    setSaveToast(null);
+    try {
+      const result = await updateProfile(editNickname, editLocation);
+      if (result.error) {
+        setSaveToast({ type: 'error', msg: result.error.message || '保存失败' });
+      } else {
+        setProfileStats((prev) => ({ ...prev, displayName: editNickname }));
+        setEditModalOpen(false);
+        setSaveToast({ type: 'success', msg: '资料已保存' });
+        setTimeout(() => setSaveToast(null), 2500);
+      }
+    } catch (err) {
+      setSaveToast({ type: 'error', msg: '保存失败，请重试' });
+    } finally {
+      setSaveLoading(false);
     }
-    setProfileStats((prev) => ({ ...prev, displayName: editNickname }));
-    setEditModalOpen(false);
   }
 
   const handleConnect = (id: string) => {
@@ -466,7 +482,7 @@ export default function ProfilePage() {
                   icon={<Edit size={13} />}
                   label="编辑资料"
                   onClick={openEditModal}
-                  disabled={!canEditProfile}
+                  disabled={!user}
                 />
                 <LuminaButton
                   variant="outline"
@@ -757,6 +773,21 @@ export default function ProfilePage() {
                 onChange={setEditLocation}
               />
             </div>
+            {/* Toast */}
+            {saveToast && (
+              <div style={{
+                marginBottom: 12,
+                padding: '8px 12px',
+                borderRadius: 8,
+                background: saveToast.type === 'success' ? C.successBg : 'rgba(255,107,107,0.1)',
+                border: `1px solid ${saveToast.type === 'success' ? C.successBorder : 'rgba(255,107,107,0.2)'}`,
+                color: saveToast.type === 'success' ? C.successText : '#ff6b6b',
+                fontSize: 12,
+                textAlign: 'center',
+              }}>
+                {saveToast.msg}
+              </div>
+            )}
             {/* Actions */}
             <div style={{ display: 'flex', gap: 10 }}>
               <button
@@ -772,16 +803,21 @@ export default function ProfilePage() {
               </button>
               <button
                 onClick={saveProfile}
+                disabled={saveLoading}
                 style={{
                   flex: 1, padding: '10px 0', borderRadius: 10,
                   border: 'none',
-                  background: `linear-gradient(135deg, ${C.primary}, ${C.primaryContainer})`,
+                  background: saveLoading
+                    ? `${C.primary}60`
+                    : `linear-gradient(135deg, ${C.primary}, ${C.primaryContainer})`,
                   color: C.onPrimary,
-                  fontSize: 14, fontWeight: 600, cursor: 'pointer',
-                  boxShadow: `0 4px 16px ${C.primary}40`,
+                  fontSize: 14, fontWeight: 600,
+                  cursor: saveLoading ? 'not-allowed' : 'pointer',
+                  boxShadow: saveLoading ? 'none' : `0 4px 16px ${C.primary}40`,
+                  transition: 'all 0.15s',
                 }}
               >
-                保存
+                {saveLoading ? '保存中...' : '保存'}
               </button>
             </div>
           </div>

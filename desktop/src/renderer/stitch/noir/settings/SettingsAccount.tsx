@@ -15,6 +15,7 @@ export function SettingsAccount(_props: SettingsSharedState) {
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
   const [authEmail, setAuthEmail] = useState('');
   const [authPassword, setAuthPassword] = useState('');
+  const [authUsername, setAuthUsername] = useState('');
   const [authError, setAuthError] = useState<string | null>(null);
   const [authSuccess, setAuthSuccess] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
@@ -44,14 +45,17 @@ export function SettingsAccount(_props: SettingsSharedState) {
           setAuthSuccess('登录成功');
           setAuthEmail('');
           setAuthPassword('');
+          setAuthUsername('');
         } else {
           setAuthError(result.error || '登录失败');
         }
       } else {
-        const result = await api.authSignUp(authEmail.trim(), authPassword);
+        const result = await api.authSignUp(authEmail.trim(), authPassword, authUsername.trim() || undefined);
         if (result.success) {
           setAuthSuccess('注册成功，请查收确认邮件');
           setAuthMode('signin');
+          setAuthPassword('');
+          setAuthUsername('');
         } else {
           setAuthError(result.error || '注册失败');
         }
@@ -103,7 +107,7 @@ export function SettingsAccount(_props: SettingsSharedState) {
             </p>
             <div style={{ display: 'flex', background: 'rgba(255,255,255,0.04)', borderRadius: 8, padding: 3, marginBottom: 16 }}>
               {(['signin', 'signup'] as const).map((mode) => (
-                <button key={mode} onClick={() => { setAuthMode(mode); setAuthError(null); setAuthSuccess(null); }}
+                <button key={mode} onClick={() => { setAuthMode(mode); setAuthError(null); setAuthSuccess(null); setAuthUsername(''); }}
                   style={{ flex: 1, padding: '7px 8px', borderRadius: 6, border: 'none', background: authMode === mode ? 'rgba(255,255,255,0.1)' : 'transparent', color: authMode === mode ? '#e5e2e1' : '#919191', fontSize: 12, fontWeight: authMode === mode ? 600 : 400, cursor: 'pointer', transition: 'all 0.15s', fontFamily: 'system-ui, sans-serif' }}>
                   {mode === 'signin' ? '登录' : '注册'}
                 </button>
@@ -117,6 +121,16 @@ export function SettingsAccount(_props: SettingsSharedState) {
                 onFocus={(e) => { (e.target as HTMLInputElement).style.borderColor = 'rgba(99,14,212,0.5)'; }}
                 onBlur={(e) => { (e.target as HTMLInputElement).style.borderColor = 'rgba(255,255,255,0.08)'; }} />
             </div>
+
+            {authMode === 'signup' && (
+              <div style={{ marginBottom: 12 }}>
+                <label style={{ display: 'block', fontSize: 11, color: '#919191', marginBottom: 6, fontWeight: 500 }}>用户名（选填）</label>
+                <input type="text" value={authUsername} onChange={(e) => setAuthUsername(e.target.value)} placeholder="your_username"
+                  style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.04)', color: '#e5e2e1', fontSize: 13, fontFamily: 'system-ui, sans-serif', boxSizing: 'border-box', outline: 'none', transition: 'border-color 0.15s' }}
+                  onFocus={(e) => { (e.target as HTMLInputElement).style.borderColor = 'rgba(99,14,212,0.5)'; }}
+                  onBlur={(e) => { (e.target as HTMLInputElement).style.borderColor = 'rgba(255,255,255,0.08)'; }} />
+              </div>
+            )}
 
             <div style={{ marginBottom: 16 }}>
               <label style={{ display: 'block', fontSize: 11, color: '#919191', marginBottom: 6, fontWeight: 500 }}>密码</label>

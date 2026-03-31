@@ -428,7 +428,7 @@ export function setupIpcHandlers(): void {
     return { success: true };
   });
 
-  ipcMain.handle('auth:sign-up', async (_event, email: string, password: string) => {
+  ipcMain.handle('auth:sign-up', async (_event, email: string, password: string, username?: string) => {
     if (!isSupabaseConfigured()) return { success: false, error: 'not_configured', data: null };
     const url = `${SUPABASE_URL}/auth/v1/signup`;
     try {
@@ -439,7 +439,11 @@ export function setupIpcHandlers(): void {
           'Content-Type': 'application/json',
           'apikey': SUPABASE_ANON_KEY!,
         },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({
+          email,
+          password,
+          options: username ? { data: { username } } : {},
+        }),
       });
       const data = JSON.parse(res.body);
       if (res.statusCode !== 200) {
@@ -776,6 +780,69 @@ export function setupIpcHandlers(): void {
       return { success: true, data: { displayName: (session.user as { email?: string } | undefined)?.email?.split('@')[0] || 'TRIX 用户', points: 0, streak: 0, level: 1, totalStudyMinutes: 0 } };
     } catch (e: unknown) {
       return { success: false, error: String(e), data: { displayName: 'TRIX 用户', points: 0, streak: 0, level: 1, totalStudyMinutes: 0 } };
+    }
+  });
+
+  /** Update user profile (display_name, bio) */
+  ipcMain.handle('profile:update', async (_event, updates: Record<string, unknown>) => {
+    if (!isSupabaseConfigured()) return { success: false, error: 'not_configured' };
+    const session = getSession();
+    if (!session?.access_token) return { success: false, error: 'not_authenticated' };
+    const userId = (session.user as { id?: string } | undefined)?.id;
+    if (!userId) return { success: false, error: 'not_authenticated' };
+    try {
+      const res = await httpRequest({
+        method: 'PATCH',
+        url: `${SUPABASE_URL}/rest/v1/profiles?id=eq.${encodeURIComponent(userId)}`,
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': SUPABASE_ANON_KEY!,
+          'Authorization': `Bearer ${session.access_token}`,
+          'Prefer': 'return=representation',
+        },
+        body: JSON.stringify(updates),
+      });
+      if (res.statusCode === 200 || res.statusCode === 204) {
+        const data = res.body && res.body !== '' ? JSON.parse(res.body) : null;
+        return { success: true, data };
+      }
+      if (res.statusCode === 401 || res.statusCode === 403) {
+        authStore.delete('session');
+        return { success: false, error: 'not_authenticated' };
+      }
+      return { success: false, error: `Server returned ${res.statusCode}` };
+    } catch (e: unknown) {
+      return { success: false, error: String(e) };
+    }
+  });
+
+  /** Refresh the current session tokens */
+  ipcMain.handle('auth:refresh-session', async () => {
+    if (!isSupabaseConfigured()) return { success: false, error: 'not_configured' };
+    const session = getSession();
+    if (!session?.refresh_token) return { success: false, error: 'not_authenticated' };
+    try {
+      const res = await httpRequest({
+        method: 'POST',
+        url: `${SUPABASE_URL}/auth/v1/token?grant_type=refresh`,
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': SUPABASE_ANON_KEY!,
+          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+        },
+        body: JSON.stringify({ refresh_token: session.refresh_token }),
+      });
+      const data = JSON.parse(res.body);
+      if (res.statusCode !== 200) {
+        const msg = typeof data?.msg === 'string' ? data.msg
+          : typeof data?.error === 'string' ? data.error
+          : '会话刷新失败';
+        return { success: false, error: msg };
+      }
+      authStore.set('session', data);
+      return { success: true, data };
+    } catch (e: unknown) {
+      return { success: false, error: String(e) };
     }
   });
 
