@@ -25,6 +25,7 @@ dist-ssr
 *.sw?
 
 # Claude Skills (local development - deployed via .agents/)
+.agents/
 .claude/skills/
 
 # Playwright test reports
