@@ -1,7 +1,8 @@
 # TRIX 3D Companion Desktop — Verification Report
 
-**Document Version:** 1.0.0
+**Document Version:** 1.1.0
 **Build Date:** 2026-03-31
+**Last Updated:** 2026-03-31 (v1.1.0 — Auth + Data Persistence + Stubs)
 **Branch:** `main`
 **Engineer:** Release Engineering Agent
 
