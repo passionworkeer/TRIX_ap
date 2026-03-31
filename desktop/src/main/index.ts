@@ -7,11 +7,20 @@ import fs from 'fs';
 import os from 'os';
 import Store from 'electron-store';
 
-// Load .env.local from desktop/ directory (dev + packaged fallback)
-dotenvConfig({ path: path.join(app.getAppPath(), 'desktop', '.env.local') });
-// In dev mode app.getAppPath() is the project root; in packaged mode it's the asar root.
-// Always also try project-root relative path as a fallback.
-dotenvConfig({ path: path.join(process.cwd(), 'desktop', '.env.local') });
+// ── Load .env.local ──────────────────────────────────────────────────────────
+// In dev: app.getAppPath() = project root → desktop/.env.local
+// In packaged: .env.local is in asarUnpack at resources/app.asar.unpacked/
+const envPaths = [
+  path.join(app.getAppPath(), 'desktop', '.env.local'),                    // dev mode
+  path.join(app.getAppPath(), 'app.asar.unpacked', '.env.local'),          // packaged: asarUnpack
+  path.join(path.dirname(app.getPath('exe')), '.env.local'),               // packaged: next to exe
+];
+for (const p of envPaths) {
+  if (fs.existsSync(p)) {
+    dotenvConfig({ path: p });
+    break;
+  }
+}
 
 // Playwright E2E: required for electron.launch() CDP protocol
 // Without this, Runtime.evaluate("__playwright_run()") hangs forever in the packaged app

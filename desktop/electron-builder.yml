@@ -2,7 +2,7 @@ appId: com.trixapp.companion
 productName: TRIX Companion
 copyright: Copyright © 2026 TRIX Team
 directories:
-  output: E:/desktop/TRIX-Setup-v3
+  output: E:/desktop/TRIX-Setup-v5
   buildResources: build
 asar: true
 compression: maximum
