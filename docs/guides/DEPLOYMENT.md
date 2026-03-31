@@ -1,7 +1,7 @@
 # TRIX 3D Companion - 部署指南
 
 > 本文档详细介绍生产环境部署流程
-> **最后更新**: 2026-03-30（生产域名已迁移至 trix.love；TRIX_NATIVE_PUBLIC_BASE_URL 更新为 https://trix.love）
+> **最后更新**: 2026-03-31（桌面端 101 IPC handlers；preload 79 methods；Float 260×280；pet-state.ts 模块；Gateway Triple-layer Health + WS RPC；preferences/friends/notifications stubs 待 IPC 实现）
 
 ---
 

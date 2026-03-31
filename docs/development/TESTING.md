@@ -1,6 +1,6 @@
 # TRIX 3D Companion - 测试指南
 
-> **最后更新**: 2026-03-30
+> **最后更新**: 2026-03-31
 > **测试框架**: Vitest + Node.js Test Runner + Playwright
 
 ---
@@ -153,10 +153,10 @@ npm run test:e2e:ui
 | 模块 | 文件数 | 覆盖内容 |
 |------|--------|---------|
 | **工具函数** `src/utils/` | ~7 | dateFormat, env, logger, errorHandler, escapeHtml, pairingToast, performance |
-| **服务层** `src/services/` | ~24 | chatService, databaseService, StorageService, achievementService, ConnectionManager, friendService, clawbotHistoryService, locationService, mallService, notificationService, pointsService, scheduleService, studySessionService, studyHistoryService, ttsService, voicePlaybackService, uploadService, userStatsService, wardrobeService 等 |
-| **组件** `src/components/` | ~18 | AIActionModal, AddFriendModal, Avatar, DynamicBackground, FileAttachmentCard, GlassDock, GlassPanel, HeroBackground, HomeBotBubble, LoadingSpinner, MailPanel, NotificationPanel, OutfitCard, OutfitPreview, StudyRoom, UserSwitcher 等 |
+| **服务层** `src/services/` | 31 | chatService, databaseService, StorageService, achievementService, ConnectionManager, friendService, clawbotHistoryService, locationService, mallService, notificationService, OSSService, placeService, pointsService, projectService, scheduleService, serverOssUploadService, sessionService, studyHistoryService, studySessionService, todoService, ttsService, uploadService, userStatsService, voicePlaybackService, wardrobeService, TrixNativeChannelClient (含 session-switch), baiduMapService 等 |
+| **组件** `src/components/` | ~37 | AIActionModal, AddFriendModal, Avatar, AchievementsPanel, ConfirmDialog, DynamicBackground, ErrorBoundary, FileAttachmentCard, FilePicker, GlassDock, GlassPanel, HeroBackground, HomeBotBubble, LazyImage, LoadingSpinner, MailPanel, MediaMessage, NotificationPanel, OpenClawControlPanel, OutfitCard, OutfitPreview, PerformanceDashboard, PointsHistory, PrivacySettings, QRScanner, SnapshotModal, StatsDetailDialog, StudyBuddiesList, StudyRoom, UserSwitcher, VirtualizedList, VoiceMessage, VoiceRecorder, WorkbenchCard, WorkbenchModal 等 + chat/, map/, ui/ 子目录 |
 | **Contexts** `src/contexts/` | ~3 | AuthContext, AuthContext.session, ClawbotChannelContext |
-| **Hooks** `src/hooks/` | ~10 | useAudioPlayer, useBotStateMachine, useCamera, useClawbotMessages, useImmersiveVoice, useNotification, useResourcePreloader, useSpeechToText, useTouchGestures 等 |
+| **Hooks** `src/hooks/` | 11 (+1 组件) | useAudioPlayer, useBotStateMachine, useCamera, useClawbotMessages, useConfirmModal (组件), useImmersiveVoice, useNotification, useResourcePreloader, useSpeechToText, useTouchGestures, useVoiceRecorder, useWebVitals (11 有测试文件) |
 | **Features** `src/features/` | ~1 | chat/useChatMessages |
 | **Library** `src/lib/` | ~1 | validation |
 
@@ -184,8 +184,9 @@ npm run test:e2e:ui
 |------|---------|
 | `tests/e2e/app.test.ts` | 应用核心流程 |
 | `tests/e2e/all-changes.test.ts` | 完整变更测试 |
+| `tests/e2e/canvas.spec.ts` | Canvas E2E |
 | `tests/smoke/mvp-smoke.test.mjs` | MVP 冒烟测试 |
-| `desktop-e2e.cjs` | Desktop E2E（8 核心测试：Gateway/Supabase Auth/Float/Settings/Channels 等） |
+| `desktop-e2e.cjs` | Desktop E2E（双模式：electron.launch 优先 + 进程+日志+网络 fallback） |
 
 **Playwright 视口**: Desktop Chrome/Firefox/Safari + Mobile Chrome (Pixel 5) + Mobile Safari (iPhone 12)
 
@@ -205,15 +206,22 @@ npm run test:e2e:ui
 
 | 命令 | 描述 |
 |------|------|
-| `npm run test` | 运行单元 + 冒烟 + 服务器测试（unit / smoke / server） |
-| `npm run test:unit` | 前端单元测试（包括 `tests/integration/`） |
+| `npm test` | 运行单元 + 冒烟 + 服务器测试 |
+| `npm run test:unit` | 前端单元测试（含 integration/） |
+| `npm run test:unit -- <file>` | 运行单个测试文件 |
+| `npm run test:run` | vitest run（全局） |
 | `npm run test:unit:watch` | 前端单元测试（监听模式） |
 | `npm run test:unit:coverage` | 前端单元测试 + 覆盖率 |
 | `npm run test:smoke` | 冒烟测试 |
+| `npm run test:server` | TRIX Native Server 测试 |
 | `npm run test:e2e` | E2E 测试（Desktop + Mobile 视口） |
 | `npm run test:e2e:ui` | E2E 测试（UI 模式） |
+| `npm run test:e2e:debug` | E2E 调试模式 |
 | `npm run test:e2e -- desktop-e2e.cjs` | Desktop E2E 测试 |
 | `npm run test:all` | 运行全部测试 |
+| `npm run dev:desktop` | Desktop 开发模式（端口 5174） |
+| `npm run build:desktop` | Desktop 生产构建 |
+| `npm run build:desktop:pkg` | Desktop 打包（electron-builder） |
 | `npm run format` | Prettier 格式化所有文件 |
 | `npm run format:check` | 检查文件是否符合 Prettier 格式 |
 | `npm run lint` | ESLint 检查 src 目录 |

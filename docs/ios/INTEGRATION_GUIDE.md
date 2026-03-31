@@ -4,11 +4,12 @@
 
 ### 1. 在应用入口启用主题
 
-已在 `TRIX3DCompanionApp.swift` 中完成：
+已在 `TRIX3DCompanionApp.swift` 中完成（配合 `TRIXApplicationDelegate` 处理 push/OAuth 生命周期）：
 
 ```swift
 @main
 struct TRIX3DCompanionApp: App {
+    @UIApplicationDelegateAdaptor(TRIXApplicationDelegate.self) var appDelegate
     @StateObject private var appState = AppState()
     @State private var themeManager = ThemeManager.shared
 
@@ -16,7 +17,7 @@ struct TRIX3DCompanionApp: App {
         WindowGroup {
             ContentView()
                 .environmentObject(appState)
-                .themed(with: themeManager) // ✅ 应用主题
+                .themed(with: themeManager) // 应用主题
         }
     }
 }
@@ -391,17 +392,17 @@ Button("查看主题系统") {
 
 ## 需要更新的文件清单
 
-### ✅ 已完成
+### 已完成
 - [x] `TRIX3DCompanionApp.swift` - 已集成主题
 - [x] `ContentView.swift` - 已更新为使用主题颜色
 
-### 🔄 建议更新
+### 建议更新
 - [ ] `Features/Auth/Views/LoginView.swift`
 - [ ] `Features/Auth/Views/RegisterView.swift`
 - [ ] `Features/Home/Views/HomeView.swift`
-- [ ] `Features/Home/Views/ProfileView.swift`
+- [ ] `Features/Profile/Views/ProfileScreen.swift`
 - [ ] `Features/Home/Views/ChatListView.swift`
-- [ ] `Features/Home/Views/StudyListView.swift`
+- [ ] `Features/Study/Views/StudyRoomView.swift`
 
 ## 更新步骤
 
@@ -462,5 +463,5 @@ A: 是的，主题会自动保存到 UserDefaults
 
 ---
 
-**更新日期**: 2026-03-29
-**版本**: 1.0.0
+**更新日期**: 2026-03-31
+**版本**: 1.1

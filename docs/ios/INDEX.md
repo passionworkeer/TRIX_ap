@@ -1,13 +1,13 @@
 # iOS Documentation Index
 
-> Last updated: 2026-03-30
+> Last updated: 2026-03-31
 
 ## Core Documentation
 
 | Document | Description |
 |----------|-------------|
 | [README.md](./README.md) | iOS project overview and setup |
-| [IOS_ARCHITECTURE.md](./IOS_ARCHITECTURE.md) | MVVM architecture, 61 Swift files, 40 services |
+| [IOS_ARCHITECTURE.md](./IOS_ARCHITECTURE.md) | MVVM architecture, 295 Swift files, 59 services |
 | [IOS_API_REFERENCE.md](./IOS_API_REFERENCE.md) | Swift service interfaces |
 | [QUICK_REFERENCE.md](./QUICK_REFERENCE.md) | APNs quick reference |
 

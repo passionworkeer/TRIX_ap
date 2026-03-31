@@ -281,29 +281,24 @@ import XCTest
 
 class PushNotificationIntegrationTests: XCTestCase {
 
-    var sut: AppDelegate!
+    var notificationService: PushNotificationService!
 
     override func setUp() {
         super.setUp()
-        sut = AppDelegate()
+        notificationService = PushNotificationService.shared
     }
 
     func testDeviceTokenRegistration() {
         let expectation = self.expectation(description: "Device token registered")
 
-        // Mock API service
-        let mockApi = MockApiService()
-        mockApi.registerDeviceTokenHandler = { token in
-            XCTAssertEqual(token.count, 64)
+        // Mock device token
+        let tokenData = Data(repeating: 0xab, count: 32)
+
+        // Simulate registration callback
+        Task { @MainActor in
+            notificationService.didRegisterForRemoteNotifications(withDeviceToken: tokenData)
             expectation.fulfill()
         }
-
-        sut.apiService = mockApi
-
-        // Simulate didRegisterForRemoteNotificationsWithDeviceToken
-        let tokenData = Data(repeating: 0xab, count: 32)
-        sut.application(UIApplication.shared,
-                       didRegisterForRemoteNotificationsWithDeviceToken: tokenData)
 
         waitForExpectations(timeout: 5)
     }
@@ -537,21 +532,14 @@ class PushNotificationIntegrationTests: XCTestCase {
 
 ### Enable APNs Logging
 
-In `AppDelegate.swift`:
+In `TRIXApplicationDelegate.swift`, push notification logging is handled by `PushNotificationService`:
 
 ```swift
-func application(_ application: UIApplication,
-                didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
-    // Enable verbose APNs logging
-    UserDefaults.standard.set(true, forKey: "APSLoggingEnabled")
+// PushNotificationService handles APNs registration and logging internally
+// Enable verbose logging via UserDefaults:
+UserDefaults.standard.set(true, forKey: "APSLoggingEnabled")
 
-    // Log launch options
-    if let remoteNotification = launchOptions?[.remoteNotification] as? [String: Any] {
-        print("App launched from notification: \(remoteNotification)")
-    }
-
-    return true
-}
+// Log launch options are handled automatically when launched from notification
 ```
 
 ### View Console Logs
@@ -810,4 +798,4 @@ For issues with push notification testing:
 
 ---
 
-**最后更新**: 2026-03-29
+**最后更新**: 2026-03-31

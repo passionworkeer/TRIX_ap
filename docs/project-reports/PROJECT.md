@@ -1,6 +1,6 @@
 # TRIX 3D Companion - 项目总览
 
-> **最后更新**: 2026-03-24
+> **最后更新**: 2026-03-31
 > **版本**: v1.0
 > **技术栈**: React 19.2.4 + TypeScript 5.8.2 + Vite 6.2 + Supabase + SwiftUI
 
@@ -390,10 +390,11 @@ npm run dev
 
 | 类别 | 数量 |
 |------|------|
-| 前端 TypeScript 服务/工具文件 | ~27 |
-| 前端 Hook 文件 | 11 |
-| 前端 TSX 组件文件 | 60+ |
-| 前端 TSX 页面文件 | 17 |
+| 前端 TypeScript 服务/工具文件 | ~31 |
+| 前端 Hook 文件 | 12 |
+| 前端 TSX 组件文件 | 30+ |
+| 前端 TSX 页面文件 | 14 |
+| 前端 Context 文件 | 4 |
 | 后端 TypeScript 文件（trix-openclaw-native） | ~20 |
 | 数据库表 | 21 |
 | 核心文档 | 32 |
@@ -411,5 +412,5 @@ npm run dev
 
 ---
 
-**最后更新**: 2026-03-23
+**最后更新**: 2026-03-31
 **维护者**: TRIX 3D Companion 开发团队

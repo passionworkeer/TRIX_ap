@@ -4,6 +4,37 @@
 
 ---
 
+## 📅 2026-03-31 — Supabase Auth 统一 + Desktop 偏好/Friends/通知 IPC + E2E 9/9
+
+### 完成内容
+
+1. **Desktop Supabase Auth IPC 完整接入** (`667fff1`):
+   - `auth:sign-in`、`auth:sign-up`、`auth:sign-out`、`auth:get-session` IPC handlers 全部实现
+   - Desktop 登录页面直接调用 `electronAPI.authSignIn()` → IPC → Supabase Auth
+   - `ProtectedRoute` 加载超时从 15s 缩短至 5s
+
+2. **Desktop 系统信息 IPC** (`eaa24e5`):
+   - `system:info`、`system:disk`、`system:check-packages` IPC handlers
+   - DashboardPage 接入系统信息展示
+
+3. **Desktop 数据持久化 + Preferences/Friends/Notifications** (`eaa24e5`):
+   - electron-store 持久化 preferences
+   - `preferences:get`、`preferences:set`、`preferences:reset` IPC
+   - `friends:get`、`notifications:get`、`notifications:mark-read` IPC
+   - 窗口状态恢复（`window-state` IPC）
+
+4. **E2E 双模式稳定化 + 9/9 通过** (`95bc345`):
+   - Desktop E2E 走 fallback 验证模式（进程 + 日志 + Gateway 网络检查）
+   - 9/9 fallback 测试全部通过
+   - `electron.launch()` CDP 超时走备用策略
+
+5. **Desktop Stitch Design System** (Lumina/Noir 双主题):
+   - Lumina: Chat, Study, Snapshot, Map, Profile (light)
+   - Noir: Dashboard, Agents, Channels, Backups, Settings (dark)
+   - Purple primary `#630ed4`，全局 Tailwind CSS v4 变量
+
+---
+
 ## 📅 2026-03-30 — Desktop 窗口管理 + Canvas Skill + Vite 性能修复
 
 ### 完成内容
@@ -1096,4 +1127,4 @@ supabase.channel('notifications')
 ---
 
 **维护者**: TRIX 3D Companion 开发团队
-**最后更新**: 2026-03-30
+**最后更新**: 2026-03-31

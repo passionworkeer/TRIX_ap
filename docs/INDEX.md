@@ -1,6 +1,6 @@
 # TRIX 3D Companion — 文档索引
 
-> **版本**: v2.6（2026-03-31：合并远端文档补充，新增上线前修复总结与 Canvas session/下载工具说明）
+> **版本**: v2.6（2026-03-31：文档架构同步更新，WEB_ARCHITECTURE Routes 19→20，BACKEND_ARCHITECTURE Node.js 18+→20+，INDEX 组件数 38→45）
 > **维护者**: TRIX 3D Companion 开发团队
 
 ---

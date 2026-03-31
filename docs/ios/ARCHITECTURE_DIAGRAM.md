@@ -206,8 +206,13 @@ TRIX3DCompanion/
 │   │   ├── VoiceMessageBubble (View)
 │   │   └── WaveformBar (View)
 │   │
-│   └── VoiceMessageIntegrationExample.swift
+│   ├── VoiceMessageIntegrationExample.swift
 │       └── Integration examples
+│
+├── Features/Voice/Views/
+│   ├── TTSControlView.swift
+│   ├── VoiceMessagePlayerView.swift
+│   └── VoiceFeatureIntegrationExample.swift
 │
 ├── Shared/Extensions/
 │   └── AVAudioPlayer+Extensions.swift
@@ -328,8 +333,19 @@ ChatDetailView
     │
     └─── Messages List
              │
-             └─── VoiceMessageBubble ◄── VoiceMessageView
+             └─── VoiceMessageBubble ◄── VoiceMessageView (Features/Chat/Views)
 ```
+
+### 2. Voice Feature Integration
+
+```
+Features/Voice/Views/
+    ├─── VoiceMessagePlayerView ◄── Reusable TTS/voice playback player
+    ├─── TTSControlView ◄── Text-to-speech control panel
+    └─── VoiceFeatureIntegrationExample.swift
+```
+
+### 3. Message Model Integration
 
 ### 2. Message Model Integration
 
@@ -354,3 +370,5 @@ ChatMessage
 **Concurrency**: Async/Await + Combine
 **State Management**: @Published + @StateObject
 **Testing**: TDD with XCTest
+
+**Last Updated**: 2026-03-31

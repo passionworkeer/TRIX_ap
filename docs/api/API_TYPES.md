@@ -1,8 +1,8 @@
 # TRIX3D API TypeScript 类型定义
 
-> 本文档为 AI 提供完整�?TypeScript 类型定义，方便理解和调用 API
+> 本文档为 AI 提供完整?TypeScript 类型定义，方便理解和调用 API
 > 版本: 1.4.0
-> **最后更�?*: 2026-03-24
+> **最后更?*: 2026-03-24
 
 ---
 
@@ -18,9 +18,18 @@
 8. [位置模块](#位置模块)
 9. [通知模块](#通知模块)
 10. [TRIX Native 模块](#trix-native-模块)
-11. [错误码详解](#错误码详�?
+11. [错误码详解](#错误码详?
 
 ---
+
+
+> **重要说明**：本文档中的 TypeScript 类型按三层 API 架构组织，并非全部为 HTTP REST 端点。
+>
+> - **Supabase 服务层**：好友、聊天、通知、学习会话、成就、积分、商城、日程、待办、衣橱等模块的类型，通过 @supabase/supabase-js 直连 PostgreSQL 获取（客户端类型，非 HTTP 响应）。
+> - **TRIX Native Server**：配对、消息、Study Room 相关类型，通过 TrixNativeChannelClient.ts 访问 HTTP/WebSocket 端点。
+> - **Desktop Electron IPC**：desktop/src/types/electron.d.ts 中定义的 ElectronAPI 接口类型，供桌面端 renderer 进程使用。
+>
+> HTTP REST 端点的权威文档见 ../TRIX_NATIVE_CHANNEL.md。
 
 ## 通用类型
 
@@ -60,13 +69,13 @@ interface PaginatedResponse<T> {
 // UUID 类型
 type UUID = string;
 
-// 时间�?
+// 时间?
 type Timestamp = string; // ISO 8601 格式: "2026-03-04T12:00:00Z"
 
 // 分数/积分
 type Points = number;
 
-// 布尔�?
+// 布尔?
 type Boolean = boolean;
 
 // 枚举: 用户等级
@@ -79,7 +88,7 @@ enum UserLevel {
   MASTER = 5
 }
 
-// 枚举: 成就状�?
+// 枚举: 成就状?
 enum AchievementStatus {
   LOCKED = 'locked',
   UNLOCKED = 'unlocked',
@@ -104,7 +113,7 @@ enum MessageType {
   SYSTEM = 'system'
 }
 
-// 枚举: 学习房间状�?
+// 枚举: 学习房间状?
 enum StudyRoomStatus {
   WAITING = 'waiting',
   STUDYING = 'studying',
@@ -390,7 +399,7 @@ interface StudySession {
 }
 
 interface StudyStats {
-  total_study_time: number; // 总学习时间（分钟�?
+  total_study_time: number; // 总学习时间（分钟?
   total_focus_sessions: number;
   average_session_length: number;
   current_streak: number;
@@ -803,7 +812,7 @@ interface PointsInfo {
 interface PointsTransaction {
   id: UUID;
   user_id: UUID;
-  amount: number; // 正数增加，负数扣�?
+  amount: number; // 正数增加，负数扣?
   type: 'earn' | 'spend' | 'bonus' | 'deduct';
   reason: string;
   created_at: Timestamp;
@@ -935,7 +944,7 @@ type UnlockAchievementResponse = ApiResponse<Achievement>;
 
 ---
 
-## 待办和日程模�?
+## 待办和日程模?
 
 ### 待办类型
 
@@ -1138,7 +1147,7 @@ type GetAIMessagesResponse = ApiResponse<AIMessage[]>;
 // POST /clawbot/conversations/:id/messages
 interface SendAIMessageRequest {
   content: string;
-  // 可选：对话上下�?
+  // 可选：对话上下?
   context?: {
     study_mode?: boolean;
     subject?: string;
@@ -1146,7 +1155,7 @@ interface SendAIMessageRequest {
 }
 interface SendAIMessageResponse {
   message: AIMessage;
-  // 流式响应时可能返�?delta
+  // 流式响应时可能返?delta
   delta?: string;
 }
 type SendAIMessageResponse = ApiResponse<SendAIMessageResponse>;
@@ -1162,7 +1171,7 @@ type DeleteConversationResponse = ApiResponse<{ deleted: boolean }>;
 ### 连接
 
 ```typescript
-// WebSocket URL（通过 TrixNativeChannelClient 连接�?
+// WebSocket URL（通过 TrixNativeChannelClient 连接?
 const WS_URL = 'https://trix.love';
 
 // 连接
@@ -1189,21 +1198,21 @@ interface WSMessage {
   created_at: Timestamp;
 }
 
-// 打字�?
+// 打字?
 interface WSTyping {
   room_id: UUID;
   user_id: UUID;
   is_typing: boolean;
 }
 
-// 在线状�?
+// 在线状?
 interface WSPresence {
   user_id: UUID;
   status: 'online' | 'offline' | 'away';
   last_seen?: Timestamp;
 }
 
-// 学习房间状�?
+// 学习房间状?
 interface WSStudyRoomEvent {
   type: 'participant_joined' | 'participant_left' | 'room_started' | 'room_ended';
   room_code: string;
@@ -1214,17 +1223,17 @@ interface WSStudyRoomEvent {
 
 ---
 
-## 错误码详�?
+## 错误码详?
 
-| 状态码 | 错误�?| 说明 | 解决方案 |
+| 状态码 | 错误?| 说明 | 解决方案 |
 |--------|--------|------|----------|
 | 400 | INVALID_REQUEST | 请求参数错误 | 检查请求体格式 |
-| 401 | INVALID_TOKEN | Token 无效 | 重新登录获取�?token |
-| 401 | TOKEN_EXPIRED | Token 已过�?| 使用 refresh_token 刷新 |
-| 403 | FORBIDDEN | 无权�?| 检查用户权�?|
-| 404 | NOT_FOUND | 资源不存�?| 检查资�?ID |
-| 429 | RATE_LIMITED | 请求过于频繁 | 等待后重�?|
-| 500 | SERVER_ERROR | 服务器错�?| 联系技术支�?|
+| 401 | INVALID_TOKEN | Token 无效 | 重新登录获取?token |
+| 401 | TOKEN_EXPIRED | Token 已过?| 使用 refresh_token 刷新 |
+| 403 | FORBIDDEN | 无权?| 检查用户权?|
+| 404 | NOT_FOUND | 资源不存?| 检查资?ID |
+| 429 | RATE_LIMITED | 请求过于频繁 | 等待后重?|
+| 500 | SERVER_ERROR | 服务器错?| 联系技术支?|
 
 ---
 
@@ -1232,7 +1241,7 @@ interface WSStudyRoomEvent {
 
 ### 概述
 
-TRIX Native 模块提供 iOS 设备�?Web 前端的双向通信能力，基�?OpenClaw 平台实现�?
+TRIX Native 模块提供 Web/iOS/Desktop 三端与 TRIX Native Server（端口 8788）的双向通信能力，基于 OpenClaw 平台实现。见 src/services/TrixNativeChannelClient.ts。
 
 ### 配对相关类型
 
@@ -1248,7 +1257,7 @@ type ClaimResponse = {
   agentOnline?: boolean;
 };
 
-// 存储的会话信�?
+// 存储的会话信?
 type StoredSession = {
   serverUrl: string;
   websocketUrl: string;
@@ -1324,7 +1333,7 @@ type ConversationMessagesResponse = {
     }>;
     senderId: string;
     senderName?: string;
-    createdAt: number;  // Unix 时间�?
+    createdAt: number;  // Unix 时间?
     metadata?: Record<string, unknown>;
   }>;
   agentOnline?: boolean;
@@ -1353,20 +1362,20 @@ type NativeSocketEventPayload<TEvent extends NativeSocketEventName> = NativeSock
 type EventCallback<TPayload> = (payload: TPayload) => void;
 ```
 
-### 服务器配�?
+### 服务器配?
 
-| 环境变量 | 说明 | 默认�?|
+| 环境变量 | 说明 | 默认?|
 |----------|------|--------|
 | VITE_TRIX_NATIVE_SERVER_URL | TRIX Native 服务器地址 | http://TRIX_SERVER_HOST:8788 |
 
 ### 配对流程
 
-1. 用户�?iOS 设备上生成配对码�?位字母数字）
-2. 用户�?Web 前端输入配对�?
+1. 用户?iOS 设备上生成配对码?位字母数字）
+2. 用户?Web 前端输入配对?
 3. Web 前端调用 `/claim` 接口获取会话信息
 4. 建立 WebSocket 连接进行消息通信
 
 ---
 
 *文档生成时间: 2026-03-24*
-*适用�?TRIX3D API v1.4.0*
+*适用?TRIX3D API v1.4.0*

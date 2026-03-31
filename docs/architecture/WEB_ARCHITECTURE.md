@@ -1,6 +1,6 @@
 # Web 架构
 
-> **最后更新**: 2026-03-29（代码扫描同步：E2E spec 17→22（新增 a11y、chat-detail、login-test、profile-user、register、study-timer 等），utils 9→10（coordinateUtils.ts 存在），services 27 和 hooks 12 确认正确）
+> **最后更新**: 2026-03-31（代码扫描同步：Routes 19→20（新增 /study/timer），utils 10 确认，hooks 12 含 useConfirmModal 确认，useClawbotMessages 存在，SETTINGS 路由已登记但无对应 Screen，Auth.tsx 含 Login+Register 双导出，TrixNativeChannelClient 约 1347 行确认）
 > **技术栈**: React 19.2.4 + TypeScript 5.8.2 + Vite 6.2.0 + Tailwind CSS 4.2.0 + Supabase 2.94.0
 
 ---
@@ -27,7 +27,7 @@ React App
 
 ---
 
-## 2. 路由（19 条）
+## 2. 路由（20 条）
 
 使用 `HashRouter`，所有路由以 `#/` 开头。
 
@@ -37,13 +37,13 @@ React App
 | `#/register` | Register | 注册 |
 | `#/` | Home | 首页/仪表盘 |
 | `#/snapshot` | Snapshot | AI 快照 |
-| `#/snapshot/result` | SnapshotResult | 快照结果 |
+| `#/snapshot/result` | Snapshot | 快照结果（与 Snapshot 同一组件） |
 | `#/study` | Study | 自习室列表 |
-| `#/study/timer` | StudyTimer | 学习计时器 |
+| `#/study/timer` | Study | 学习计时器（Study 组件接收 `key="study-timer"` 切换视图，非独立 Screen） |
 | `#/chat` | Chat | 聊天列表 |
 | `#/chat/:friendId` | ChatDetail | 聊天详情 |
 | `#/profile` | Profile | 个人资料 + **AchievementsPanel 成就面板** |
-| `#/profile/:userId` | ProfileOther | 查看他人资料 |
+| `#/profile/:userId` | Profile | 查看他人资料（共用 Profile 组件，params.userId 区分） |
 | `#/pairing` | Pairing | 设备配对 |
 | `#/qr-pairing` | QrPairing | QR 码配对 |
 | `#/map` | SnapMap | 地图打卡 |
@@ -52,6 +52,9 @@ React App
 | `#/points-mall` | PointsMall | 积分商城 |
 | `#/wardrobe` | Wardrobe | 虚拟衣柜 |
 | `#/snapmap` | — | → 重定向到 `#/map` |
+| `#/profile/settings` | *(规划中)* | AppRoutes.SETTINGS 已登记，无对应 Screen 文件 |
+
+**注意**: `Login` 和 `Register` 均为 `src/screens/Auth.tsx` 的命名导出，非独立文件。
 
 ---
 
@@ -100,7 +103,7 @@ React App
 | VoiceSettingsContext | `src/contexts/VoiceSettingsContext.tsx` | 语音/TTS 设置 |
 | ThemeContext | `src/contexts/ThemeContext.tsx` | 主题切换（亮/暗） |
 
-**注意**：`useClawbotMessages` hook **不存在**，消息通过 `ClawbotChannelContext` 获取。
+**注意**：`useClawbotMessages` hook **已存在**（`src/hooks/useClawbotMessages.ts`，167 行），由 `ClawbotChannelContext` 提供消息状态。
 
 ### 3.3 组件
 
@@ -315,4 +318,4 @@ src/
 
 ---
 
-**最后更新**: 2026-03-29（代码扫描同步：E2E spec 17→22（新增 a11y、chat-detail、login-test、profile-user、register、study-timer 等），utils 9→10（coordinateUtils.ts 存在），services 27 确认正确，hooks 12 确认正确）
+**最后更新**: 2026-03-31（Routes 19→20，useClawbotMessages 已存在，Auth.tsx 双导出，SETTINGS 规划中）

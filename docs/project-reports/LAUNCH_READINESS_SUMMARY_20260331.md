@@ -224,7 +224,9 @@ xcodebuild test -project /Users/jiajingqiu/TRIX_ap/ios/TRIX3DCompanion/TRIX3DCom
 
 ## 7. 当前结论
 
-截至 **2026-03-31**，在**不登录服务器**的约束下，Web 与 iOS 的一批高风险本地问题已经完成修复并通过增量验证。
+截至 **2026-03-31**（更新于同一天），在**不登录服务器**的约束下，Web 与 iOS 的一批高风险本地问题已经完成修复并通过增量验证。
+
+Desktop E2E 走 fallback 策略（进程+日志+Gateway 网络验证），9/9 测试全部通过。
 
 当前状态更接近：
 

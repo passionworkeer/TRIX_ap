@@ -1,7 +1,7 @@
 # TRIX 3D Companion - 产品需求文档 (PRD)
 
-> **文档版本**: 1.2
-> **最后更新**: 2026-03-29
+> **文档版本**: 1.3
+> **最后更新**: 2026-03-31
 > **产品**: TRIX Companion Desktop
 > **平台**: Windows (Electron 33.4.0)
 > **类型**: 桌面客户端
@@ -72,7 +72,7 @@
 | 功能模块 | 功能点 | 状态 |
 |---------|-------|------|
 | **窗口管理** | 主窗口（1200×800，自定义无边框标题栏） | ✅ 已实现 |
-| | Float 悬浮窗口（220×320，始终置顶，透明背景） | ✅ 已实现 |
+| | Float 悬浮窗口（260×280，始终置顶，透明背景） | ✅ 已实现 |
 | | 最小化到系统托盘 | ✅ 已实现 |
 | | 托盘右键菜单 | ✅ 已实现 |
 | | 主窗口关闭隐藏到托盘（不退出） | ✅ 已实现 |
@@ -132,7 +132,7 @@
 #### 3.2.2 Float 悬浮窗口 (Float Window)
 
 **功能描述**：
-220×320 的小型透明窗口，始终置顶于屏幕右下角，用于静默展示配对 QR 码。
+260×280 的小型透明窗口，始终置顶于屏幕右下角，用于静默展示配对 QR 码。
 
 **UI 布局**：
 ```
@@ -156,7 +156,7 @@
 
 **关键特性**：
 - 无边框（`frame: false`）
-- 固定尺寸（220×320，`resizable: false`）
+- 固定尺寸（260×280，`resizable: false`）
 - 始终置顶（`alwaysOnTop: true`）
 - 透明背景
 - 跳过任务栏（`skipTaskbar: true`）
@@ -328,7 +328,7 @@ Float 窗口 (renderer/float.tsx)
 │  │          └────────────────────┼─────────────────────┘            │  │
 │  │                               ▼                                  │  │
 │  │              ┌────────────────────────────────────┐             │  │
-│  │              │         IPC Handler (62 handlers)   │             │  │
+│  │              │         IPC Handler (101 handlers)   │             │  │
 │  │              │  · pairing:createQr  · gateway:*    │             │  │
 │  │              │  · openclaw:*      · bot-state:*    │             │  │
 │  │              └────────────────────────────────────┘             │  │
@@ -343,7 +343,7 @@ Float 窗口 (renderer/float.tsx)
 │  │  │  · LuminaLayout        │    │  · 配对 QR 码展示            │   │  │
 │  │  │  · LuminaTitleBar      │    │  · 配对码状态轮询            │   │  │
 │  │  │  · LuminaSidebar      │    │  · Bot 状态动画背景          │   │  │
-│  │  │  · Page Components     │    │  · 220×320 透明置顶         │   │  │
+│  │  │  · Page Components     │    │  · 260×280 透明置顶         │   │  │
 │  │  └────────────────────────┘    └────────────────────────────┘   │  │
 │  └──────────────────────────────────────────────────────────────────┘  │
 │                                                                          │
@@ -367,7 +367,7 @@ Float 窗口 (renderer/float.tsx)
 
 ### 5.2 IPC 通信矩阵
 
-共 **62 个** IPC handler，分为 13 大类别。
+共 **101 个** IPC handler，分为 13 大类别。
 
 | IPC 通道 | 方向 | 类型 | 描述 |
 |---------|------|------|------|
@@ -482,7 +482,7 @@ desktop/
     │   ├── tray.ts            # 系统托盘（程序生成图标）
     │   ├── gateway.ts         # Gateway 子进程管理
     │   ├── openclaw.ts        # OpenClaw CLI 封装（本地优先）
-    │   ├── ipc.ts             # IPC Handler（62 handlers + 2 events）
+    │   ├── ipc.ts             # IPC Handler（101 handlers + 2 events）
     │   └── float-window.ts    # Float 窗口工厂
     │
     ├── preload/
@@ -592,11 +592,11 @@ C:/Users/wang/Desktop/TRIX Companion 3/
 ### 7.1 核心功能
 - [x] Electron 主进程 + 渲染进程分离架构
 - [x] 自定义无边框窗口 + 标题栏（最小化/关闭）
-- [x] Float 悬浮窗口（220×320，透明，置顶）
+- [x] Float 悬浮窗口（260×280，透明，置顶）
 - [x] 系统托盘（程序生成图标、菜单、事件处理）
 - [x] 主窗口关闭隐藏到托盘（不退出应用）
 - [x] 可折叠侧边栏导航
-- [x] contextBridge 安全 IPC 通信（62 handlers + 2 events）
+- [x] contextBridge 安全 IPC 通信（101 handlers + 2 events）
 - [x] 命令白名单安全机制
 - [x] `loadFile()` 替代 `loadURL()` 解决 asar 兼容
 - [x] React RenderErrorBoundary 错误边界

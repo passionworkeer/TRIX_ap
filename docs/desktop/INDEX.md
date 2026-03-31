@@ -1,12 +1,12 @@
 # Desktop Documentation Index
 
-> Last updated: 2026-03-30
+> Last updated: 2026-03-31
 
 ## Core Documentation
 
 | Document | Description |
 |----------|-------------|
-| [DESKTOP_ARCHITECTURE.md](./DESKTOP_ARCHITECTURE.md) | Electron architecture: IPC, preload, multi-window, LuminaLayout |
+| [DESKTOP_ARCHITECTURE.md](./DESKTOP_ARCHITECTURE.md) | Electron architecture: 101 IPC handlers, preload, multi-window, LuminaLayout, Gateway WS RPC |
 
 ## Related
 
@@ -17,7 +17,8 @@
 
 ## Quick Reference
 
-- **Framework**: Electron 33 + React 19 + TypeScript + Vite
-- **IPC Handlers**: ~90 handlers across window, gateway, study, auth, channels
-- **Windows**: Main window (LuminaLayout) + Float window (GlassPet) + System tray
-- **Gateway**: OpenClaw integration for AI agent orchestration
+- **Framework**: Electron 33.4 + React 19 + TypeScript + Vite
+- **IPC Handlers**: **101** handlers (window/gateway/gateway-ws/auth/study/trixnative/channels/config/cron/system)
+- **Windows**: Main window (LuminaLayout, 11 routes) + Float window (260×280px, always-on-top) + System tray
+- **Gateway**: OpenClaw integration — child process + Triple-layer Health + Diagnostic Engine + WS RPC
+- **Preload**: 79 unique methods (preferences/friends/notifications stubs not yet implemented in IPC)

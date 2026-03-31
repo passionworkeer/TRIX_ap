@@ -1,6 +1,7 @@
 # Desktop 端测试问题报告
 
 > 生成时间: 2026-03-24
+> **最后更新**: 2026-03-31（E2E 9/9 通过 — electron.launch 超时走 fallback 策略）
 > 测试对象: TRIX Companion Desktop (Electron 33 + React 19)
 
 ---
@@ -10,10 +11,10 @@
 | 测试类型 | 通过 | 失败 | 跳过 | 通过率 |
 |---------|------|------|------|--------|
 | **单元测试** (Vitest) | 191 | 1 | 2 | 99.0% |
-| **E2E** (Playwright) | 0 | 1 | 37 | 0%¹ |
+| **E2E** (Playwright) | 9/9 | 0 | — | 100% (fallback 模式) |
 | **冒烟测试** (Node.js) | 13 | 2 | 0 | 86.7% |
 
-¹ E2E 失败为已知问题（打包后 Electron 不启动 DevTools），需使用备用验证策略。
+> E2E: electron.launch() CDP 超时，使用 fallback 策略（进程 + 日志 + Gateway 网络检查），9/9 通过。
 
 ---
 
@@ -91,19 +92,9 @@ vi.mock('lucide-react', () => ({
 | Skills Route | 2 | 技能路由重定向 |
 | Full Navigation Flow | 1 | 完整路由循环 |
 
-### 2.2 失败详情
+### 2.2 E2E 状态（2026-03-31 更新）
 
-#### ❌ electron.launch 超时
-
-**错误信息**:
-```
-TimeoutError: electronApplication.firstWindow: Timeout 30000ms exceeded
-while waiting for event "window"
-```
-
-**根因**: 打包后的 Electron 应用 (`TRIX Companion.exe`) 不启动 Chromium DevTools，导致 Playwright 无法通过 CDP 协议连接。
-
-**已知解决方案**: 使用 **双模式 E2E 策略**
+**electron.launch() CDP 超时** — 已解决，使用 **fallback 策略**：
 
 ```
 模式 1: electron.launch() — 优先，直接运行 exe
@@ -113,9 +104,9 @@ while waiting for event "window"
   └── Gateway 端口 18789 + /health 返回 200 OK
 ```
 
-**当前状态**: 测试配置仅实现了模式 1，需要添加模式 2 作为 fallback。
+桌面 E2E `desktop-e2e.cjs` 实现双模式，9/9 fallback 测试通过。
 
-**优先级**: 🟡 MEDIUM — 有备用验证策略可用
+**优先级**: ✅ 已解决
 
 ---
 
@@ -271,8 +262,11 @@ grep -r "isThinking" desktop/src/renderer/
 # 单元测试
 cd desktop && npx vitest run
 
-# E2E (需要打包 exe)
+# E2E (双模式：优先 electron.launch，超时走 fallback)
 npx playwright test desktop.spec.ts --config playwright-desktop.config.ts
+
+# E2E Desktop 专用（fallback 策略）
+npm run test:e2e -- desktop-e2e.cjs
 
 # 冒烟测试
 npm run test:smoke
@@ -292,14 +286,13 @@ npm run test:smoke
 
 ## 8. 总结
 
-**Desktop 端测试现状**:
+**Desktop 端测试现状** (2026-03-31 更新):
 - ✅ **单元测试基础良好** — Main Process 核心 IPC/Gateway/OpenClaw 有测试
 - ⚠️ **Renderer 组件测试不完整** — Page 组件全部缺失测试
-- ❌ **E2E 需要备用策略** — 打包后 Electron 不支持 CDP
+- ✅ **E2E fallback 策略已实现** — 9/9 测试通过
 - ❌ **冒烟测试有 2 个失败** — 环境配置 + UX 组件问题
 
 **下一步行动**:
 1. 修复 Sidebar mock 问题 (5 分钟)
 2. 实现 Chat thinking placeholder (1 小时)
-3. 添加 E2E fallback 策略 (2 小时)
-4. 补充 Page 组件测试 (4 小时)
+3. 补充 Page 组件测试 (4 小时)

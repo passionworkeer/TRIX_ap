@@ -5,37 +5,31 @@
 ### 1. Get Device Token (iOS)
 
 ```swift
-// In AppDelegate.swift
-func application(_ application: UIApplication,
-                didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
-
-    // Register for remote notifications
-    UIApplication.shared.registerForRemoteNotifications()
-
-    // Request user permission
-    UNUserNotificationCenter.current().requestAuthorization(
-        options: [.alert, .sound, .badge]
-    ) { granted, error in
-        if granted {
-            print("User granted notification permission")
-        }
+// In TRIXApplicationDelegate.swift
+func application(
+    _ application: UIApplication,
+    didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
+) -> Bool {
+    Task { @MainActor in
+        try? await PushNotificationService.shared.registerForRemoteNotifications()
     }
-
     return true
 }
 
-func application(_ application: UIApplication,
-                didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
-    let token = deviceToken.map { String(format: "%02.2hhx", $0) }.joined()
-    print("Device token: \(token)")
-
-    // Send to backend
-    ApiService.shared.registerDeviceToken(token: token)
+func application(
+    _ application: UIApplication,
+    didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data
+) {
+    Task { @MainActor in
+        PushNotificationService.shared.didRegisterForRemoteNotifications(withDeviceToken: deviceToken)
+    }
 }
 
-func application(_ application: UIApplication,
-                didFailToRegisterForRemoteNotificationsWithError error: Error) {
-    print("Failed to register: \(error)")
+func application(
+    _ application: UIApplication,
+    didFailToRegisterForRemoteNotificationsWithError error: Error
+) {
+    PushNotificationService.shared.didFailToRegisterForRemoteNotifications(error: error)
 }
 ```
 
@@ -61,38 +55,9 @@ client.send_notification(device_token, payload)
 ### 3. Handle Notification (iOS)
 
 ```swift
-// In AppDelegate.swift
-func userNotificationCenter(_ center: UNUserNotificationCenter,
-                           didReceive response: UNNotificationResponse,
-                           withCompletionHandler completionHandler: @escaping () -> Void) {
-
-    let userInfo = response.notification.request.content.userInfo
-
-    // Parse notification data
-    if let data = userInfo["data"] as? [String: Any],
-       let type = data["type"] as? String {
-
-        switch type {
-        case "new_message":
-            handleNewMessage(data)
-        case "friend_request":
-            handleFriendRequest(data)
-        default:
-            break
-        }
-    }
-
-    completionHandler()
-}
-
-private func handleNewMessage(_ data: [String: Any]) {
-    guard let conversationId = data["conversation_id"] as? String else { return }
-
-    // Navigate to conversation
-    DispatchQueue.main.async {
-        // Deep link to conversation screen
-    }
-}
+// PushNotificationService handles all notification states internally.
+// Deep link to conversation screen from notification:
+UNUserNotificationCenter.current().delegate = PushNotificationService.shared
 ```
 
 ---
@@ -228,25 +193,11 @@ private func handleNewMessage(_ data: [String: Any]) {
 
 ## Notification Categories
 
-Define in `AppDelegate.swift`:
+Define in `PushNotificationService.swift` (manages categories automatically via NotificationManager):
 
 ```swift
-func registerNotificationCategories() {
-    let replyAction = UNNotificationAction(
-        identifier: "REPLY",
-        title: "Reply",
-        options: [.foreground]
-    )
-
-    let messageCategory = UNNotificationCategory(
-        identifier: "MESSAGE",
-        actions: [replyAction],
-        intentIdentifiers: [],
-        options: []
-    )
-
-    UNUserNotificationCenter.current().setNotificationCategories([messageCategory])
-}
+// Notification categories are registered in NotificationManager
+// Use PushNotificationService.shared.handleNotificationAction(category:action:) for action handling
 ```
 
 ---
@@ -295,19 +246,8 @@ UNUserNotificationCenter.current().getNotificationSettings { settings in
 ### 4. Manage Badge Count
 
 ```swift
-// Clear badge on app open
-func applicationDidBecomeActive(_ application: UIApplication) {
-    UIApplication.shared.applicationIconBadgeNumber = 0
-}
-
-// Update badge from notification
-func application(_ application: UIApplication,
-                didReceiveRemoteNotification userInfo: [AnyHashable: Any]) {
-    if let aps = userInfo["aps"] as? [String: Any],
-       let badge = aps["badge"] as? Int {
-        UIApplication.shared.applicationIconBadgeNumber = badge
-    }
-}
+// Clear badge on app open (handled automatically by TRIXApplicationDelegate)
+// Badge is managed by PushNotificationService.shared based on unread count
 ```
 
 ### 5. Test on Real Device
@@ -384,4 +324,4 @@ curl -v \
 
 ---
 
-**最后更新**: 2026-03-29
+**最后更新**: 2026-03-31

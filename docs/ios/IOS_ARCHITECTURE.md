@@ -2,25 +2,34 @@
 
 > iOS TRIX 3D Companion Technical Architecture
 > Based on SwiftUI + Combine
-> **Last Updated**: 2026-03-29
-> **Version**: 1.4（准确性修复：AnalyticsService、UIRenderingOptimizer、InputValidator 均已存在；总 Swift 文件数修正为 231；新增 Core/Design、Core/Video、Features/Data 目录）
+> **Last Updated**: 2026-03-31
+> **Version**: 1.5 (295 Swift files, 65 services, new SupabaseService, TRIXApplicationDelegate, OAuth/Apple Sign-In, Mall/Points)
 
 ---
 
-## Accuracy Notes (as of 2026-03-29)
+## Accuracy Notes (as of 2026-03-31)
 
-**Known discrepancies:**
-- `AppDelegate.swift` does not exist — lifecycle managed by `TRIX3DCompanionApp.swift`
+**Known discrepancies in prior versions:**
+- `AppDelegate.swift` does not exist — lifecycle managed by `TRIXApplicationDelegate` + `TRIX3DCompanionApp`
 - `PairingService.swift` does not exist — pairing implemented in `ClawbotChannelService`
 - `WebSocketManager` does not exist — real-time uses `ClawbotChannelService` (TRIX Native Channel protocol)
 - Core/Utils/, Core/Config/ have no Swift files (entire directory has no Swift files)
-- Core/Services has 40 implementations + 21 protocols = **61 Swift files**
-- Total Swift files (excluding tests): **231**
+- `InputValidator` exists at `Core/Utilities/`
+- `UIRenderingOptimizer` exists at `Core/Performance/`
+- `AnalyticsService` exists at `Core/Analytics/`
 
-**Previously corrected (v1.3 → v1.4):**
-- `AnalyticsService.swift` exists at `Core/Analytics/`
-- `UIRenderingOptimizer.swift` exists at `Core/Performance/`
-- `InputValidator.swift` exists at `Core/Utilities/`
+**v1.5 additions (since v1.4):**
+- Total Swift files corrected to **295** (was incorrectly stated as 231)
+- Core/Services expanded to **59 files** (was 61 — count adjusted to actual)
+- Added: SupabaseService, AppleSignInService, MallService, MapSearchService, NetworkMonitor, OAuthManager, SessionService, DataSyncService, ImageUploadService, ToastManager, ClawbotHistoryService, UserStatsService, VoicePlaybackService (all implementations + protocols)
+- App/: Added `TRIXApplicationDelegate.swift` (replaces AppDelegate pattern)
+- Features/Profile/Views/: Added `OpenClawControlPanel.swift`
+- Features/Home/Views/: Corrected to 15 files including `GlassDockView`, `RobotHeroBackgroundView`, `VideoBackgroundView`
+- Features/Store/Views/: Added `ProductDetailView`, `SubscriptionView`, `PaymentResultView`
+- Features/Store/ViewModels/: Added `ProductViewModel`, `PaymentViewModel`
+- Shared/Components: Added `AnimatedQRDisplay`, `AvatarView`, `ConfirmDialog`, `ShimmerEffect` + EmptyStates subfolder
+- Core/Performance: Added `UIRenderingOptimizer.swift`
+- Core/Analytics: Added `AnalyticsService.swift`
 
 ---
 
@@ -36,10 +45,10 @@ Views (UI Layer)
     HomeViewModel  ChatViewModel  StudyViewModel  ProfileViewModel  ...
 
     Services (Data Layer)
-      AuthService  ChatService  StudyService  ClawbotChannelService  ...
+      AuthService  ChatService  StudyService  ClawbotChannelService  SupabaseService  ...
 
         Network Layer              Storage Layer             External
-        (APIClient/Alamofire)     (Keychain/SQLite)        (Supabase/iOS)
+        (APIClient/Alamofire)     (Keychain/SQLite)        (Supabase)
         + SSLPinningManager       + UserDefaults
         + RequestRetryManager
         + RequestDeduplicator
@@ -79,6 +88,7 @@ ios/TRIX3DCompanion/
 |   +- ContentView.swift             # Root view (auth-aware)
 |   +- ClawbotChannelViewModel.swift # TRIX Native Channel pairing
 |   +- AnimatedSplashView.swift     # Splash screen
+|   +- TRIXApplicationDelegate.swift # UIApplicationDelegate lifecycle (push, OAuth, URL handling)
 |   +- UITestAccessibilityIdentifiers.swift
 |
 +- Core/
@@ -105,10 +115,23 @@ ios/TRIX3DCompanion/
 |   |   +- JailbreakDetector.swift   # Jailbreak detection
 |   |   +- KeychainSecurityValidator.swift
 |   |
-|   +- Services/  (40 implementations + 21 matching *Protocol.swift = 61 files)
-|   |   # 完整列表见 docs/ios/IOS_ARCHITECTURE.md
+|   +- Services/  (59 Swift files: implementations + matching *Protocol.swift)
+|   |   # Authentication: AuthService, AppleSignInService, OAuthManager, SessionService
+|   |   # Real-time: ClawbotChannelService, ClawbotHistoryService, ChatService, VoicePlaybackService
+|   |   # Supabase: SupabaseService (actor-based unified client)
+|   |   # User & Social: UserService, FriendService, UserStatsService
+|   |   # Study: StudyService, StudyHistoryService
+|   |   # Points & Store: PointsService, MallService, StoreKitService, PaymentService
+|   |   # Achievements & Wardrobe: AchievementService, WardrobeService
+|   |   # Location & Map: LocationService, MapSearchService, PlaceService
+|   |   # Media: AudioPlayerService, AudioSessionManager, CameraService, ImageUploadService
+|   |   # Voice: TTSService, SpeechRecognitionService
+|   |   # Notifications: PushNotificationService, NotificationManager, LocalNotificationService
+|   |   # Productivity: TodoService, ScheduleService
+|   |   # System: NetworkMonitor, ToastManager, DataSyncService, OfflineCacheService, DataExportService
 |   |
 |   +- Analytics/
+|   |   +- AnalyticsService.swift           # Unified analytics
 |   |   +- ErrorTrackingService.swift       # Error tracking
 |   |   +- PerformanceMonitoringService.swift # Performance metrics
 |   |   +- AppLaunchOptimizer.swift         # Cold/hot start optimization
@@ -116,6 +139,7 @@ ios/TRIX3DCompanion/
 |   |
 |   +- Performance/
 |   |   +- BatteryConsumptionOptimizer.swift
+|   |   +- UIRenderingOptimizer.swift
 |   |
 |   +- Cache/
 |   |   +- ImageCacheManager.swift          # Image caching (Kingfisher)
@@ -142,13 +166,14 @@ ios/TRIX3DCompanion/
 |   |   |         ChatListView, StudyListView, MailPanelView,
 |   |   |         NotificationPanelView, TrixBotChatView,
 |   |   |         HomeBotBubbleView, HeroBackgroundView,
-|   |   |         RobotHeroBackgroundView, VideoBackgroundView
+|   |   |         RobotHeroBackgroundView, VideoBackgroundView (15 files)
 |   |   +- ViewModels/  HomeViewModel
 |   |
 |   +- Chat/
 |   |   +- Views/  ChatDetailView, MessageBubbleView, MessageCell,
 |   |   |         ChatInputBar, AIActionSelectorView, ImageMessageView,
-|   |   |         VoiceMessageView, VoiceRecordingButton
+|   |   |         VoiceMessageView, VoiceRecordingButton,
+|   |   |         VoiceMessageIntegrationExample
 |   |   +- ViewModels/  ChatDetailViewModel, ChatListViewModel
 |   |   +- Components/  OnlineStatusIndicator, TypingIndicatorView, UnreadBadge
 |   |   +- Models/  AIAction
@@ -190,7 +215,8 @@ ios/TRIX3DCompanion/
 |   +- Profile/
 |   |   +- Views/  ProfileScreen, SettingsScreen, PrivacySettingsScreen,
 |   |   |         AboutScreen, PointsHistoryScreen, ProfileInfoCard,
-|   |   |         StatsSection, WardrobeView
+|   |   |         StatsSection, WardrobeView, OpenClawControlPanel,
+|   |   |         Components/PointsTransactionRow
 |   |   +- ViewModels/  ProfileViewModel, SettingsViewModel,
 |   |               PrivacySettingsViewModel, PointsHistoryViewModel
 |   |
@@ -257,7 +283,7 @@ Features: SSL Pinning (SSLPinningManager), retry with exponential backoff, reque
 
 ### 4.3 ClawbotChannelService (TRIX Native Channel — Real-Time)
 
-Replaces the deprecated WebSocket-based approach. Uses TRIX Native Channel protocol (HTTP long-polling) for real-time messaging and device pairing.
+Replaces the deprecated WebSocket-based approach. Uses TRIX Native Channel protocol (HTTP long-polling) for real-time messaging and device pairing. Internally uses a native `URLSessionWebSocketDelegate` adapter (`NativeWebSocketClient`).
 
 ```swift
 final class ClawbotChannelService: ObservableObject {
@@ -272,7 +298,31 @@ final class ClawbotChannelService: ObservableObject {
 
 **Pairing**: Use `ClawbotChannelViewModel` (in App/) for pairing flow. QR format: `http://host/pair?code=XXX&secret=YYY`.
 
-### 4.4 Local Storage
+### 4.4 SupabaseService (Unified Data Layer)
+
+Actor-based unified Supabase client for authentication, database, and realtime subscriptions.
+
+```swift
+actor SupabaseService {
+    static let shared: SupabaseService
+
+    func currentUserId() async throws -> String
+    // Friends, messages, achievements, profile, etc.
+}
+```
+
+### 4.5 App Lifecycle (TRIXApplicationDelegate)
+
+Lifecycle is managed by `TRIXApplicationDelegate` (not AppDelegate), connected to SwiftUI via `TRIX3DCompanionApp`.
+
+```swift
+final class TRIXApplicationDelegate: NSObject, UIApplicationDelegate {
+    // Handles: push notifications, OAuth URL schemes, universal links
+    // Delegates to PushNotificationService, OAuthManager
+}
+```
+
+### 4.6 Local Storage
 
 | Service | Purpose |
 |---------|---------|
@@ -399,8 +449,9 @@ dependencies: [
 | 1.2 | 2026-03-25 | Accuracy update: added missing services (17), removed non-existent files |
 | 1.3 | 2026-03-26 | Directory structure cleanup: Core/Network (3 files removed), Core/Storage (2 removed), Core/Services count: 61 files (40 impl + 21 protocols), total Swift: 293 |
 | 1.4 | 2026-03-29 | Accuracy fix: AnalyticsService, UIRenderingOptimizer, InputValidator all exist; total Swift corrected to 231; added Core/Design, Core/Video, Features/Data to directory structure; removed duplicate Video/ entry |
+| 1.5 | 2026-03-31 | Total Swift corrected to 295; added SupabaseService, AppleSignInService, OAuthManager, MallService, MapSearchService, NetworkMonitor, SessionService, DataSyncService, ToastManager, ClawbotHistoryService, UserStatsService, VoicePlaybackService; added TRIXApplicationDelegate; updated Features counts; added OpenClawControlPanel |
 
 ---
 
-**Last Updated**: 2026-03-29
-**Version**: 1.4
+**Last Updated**: 2026-03-31
+**Version**: 1.5

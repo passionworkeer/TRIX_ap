@@ -2,7 +2,7 @@
 
 > 📚 TRIX 3D Companion 后端服务架构
 > 🎯 基于 Node.js 原生 HTTP + WebSocket + Supabase
-> **最后更新**: 2026-03-24（代码扫描同步：依赖版本修正，补充缺失模块）
+> **最后更新**: 2026-03-31（代码扫描同步：Node.js 20+ 确认，Services 目录结构确认，trix-openclaw-native 包结构确认）
 
 ---
 
@@ -128,7 +128,7 @@ wss://trix.love/api/service/ws?accountId=xxx&serviceToken=xxx               # Se
 
 | 类别 | 技术 | 版本 |
 |-----|------|-----|
-| 运行时 | Node.js | 18+ |
+| 运行时 | Node.js | 20+ |
 | 框架 | **原生 `http.createServer`**（无 Express） | - |
 | WebSocket | `ws` 库（服务器端 + 客户端） | 8.x |
 | 数据库 | SQLite → **JSON 文件存储** (`JsonStateStore`) | - |
@@ -569,5 +569,5 @@ curl http://TRIX_SERVER_HOST:8788/health
 
 ---
 
-**最后更新**: 2026-03-24
-**版本**: 3.4
+**最后更新**: 2026-03-31
+**版本**: 3.5

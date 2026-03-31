@@ -1,7 +1,7 @@
 # Desktop 桌面端架构文档
 
-> **版本**: 2.0
-> **最后更新**: 2026-03-29（源码扫描确认 IPC 90，preload 80）
+> **版本**: 2.1
+> **最后更新**: 2026-03-31（源码扫描确认 IPC 101 handlers，preload 79 unique methods；新增 Gateway WS RPC / Auth refresh / Image attachments）
 > **平台**: Windows (Electron 33.4.0)
 
 ---
@@ -61,7 +61,7 @@ Electron 应用的主入口，运行在 Node.js 环境中。
 
 通过 `contextBridge` 安全地将主进程 API 暴露给渲染进程。
 
-**暴露 API**（`desktop/src/preload/index.js`，共 **80 个**属性/方法，不含重复项）：
+**暴露 API**（`desktop/src/preload/index.js`，共 **79 个**属性/方法，含 Gateway WS RPC，不含重复项）:
 ```typescript
 window.electronAPI = {
   // === Platform ===
@@ -73,8 +73,21 @@ window.electronAPI = {
   hideMainWindow: () => Promise<void>,
   minimizeToTray: () => Promise<void>,
 
+  // === Window Management ===
+  windowResize: (opts: { width?: number; height?: number }) => Promise<boolean>,
+  windowMove: (x: number, y: number) => Promise<boolean>,
+  windowSetBounds: (bounds: { x?: number; y?: number; width?: number; height?: number }) => Promise<boolean>,
+  windowGetBounds: () => Promise<{ x: number; y: number; width: number; height: number }>,
+  windowMinimize: () => Promise<boolean>,
+  windowMaximize: () => Promise<boolean>,
+  windowIsMaximized: () => Promise<boolean>,
+
+  // === Float Window Drag ===
+  floatMove: (x: number, y: number) => Promise<boolean>,
+  floatGetPosition: () => Promise<[number, number]>,
+
   // === Bot State ===
-  pushBotState: (state: string) => Promise<void>,
+  pushBotState: (state: BotState) => Promise<boolean>,
 
   // === OpenClaw ===
   checkOpenClaw: () => Promise<OpenClawStatus>,
@@ -109,11 +122,24 @@ window.electronAPI = {
   stopGateway: () => Promise<void>,
   gatewayLogs: (opts?: { lines?: number }) => Promise<string[]>,
 
+  // === Gateway WebSocket RPC (v2.1 新增) ===
+  gatewayConnect: () => Promise<{ success: boolean; error?: string }>,
+  gatewayAgents: () => Promise<{ success: boolean; data?: GatewayAgent[]; error?: string }>,
+  gatewaySessions: () => Promise<{ success: boolean; data?: GatewaySession[]; error?: string }>,
+  gatewayChatHistory: (sessionKey: string, limit?: number) => Promise<{ success: boolean; data?: ChatMessage[]; error?: string }>,
+  gatewayLogsWs: (tail?: number) => Promise<{ success: boolean; data?: string[]; error?: string }>,
+  gatewayRpc: (method: string, params?: Record<string, unknown>) => Promise<{ success: boolean; data?: unknown; error?: string }>,
+  gatewayHealthRpc: () => Promise<{ success: boolean; data?: GatewayHealthData; error?: string }>,
+  onGatewayEvent: (callback: (event: Record<string, unknown>) => void) => () => void,
+
   // === Supabase Auth ===
   authGetSession: () => Promise<AuthSession>,
   authSignIn: (email: string, password: string) => Promise<AuthUser>,
   authSignUp: (email: string, password: string) => Promise<AuthUser>,
   authSignOut: () => Promise<void>,
+  authRefreshSession: () => Promise<AuthSession>,       // v2.1 新增
+  authSetSession: (sessionData: unknown) => Promise<void>, // v2.1 新增
+  profileUpdate: (updates: Record<string, unknown>) => Promise<unknown>, // v2.1 新增
 
   // === Study Data ===
   listTodos: () => Promise<Todo[]>,
@@ -140,6 +166,8 @@ window.electronAPI = {
   listConversations: () => Promise<Conversation[]>,
   fetchMessages: (conversationId: string) => Promise<Message[]>,
   sendMessage: (conversationId: string, content: string) => Promise<Message>,
+  sendImageMessage: (conversationId: string, payload: ImagePayload) => Promise<Message>,   // v2.1 新增
+  sendAttachmentMessage: (conversationId: string, payload: AttachmentPayload) => Promise<Message>, // v2.1 新增
   sendReaction: (messageId: string, emoji: string) => Promise<void>,
 
   // === Channels (Telegram / Feishu / Discord / Slack / WhatsApp / WeCom) ===
@@ -150,7 +178,7 @@ window.electronAPI = {
   channelsStartListening: (channelId: string) => Promise<void>,
   channelsStopListening: (channelId: string) => Promise<void>,
   channelsGetMessages: (channelId: string, opts?: { limit?: number }) => Promise<Message[]>,
-  channelsSendMessage: (channelId: string, text: string) => Promise<void>,
+  channelsSendMessage: (channelId: string, text: string, opts?: Record<string, string>) => Promise<void>,
 
   // === Config (openclaw.json) ===
   configRead: () => Promise<object>,
@@ -190,6 +218,8 @@ window.electronAPI = {
 ```
 
 **文件**: `desktop/src/preload/index.js`
+
+> **注意**: `preferencesGet`/`preferencesSet`、`friendsList`/`friendsAdd`/`friendsAccept`/`friendsRemove`、`notificationsList`/`notificationsMarkRead`/`notificationsMarkAllRead` 在 preload 中已声明但主进程 IPC handler **尚未实现**，调用将返回 unhandled promise rejection。
 
 ### 2.3 渲染进程（Renderer Process）
 
@@ -305,9 +335,15 @@ async function waitForGatewayReady(): Promise<void> {
 ```
 
 **Gateway 进程管理**：
-- 退出码非 0 → 仅记录错误（**不自动重启**，最多 3 次自动重启**未实现**）
+- 退出码非 0 仅记录错误（**不自动重启**）
 - `TRIX_NATIVE_STORAGE_DIR` 确保 Gateway 和 IPC 读写同一 `state.json`
 - Windows 特殊处理：使用 `netstat` + `taskkill` 杀死进程
+
+**v2.1 新增功能**：
+- **Triple-layer Health Check**（port + HTTP + CLI，15s TTL 缓存）
+- **Diagnostic Engine**（自动分析日志 + 根因诊断 + 置信度）
+- **Knowledge Base**（electron-store 持久化已知问题与解决方案）
+- **WebSocket RPC Client**（连接 Gateway WS，JSON-RPC 请求，connect.challenge 握手）
 
 ### 3.4 OpenClaw 安装 (`openclaw.ts`)
 
@@ -324,7 +360,7 @@ async function ensureOpenclawInstalled(): Promise<void> {
 
 ### 3.5 IPC Handler (`ipc.ts`)
 
-**概况**：共 **86 个** `ipcMain.handle` 注册，无 `ipcMain.on` 事件。分为 14+ 大类别：
+**概况**：共 **101 个** `ipcMain.handle` 注册，无 `ipcMain.on` 事件。分为 15 个大类别：
 
 **bot-state 事件**通过 `webContents.send`（位于 `window-state.ts`）主动推送，**不是** IPC handler：
 - `bot-state:push` → 渲染进程 → 主进程（handler）
@@ -333,12 +369,21 @@ async function ensureOpenclawInstalled(): Promise<void> {
 **openclaw:install-progress** 同理，由主进程通过 `event.sender.send` 主动推送。
 
 ```typescript
-// 全部 86 个 ipcMain.handle（14+ 大类别；含 925cda8 新增 WebSocket RPC handlers）
+// 全部 101 个 ipcMain.handle（15 个大类别；v2.1 含 Gateway WS RPC / Triple-layer Health / Diagnostic Engine / KB）
 
-// Window Management（3）
+// Window Management（11）
 'window:show-main'         → 显示主窗口
 'window:hide-main'        → 隐藏主窗口
 'window:minimize-to-tray' → 最小化到托盘
+'window:resize'            → 调整主窗口大小
+'window:move'              → 移动主窗口
+'window:set-bounds'        → 设置主窗口边界
+'window:get-bounds'        → 获取主窗口边界
+'window:minimize'          → 最小化主窗口
+'window:maximize'          → 最大化/还原主窗口
+'window:is-maximized'      → 查询最大化状态
+'float:move'               → 移动 Float 窗口位置
+'float:get-position'       → 获取 Float 窗口位置
 
 // Bot State（1）
 'bot-state:push'           → 推送 Bot 状态（Renderer → Main）
@@ -361,11 +406,14 @@ async function ensureOpenclawInstalled(): Promise<void> {
 'openclaw:backup-restore'  → 恢复 Backup
 'openclaw:pairing-create'  → 创建配对码
 
-// Supabase Auth（4）
+// Supabase Auth（7）— v2.1 新增 refresh / setSession / profileUpdate
 'auth:get-session'         → 获取当前会话
 'auth:sign-in'             → 邮箱密码登录
 'auth:sign-up'             → 邮箱注册
 'auth:sign-out'            → 登出
+'auth:refresh-session'     → 刷新 Session（v2.1 新增）
+'auth:set-session'         → 手动设置 Session（v2.1 新增）
+'profile:update'           → 更新用户资料（v2.1 新增）
 
 // Study Data（5）
 'study:list-todos'          → 列出学习待办
@@ -390,10 +438,12 @@ async function ensureOpenclawInstalled(): Promise<void> {
 // Profile（1）
 'profile:get-stats'        → 获取用户统计
 
-// TRIX Native（4）
+// TRIX Native（7）— v2.1 新增 sendImageMessage / sendAttachmentMessage
 'trixnative:conversations'  → 获取会话列表
 'trixnative:messages'       → 获取消息历史
-'trixnative:send-message'   → 发送消息
+'trixnative:send-message'   → 发送文本消息
+'trixnative:send-image-message'   → 发送图片消息（v2.1 新增）
+'trixnative:send-attachment-message' → 发送附件消息（v2.1 新增）
 'trixnative:send-reaction'  → 发送表情反应
 
 // Native Channel Pairing（5）
@@ -403,29 +453,41 @@ async function ensureOpenclawInstalled(): Promise<void> {
 'pairing:list'              → 列出已有配对
 'pairing:revoke'            → 撤销配对码
 
-// Gateway（5）
+// Gateway（13）— 含 Triple-layer Health / Diagnostic Engine / KB / WS RPC
 'gateway:status'            → 获取 Gateway 运行状态
 'gateway:start'              → 启动 Gateway
 'gateway:stop'               → 停止 Gateway
 'gateway:restart'            → 重启 Gateway
-'gateway:logs'               → 获取 Gateway 日志
+'gateway:logs'               → 获取 Gateway 日志（内存缓冲区）
+'gateway:health'             → Triple-layer 健康检查（port + HTTP + CLI，15s TTL 缓存）
+'gateway:diagnose'           → 运行诊断引擎（health + log 分析）
+'gateway:logs:analyze'        → 分析 Gateway 日志错误模式
+'gateway:kb:stats'           → 知识库统计
+'gateway:kb:record'          → 记录修复尝试（学习）
+'gateway:connect'            → 连接 Gateway WebSocket 通道（v2.1 新增）
+'gateway:agents'             → 通过 WS RPC 获取 Agent 列表（v2.1 新增）
+'gateway:sessions'            → 通过 WS RPC 获取 Session 列表（v2.1 新增）
+'gateway:chat-history'        → 通过 WS RPC 获取聊天历史（v2.1 新增）
+'gateway:logs:ws'            → 通过 WS RPC 获取日志（v2.1 新增）
+'gateway:rpc'                 → 通用 WS RPC 调用（v2.1 新增）
+'gateway:health-rpc'         → 通过 WS RPC 获取完整健康数据（v2.1 新增）
 
-// System Info（5）
+// System Info（6）
 'system:info'               → 获取系统信息（CPU/内存/OS）
 'system:disk'               → 获取磁盘列表
 'system:check-packages'     → 检查全局 npm 包
 'system:autostart-get'     → 获取开机自启状态
 'system:autostart-set'     → 设置开机自启
 
-// Third-party Channels（8）
+// Third-party Channels（8）— 配置/测试/CRUD
 'channels:configure'        → 配置 Channel 凭证
 'channels:list'             → 列出所有 Channel
 'channels:delete'           → 删除 Channel
-'channels:test'             → 测试 Channel 连接
-'channels:start-listening'  → 开始监听 Channel
+'channels:test'             → 测试 Channel 连接（Telegram / Feishu / Discord / Slack / WhatsApp / WeCom）
+'channels:start-listening'  → 开始监听 Channel（长轮询/WebSocket）
 'channels:stop-listening'   → 停止监听 Channel
-'channels:get-messages'    → 获取 Channel 消息
-'channels:send-message'    → 通过 Channel 发送消息
+'channels:get-messages'    → 获取 Channel 消息（内存缓冲区）
+'channels:send-message'     → 通过 Channel 发送消息（支持 opts 参数，v2.1 更新）
 
 // Config（4）
 'config:read'              → 读取 openclaw.json 完整内容
@@ -457,7 +519,7 @@ const ALLOWED_COMMANDS = [
 ### 3.6 Float Window (`float.tsx`)
 
 **功能描述**：
-220×320 的小型透明窗口，始终置顶于屏幕右下角，支持配对 + 实时 Bot 状态可视化。
+260×280 的小型透明窗口，始终置顶于屏幕右下角，支持配对 + 实时 Bot 状态可视化。
 
 ```
 ┌────────────────────────────┐
@@ -588,14 +650,15 @@ desktop/
     ├── main/
     │   ├── index.ts           # 主进程入口
     │   ├── window-state.ts    # 窗口状态管理 + bot-state:changed 推送
+    │   ├── pet-state.ts       # PetStateManager 单例 — 管理 Bot 状态机（IDLE/THINKING/SPEAKING）
     │   ├── tray.ts            # 系统托盘
-    │   ├── gateway.ts         # Gateway 子进程
-    │   ├── openclaw.ts        # OpenClaw CLI 封装
-    │   ├── ipc.ts             # IPC Handler（66 个 ipcMain.handle）
+    │   ├── gateway.ts         # Gateway 子进程（含 Triple-layer Health、Diagnostic Engine、KB、WS RPC）
+    │   ├── openclaw.ts        # OpenClaw CLI 封装（ClawHub marketplace、Skill registry）
+    │   ├── ipc.ts             # IPC Handler（共 **101 个** ipcMain.handle）
     │   └── float-window.ts    # Float 窗口工厂
     │
     ├── preload/
-    │   └── index.js           # contextBridge API（编译后 JS）
+    │   └── index.js           # contextBridge API（Vite 直接复制，输出到 dist-desktop/preload/index.cjs）
     │
     ├── renderer/
     │   ├── main.tsx           # 主窗口 React 入口
@@ -775,4 +838,4 @@ openclaw logs --follow
 
 ---
 
-**最后更新**: 2026-03-26（源码扫描确认 IPC 86（75→86），preload 71，Study Session 3 + Study Room 6；iOS v1.3 修正：恢复 APIClient 等存在文件）
+**最后更新**: 2026-03-31（IPC 86→101；新增 Window Mgmt 8 / Gateway WS RPC 8 / Auth 3 / TrixNative 2 / Channel 1；Float 260×280；新增 pet-state.ts；preload 79 methods；preferences/friends/notifications IPC 未实现）
