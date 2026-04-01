@@ -131,6 +131,7 @@ protocol AuthServiceProtocol {
     func deleteAccount() async -> AuthResult<Void>
     func updateCurrentUser(_ user: User?)
     func updateLoginStatus(_ loggedIn: Bool)
+    func resetEmailConfirmationSuccess()
     func clearError()
 }
 
@@ -138,6 +139,8 @@ protocol AuthServiceProtocol {
 
 extension AuthServiceProtocol {
     var supabase: SupabaseClient? { nil }
+
+    func resetEmailConfirmationSuccess() {}
 }
 
 // MARK: - Auth Service
@@ -252,6 +255,11 @@ final class AuthService: ObservableObject, AuthServiceProtocol {
     /// - Parameter loggedIn: Whether user is logged in
     func updateLoginStatus(_ loggedIn: Bool) {
         isLoggedIn = loggedIn
+    }
+
+    /// Reset the transient email confirmation success flag after observers react.
+    func resetEmailConfirmationSuccess() {
+        emailConfirmationSucceeded = false
     }
 
     // MARK: - Public Methods

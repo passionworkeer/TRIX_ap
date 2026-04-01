@@ -263,7 +263,7 @@ cp .env.example .env.local   # 填写 VITE_SUPABASE_URL 和 VITE_SUPABASE_ANON_K
 
 npm run dev                  # Web → http://localhost:5173
 npm run dev:desktop          # Desktop 开发模式
-# iOS: open ios/TRIX3DCompanion/TRIX3DCompanion.xcworkspace
+# iOS: open ios/TRIX3DCompanion/TRIX3DCompanion.xcodeproj
 ```
 
 ### 项目结构

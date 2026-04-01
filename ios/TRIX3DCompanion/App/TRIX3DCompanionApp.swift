@@ -28,7 +28,7 @@ struct WhatsNewViewControllerRepresentable: UIViewControllerRepresentable {
 @main
 struct TRIX3DCompanionApp: App {
     @UIApplicationDelegateAdaptor(TRIXApplicationDelegate.self) private var appDelegate
-    @StateObject private var appState = AppState()
+    @StateObject private var rootAppState = AppState()
     @StateObject private var chatService = ChatService.shared
     @StateObject private var authService = AuthService.shared
     @StateObject private var clawbotChannel = ClawbotChannelViewModel.shared
@@ -103,12 +103,12 @@ struct TRIX3DCompanionApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
-                .environmentObject(appState)
+                .environmentObject(rootAppState)
                 .environmentObject(authService)
                 .environmentObject(chatService)
                 .environmentObject(clawbotChannel)
-                .environment(\.locale, Locale(identifier: appState.appLanguage.rawValue))
-                .id(appState.appLanguage.rawValue)
+                .environment(\.locale, Locale(identifier: rootAppState.appLanguage.rawValue))
+                .id(rootAppState.appLanguage.rawValue)
                 .themed(with: themeManager)
                 .withToast()
                 .fullScreenCover(isPresented: $showWhatsNew) {
@@ -129,7 +129,7 @@ struct TRIX3DCompanionApp: App {
                                 // Reset after a short delay so it can fire again on next confirmation
                                 try? await Task.sleep(nanoseconds: 500_000_000)
                                 await MainActor.run {
-                                    AuthService.shared.emailConfirmationSucceeded = false
+                                    AuthService.shared.resetEmailConfirmationSuccess()
                                 }
                             }
                         }
@@ -159,10 +159,10 @@ struct TRIX3DCompanionApp: App {
                         showWhatsNew = true
                     }
                 }
-                .task(id: appState.currentUser?.id) {
+                .task(id: rootAppState.currentUser?.id) {
                     // Delay Clawbot connection for better startup performance
                     // Connect after 2 seconds to prioritize UI responsiveness
-                    if appState.currentUser != nil {
+                    if rootAppState.currentUser != nil {
                         try? await Task.sleep(nanoseconds: 2_000_000_000)
                         await clawbotChannel.connect()
                     }

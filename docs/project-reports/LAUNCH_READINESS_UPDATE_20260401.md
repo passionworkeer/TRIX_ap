@@ -78,7 +78,7 @@
 已通过:
 
 ```bash
-xcodebuild -workspace ios/TRIX3DCompanion/TRIX3DCompanion.xcworkspace \
+xcodebuild -project ios/TRIX3DCompanion/TRIX3DCompanion.xcodeproj \
   -scheme TRIX3DCompanion \
   -destination 'platform=iOS Simulator,id=7F7822BC-BBC1-42C6-A966-D5596819D990' \
   CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO \

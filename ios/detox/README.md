@@ -47,10 +47,10 @@ Alternatively, create a config file at `/tmp/trix-ui-config.json`:
 npm run build
 
 # Or manually via xcodebuild
-xcodebuild -workspace ../TRIX3DCompanion.xcworkspace \
+xcodebuild -project ../TRIX3DCompanion.xcodeproj \
   -scheme TRIX3DCompanion \
   -configuration Debug \
-  -destination 'platform=iOS Simulator,name=iPhone 15 Pro' \
+  -destination 'generic/platform=iOS Simulator' \
   build
 ```
 
@@ -63,8 +63,8 @@ npm test
 # Run with verbose output
 npm run test:debug
 
-# Run on iPhone 16 simulator
-npm run test:iphone16
+# Run on a specific simulator
+DETOX_DEVICE_NAME='iPhone 17 Pro' npm run test:ios:device
 
 # Run a specific test file
 npx detox test e2e/AuthFlow.detox.ts
@@ -95,17 +95,16 @@ detox/
 
 ## Configuration
 
-The main configuration lives in `detox.config.js`. Two simulator configurations are provided:
+The main configuration lives in `detox.config.js`. The default configuration targets an iOS simulator and accepts `DETOX_DEVICE_NAME` to override the booted device.
 
-| Configuration      | Simulator    | Use case                    |
-|--------------------|--------------|-----------------------------|
-| `ios.sim.debug`    | iPhone 15 Pro| Default / CI                |
-| `ios.sim.iphone16` | iPhone 16    | Latest hardware testing     |
+| Configuration   | Simulator                             | Use case      |
+|----------------|----------------------------------------|---------------|
+| `ios.sim.debug` | `DETOX_DEVICE_NAME` or `iPhone 17 Pro` | Default / CI  |
 
-To switch configurations:
+To run against a different simulator:
 
 ```bash
-detox test --configuration ios.sim.iphone16
+DETOX_DEVICE_NAME='iPhone 17 Pro' detox test --configuration ios.sim.debug
 ```
 
 ## Accessibility Identifiers
@@ -129,10 +128,10 @@ On M1/M2/M3 Macs, if you encounter build errors:
 rm -rf ~/Library/Developer/Xcode/DerivedData/TRIX3DCompanion-*
 
 # Rebuild with correct architecture
-xcodebuild -workspace ../TRIX3DCompanion.xcworkspace \
+xcodebuild -project ../TRIX3DCompanion.xcodeproj \
   -scheme TRIX3DCompanion \
   -configuration Debug \
-  -destination 'platform=iOS Simulator,name=iPhone 15 Pro,OS=18.0' \
+  -destination 'generic/platform=iOS Simulator' \
   -arch arm64 \
   build
 ```
@@ -157,7 +156,7 @@ If `device.launchApp()` times out:
 
 2. Verify simulator is available:
    ```bash
-   xcrun simctl list devices available | grep "iPhone 15"
+   xcrun simctl list devices available | grep "iPhone"
    ```
 
 3. Check launch arguments in `detox.config.js` are valid for the app.
