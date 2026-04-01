@@ -21,6 +21,9 @@ enum AuthError: Error, LocalizedError, Equatable {
     case refreshFailed
     case unknown(underlying: Error?)
     case validationError(message: String)
+    case emailConfirmationInvalidToken
+    case emailConfirmationExpired
+    case emailConfirmationFailed(reason: String)
 
     static func == (lhs: AuthError, rhs: AuthError) -> Bool {
         switch (lhs, rhs) {
@@ -40,6 +43,12 @@ enum AuthError: Error, LocalizedError, Equatable {
             return true
         case (.validationError(let lhsMsg), .validationError(let rhsMsg)):
             return lhsMsg == rhsMsg
+        case (.emailConfirmationFailed(let lhsReason), .emailConfirmationFailed(let rhsReason)):
+            return lhsReason == rhsReason
+        case (.emailConfirmationInvalidToken, .emailConfirmationInvalidToken):
+            return true
+        case (.emailConfirmationExpired, .emailConfirmationExpired):
+            return true
         default:
             return false
         }
@@ -78,6 +87,12 @@ enum AuthError: Error, LocalizedError, Equatable {
             return NSLocalizedString("error.unknown", comment: "Unknown error")
         case .validationError(let message):
             return message
+        case .emailConfirmationInvalidToken:
+            return NSLocalizedString("auth.error.confirmation.invalid.token", comment: "Invalid confirmation token")
+        case .emailConfirmationExpired:
+            return NSLocalizedString("auth.error.confirmation.expired", comment: "Confirmation token expired")
+        case .emailConfirmationFailed(let reason):
+            return reason
         }
     }
 
@@ -148,6 +163,10 @@ final class AuthService: ObservableObject, AuthServiceProtocol {
 
     /// Last authentication error if any
     @Published private(set) var lastError: AuthError?
+
+    /// Set to true when email confirmation completes successfully, then auto-reset.
+    /// Views observe this to show a success state and navigate to main app.
+    @Published private(set) var emailConfirmationSucceeded: Bool = false
 
     // MARK: - Dependencies
 
@@ -327,7 +346,12 @@ final class AuthService: ObservableObject, AuthServiceProtocol {
         lastError = nil
 
         do {
-            let response = try await apiClient.register(username: username, email: email, password: password)
+            let response = try await apiClient.register(
+                username: username,
+                email: email,
+                password: password,
+                redirectTo: "trix3dcompanion://auth/v1/callback"
+            )
 
             if let accessToken = response.accessToken,
                let refreshToken = response.refreshToken,
@@ -665,6 +689,95 @@ final class AuthService: ObservableObject, AuthServiceProtocol {
         }
         clearSession()
         lastError = .tokenExpired
+    }
+
+    // MARK: - Email Confirmation Callback
+
+    /// Handle the Supabase email confirmation deep link.
+    ///
+    /// Called when the app is opened via:
+    ///   `trix3dcompanion://auth/v1/callback?token=<confirmation_token>&...`
+    ///
+    /// Exchanges the token with the backend to complete email confirmation,
+    /// then establishes a session on success.
+    ///
+    /// - Parameter url: The full callback URL from the email link
+    /// - Returns: True if confirmation succeeded and user is now logged in
+    @MainActor
+    func handleEmailConfirmationCallback(url: URL) async -> Bool {
+        // Parse token from URL query parameters
+        guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
+              let queryItems = components.queryItems else {
+            lastError = .emailConfirmationFailed(reason: "Invalid confirmation link format")
+            return false
+        }
+
+        // Extract token; Supabase may also include email as a separate param
+        let token = queryItems.first(where: { $0.name == "token" || $0.name == "confirmation_token" })?.value
+        let email = queryItems.first(where: { $0.name == "email" })?.value
+
+        guard let token, !token.isEmpty else {
+            lastError = .emailConfirmationInvalidToken
+            return false
+        }
+
+        // The email in the URL may be URL-encoded; decode it
+        let normalizedEmail = email?.removingPercentEncoding ?? email
+
+        isLoading = true
+        defer { isLoading = false }
+
+        do {
+            let authResponse = try await apiClient.confirmEmail(token: token, email: normalizedEmail ?? "")
+
+            // Build and persist session
+            let session = UserSession(
+                id: UUID().uuidString,
+                userId: authResponse.user.id,
+                accessToken: authResponse.accessToken,
+                refreshToken: authResponse.refreshToken ?? "",
+                expiresAt: Date().addingTimeInterval(TimeInterval(authResponse.expiresIn ?? 3600))
+            )
+            try saveSession(session)
+
+            currentUser = authResponse.user
+            isLoggedIn = true
+
+            // Notify UI that confirmation succeeded
+            emailConfirmationSucceeded = true
+
+            // Start heartbeat to sync session with backend
+            await upsertAndStartHeartbeat(userId: authResponse.user.id)
+
+            SecureLogger.shared.authEvent("Email confirmed via deep link: \(authResponse.user.email ?? "unknown")")
+            return true
+
+        } catch let error as NetworkError {
+            let mappedError = mapNetworkErrorForConfirmation(error)
+            lastError = mappedError
+            SecureLogger.shared.error("Email confirmation failed: \(mappedError.localizedDescription)")
+            return false
+        } catch {
+            lastError = .emailConfirmationFailed(reason: error.localizedDescription)
+            SecureLogger.shared.error("Email confirmation unexpected error: \(error.localizedDescription)")
+            return false
+        }
+    }
+
+    /// Map network errors specific to email confirmation.
+    private func mapNetworkErrorForConfirmation(_ error: NetworkError) -> AuthError {
+        switch error {
+        case .unauthorized, .forbidden:
+            return .emailConfirmationInvalidToken
+        case .custom(let message):
+            let normalized = message.lowercased()
+            if normalized.contains("expired") || normalized.contains("invalid") {
+                return .emailConfirmationInvalidToken
+            }
+            return .emailConfirmationFailed(reason: message)
+        default:
+            return .emailConfirmationFailed(reason: error.localizedDescription)
+        }
     }
 
     // MARK: - Token Management

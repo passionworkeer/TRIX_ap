@@ -762,6 +762,17 @@ extension APIClient {
         return try await post(.authRegister, body: request)
     }
 
+    /// Exchange an email confirmation token for a session.
+    /// Called when the app receives a Supabase email confirmation deep link.
+    /// - Parameters:
+    ///   - token: The confirmation token extracted from the callback URL
+    ///   - email: The email address the confirmation was sent to
+    /// - Returns: AuthResponse containing user and session on success
+    func confirmEmail(token: String, email: String) async throws -> AuthResponse {
+        let request = EmailConfirmRequest(email: email, token: token)
+        return try await post(.authEmailConfirm, body: request)
+    }
+
     func logout() async throws {
         let _: EmptyResponse = try await post(.authLogout)
     }

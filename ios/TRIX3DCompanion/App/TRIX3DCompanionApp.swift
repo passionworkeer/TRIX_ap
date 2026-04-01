@@ -119,7 +119,23 @@ struct TRIX3DCompanionApp: App {
                     .ignoresSafeArea()
                 }
                 .onOpenURL { url in
-                    _ = OAuthManager.shared.handleOpenURL(url)
+                    // Handle Supabase email confirmation deep link.
+                    // Format: trix3dcompanion://auth/v1/callback?token=<confirmation_token>&...
+                    if url.path.contains("/auth/v1/callback") || url.host == "auth" {
+                        Task {
+                            let success = await AuthService.shared.handleEmailConfirmationCallback(url: url)
+                            if success {
+                                // emailConfirmationSucceeded is published; views observing it will react
+                                // Reset after a short delay so it can fire again on next confirmation
+                                try? await Task.sleep(nanoseconds: 500_000_000)
+                                await MainActor.run {
+                                    AuthService.shared.emailConfirmationSucceeded = false
+                                }
+                            }
+                        }
+                    } else {
+                        _ = OAuthManager.shared.handleOpenURL(url)
+                    }
                 }
                 .onContinueUserActivity(NSUserActivityTypeBrowsingWeb) { userActivity in
                     guard let url = userActivity.webpageURL else {

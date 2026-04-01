@@ -138,6 +138,7 @@ enum APIEndpoint {
     case authLogout
     case authRefresh
     case authMe
+    case authEmailConfirm
 
     // MARK: - User
     case userProfile
@@ -317,6 +318,7 @@ enum APIEndpoint {
         case .authLogout: return "/auth/v1/logout"
         case .authRefresh: return "/auth/v1/token"
         case .authMe: return "/auth/v1/user"
+        case .authEmailConfirm: return "/auth/v1/token?grant_type=confirmation_token"
 
         // User
         case .userProfile: return "/user/profile"
@@ -838,16 +840,29 @@ struct RegisterRequest: Codable {
     let email: String
     let password: String
     let data: Metadata
+    let options: Options?
 
     struct Metadata: Codable {
         let username: String
     }
 
-    init(username: String, email: String, password: String) {
+    struct Options: Codable {
+        let redirectTo: String?
+    }
+
+    init(username: String, email: String, password: String, redirectTo: String? = nil) {
         self.email = email
         self.password = password
         self.data = Metadata(username: username)
+        self.options = redirectTo != nil ? Options(redirectTo: redirectTo) : nil
     }
+}
+
+/// Request body for email confirmation token exchange
+/// POST /auth/v1/token?grant_type=confirmation_token
+struct EmailConfirmRequest: Codable {
+    let email: String
+    let token: String
 }
 
 struct RegisterResponse: Codable {
