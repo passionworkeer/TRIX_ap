@@ -115,7 +115,7 @@ React 19.2.4 + Vite 6.2 + Tailwind CSS 4.2 + TypeScript 5.8.2 · Supabase（Auth
 ## iOS 端 — `ios/TRIX3DCompanion/`
 
 ### 技术栈
-Swift 5.9 + SwiftUI + MVVM（Combine）· Alamofire（REST）+ Starscream（WebSocket）· GRDB（SQLite）+ Keychain · MapKit · AVFoundation · StoreKit 2 · APNs
+Swift 5.9 + SwiftUI + MVVM（Combine）· Alamofire（REST）+ Starscream（WebSocket）· SQLite.swift + Keychain · MapKit · AVFoundation · StoreKit 2 · APNs
 
 ### 核心页面
 - **Home**：首页 Dashboard
@@ -272,7 +272,7 @@ npm run dev:desktop          # Desktop 开发模式
 src/                    # Web（React 19，19 个路由页面）
 desktop/src/main/       # Electron 主进程（IPC 62 处理器 + tray + float）
 desktop/src/renderer/   # Electron 渲染进程（Desktop 专属页面）
-ios/TRIX3DCompanion/    # iOS（SwiftUI + MVVM + GRDB）
+ios/TRIX3DCompanion/    # iOS（SwiftUI + MVVM + SQLite.swift）
 packages/
 ├── trix-openclaw-native/   # ⭐ OpenClaw 原生 Channel 插件
 └── trix-canvas-service/    # TRIX Canvas AI 生成服务

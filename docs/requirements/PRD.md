@@ -262,7 +262,7 @@
 | 状态管理 | Combine | 内置 |
 | 项目构建 | XcodeGen (project.yml) + Swift Package Manager（SPM） | - |
 | 网络 | URLSession + Supabase Swift | 内置/2.x |
-| 本地存储 | SQLite (GRDB) + Keychain | - |
+| 本地存储 | SQLite.swift + Keychain | - |
 | 支付 | StoreKit 2 | - |
 | 测试 | XCTest | - |
 | 代码量 | 25,000+ 行 | 45 Swift 文件 |

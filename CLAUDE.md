@@ -151,7 +151,7 @@ cp .env.example .env.local  # 填写 Supabase 凭证
 # 启动 Gateway: openclaw gateway start --port 18789
 
 # iOS
-# 使用 Xcode 打开 TRIX3DCompanion.xcworkspace
+# 使用 Xcode 打开 TRIX3DCompanion.xcodeproj（XcodeGen 管理）
 ```
 
 ### 关键端口

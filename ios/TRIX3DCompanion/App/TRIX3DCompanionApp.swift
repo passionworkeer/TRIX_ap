@@ -30,6 +30,7 @@ struct TRIX3DCompanionApp: App {
     @UIApplicationDelegateAdaptor(TRIXApplicationDelegate.self) private var appDelegate
     @StateObject private var appState = AppState()
     @StateObject private var chatService = ChatService.shared
+    @StateObject private var authService = AuthService.shared
     @StateObject private var clawbotChannel = ClawbotChannelViewModel.shared
     @State private var themeManager = ThemeManager.shared
     @State private var showWhatsNew = false
@@ -103,6 +104,7 @@ struct TRIX3DCompanionApp: App {
         WindowGroup {
             ContentView()
                 .environmentObject(appState)
+                .environmentObject(authService)
                 .environmentObject(chatService)
                 .environmentObject(clawbotChannel)
                 .environment(\.locale, Locale(identifier: appState.appLanguage.rawValue))

@@ -8,9 +8,10 @@
 import SwiftUI
 
 struct AuthRootView: View {
-    // MARK: - Observed Objects
+    // MARK: - Environment Objects
 
-    @StateObject private var authService = AuthService.shared
+    // AuthService is injected via .environmentObject() from TRIX3DCompanionApp.
+    @EnvironmentObject private var authService: AuthService
 
     // MARK: - State
 
@@ -59,9 +60,9 @@ struct AuthRootView: View {
 // MARK: - Alternative Implementation with TabView
 
 struct AuthRootViewTab: View {
-    // MARK: - Observed Objects
+    // MARK: - Environment Objects
 
-    @StateObject private var authService = AuthService.shared
+    @EnvironmentObject private var authService: AuthService
 
     @State private var selectedTab = 0
 
@@ -96,9 +97,9 @@ struct AuthRootViewTab: View {
 // MARK: - Card-Based Auth View (Alternative)
 
 struct AuthRootViewCard: View {
-    // MARK: - Observed Objects
+    // MARK: - Environment Objects
 
-    @StateObject private var authService = AuthService.shared
+    @EnvironmentObject private var authService: AuthService
 
     @State private var showingLogin = true
     @State private var cardRotation: Double = 0
@@ -176,12 +177,15 @@ extension AnyTransition {
 
 #Preview("Default") {
     AuthRootView()
+        .environmentObject(AuthService.shared)
 }
 
 #Preview("TabView Style") {
     AuthRootViewTab()
+        .environmentObject(AuthService.shared)
 }
 
 #Preview("Card Style") {
     AuthRootViewCard()
+        .environmentObject(AuthService.shared)
 }

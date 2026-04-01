@@ -21,16 +21,13 @@ struct ContentView: View {
 
     // MARK: - Environment Objects
 
-    @EnvironmentObject private var appState: AppState
+    // AuthService is injected via .environmentObject() from TRIX3DCompanionApp.
+    // AppState is also injected via .environmentObject() from TRIX3DCompanionApp.
+    @EnvironmentObject private var authService: AuthService
 
     // MARK: - Observed Objects
 
-    @StateObject private var authService = AuthService.shared
-
-    // MARK: - State
-
-    @State private var isAnimating = false
-    @State private var hasCompletedInitialLoad = false
+    @EnvironmentObject private var appState: AppState
 
     // TODO: 启动画面 - 需要时可启用
     // @State private var showSplashScreen = true
@@ -166,9 +163,10 @@ struct ContentViewWithLoading: View {
 
     @EnvironmentObject private var appState: AppState
 
-    // MARK: - Observed Objects
+    // MARK: - Environment Objects
 
-    @StateObject private var authService = AuthService.shared
+    @EnvironmentObject private var appState: AppState
+    @EnvironmentObject private var authService: AuthService
 
     // MARK: - State
 
@@ -253,14 +251,17 @@ struct ContentViewWithLoading: View {
 #Preview("Logged In") {
     ContentView()
         .environmentObject(AppState.shared)
+        .environmentObject(AuthService.shared)
 }
 
 #Preview("Not Logged In") {
     ContentView()
         .environmentObject(AppState.shared)
+        .environmentObject(AuthService.shared)
 }
 
 #Preview("With Loading") {
     ContentViewWithLoading()
         .environmentObject(AppState.shared)
+        .environmentObject(AuthService.shared)
 }
