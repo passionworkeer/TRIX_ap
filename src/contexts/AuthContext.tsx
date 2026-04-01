@@ -273,8 +273,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   // ── Deep-link handler: Desktop Supabase email confirmation ─────────────────
-  // Receives trix3dcompanion://auth/v1/callback?token=XXX from the main process
-  // and exchanges the confirmation token for a session via Supabase SDK.
+  // Receives trix3dcompanion://auth/v1/callback from the main process
+  // and completes the session via Supabase SDK.
+  //
+  // Supabase GoTrue SDK supports two auth flows:
+  //   1. PKCE (flowType='pkce'): URL has ?code=XXX  → exchangeCodeForSession(code)
+  //   2. Implicit (flowType='implicit', default): URL has #access_token=XXX&...
+  //      → parse tokens from hash and call setSession()
+  //
+  // electron-builder registers the trix3dcompanion:// URL scheme so the OS
+  // routes confirmation emails to this app regardless of whether it is already
+  // running or being launched fresh.
   useEffect(() => {
     const api = (window as Window & { electronAPI?: { onDeepLink: (cb: (url: string) => void) => () => void } }).electronAPI;
     if (!api?.onDeepLink) return;
@@ -282,21 +291,50 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const unsubscribe = api.onDeepLink(async (url: string) => {
       try {
         const parsed = new URL(url);
-        if (!parsed.pathname.includes('/auth/v1/callback')) return;
 
-        const token = parsed.searchParams.get('token') ?? parsed.searchParams.get('confirmation_token');
-        if (!token) {
-          logger.auth.warn('[deep-link] no token found in confirmation URL');
+        // ── PKCE flow: Supabase sends ?code=XXX ────────────────────────────
+        const code = parsed.searchParams.get('code');
+        if (code) {
+          logger.auth.info('[deep-link] PKCE flow detected, exchanging code for session');
+          markInteractiveSignIn();
+          const { error } = await supabase.auth.exchangeCodeForSession(code);
+          if (error) {
+            logger.auth.error('[deep-link] exchangeCodeForSession failed:', error);
+          } else {
+            logger.auth.info('[deep-link] PKCE session exchange succeeded');
+          }
           return;
         }
 
-        logger.auth.info('[deep-link] exchanging confirmation token for session');
+        // ── Implicit flow: tokens are in the URL hash (#access_token=...) ───
+        // parseParametersFromURL mirrors SDK logic: hash params are extracted
+        // from the URL's fragment, then search params override hash values.
+        const hashParams: Record<string, string> = {};
+        if (parsed.hash && parsed.hash.startsWith('#')) {
+          try {
+            const hashSearchParams = new URLSearchParams(parsed.hash.substring(1));
+            hashSearchParams.forEach((value, key) => { hashParams[key] = value; });
+          } catch { /* hash is not a query string */ }
+        }
+
+        const accessToken = parsed.searchParams.get('access_token') ?? hashParams['access_token'];
+        const refreshToken = parsed.searchParams.get('refresh_token') ?? hashParams['refresh_token'];
+
+        if (!accessToken || !refreshToken) {
+          logger.auth.warn('[deep-link] no session params found in confirmation URL', { url });
+          return;
+        }
+
+        logger.auth.info('[deep-link] implicit flow detected, setting session from URL hash');
         markInteractiveSignIn();
-        const { error } = await supabase.auth.exchangeCodeForSession(token);
+        const { error } = await supabase.auth.setSession({
+          access_token: accessToken,
+          refresh_token: refreshToken,
+        });
         if (error) {
-          logger.auth.error('[deep-link] exchangeCodeForSession failed:', error);
+          logger.auth.error('[deep-link] setSession failed:', error);
         } else {
-          logger.auth.info('[deep-link] session exchange succeeded');
+          logger.auth.info('[deep-link] implicit session set succeeded');
         }
       } catch (err) {
         logger.auth.error('[deep-link] error processing deep link:', err);
