@@ -41,7 +41,7 @@
   - Debug 默认地址已切到安全回退，且只允许通过环境变量覆写到 `https/wss` 或本地回环地址。
   - 已删除对公网 IP `TRIX_SERVER_HOST` 的 ATS 明文例外。
 - Debug 页面:
-  - `public/env-check.html` 现仅允许本地访问，且不再显示 token 片段。
+  - `public/env-check.html` 与 `public/companion-check.html` 已移出 `public/`，归档到 `docs/.archive/debug-pages/`，不再进入生产静态资源目录。
 
 验证:
 - `npm --prefix packages/trix-openclaw-native test -- pairing.test.ts server.test.ts`

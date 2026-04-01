@@ -220,7 +220,7 @@ studySessionService.startSession()
 | **待办清单** | Todo 管理 |
 
 ### Web 专属功能
-- Float 浮窗（桌面置顶伴侣）、AI 分布地图、双主题切换、表情选择器、百度地图集成、阿里云 OSS、诊断工具页
+- Float 浮窗（桌面置顶伴侣）、AI 分布地图、双主题切换、表情选择器、百度地图集成、服务端媒体上传、诊断工具页
 
 ### iOS 专属功能
 - StoreKit 2 应用内购、APNs 系统推送、SSL Pinning、请求去重重试
@@ -243,7 +243,7 @@ studySessionService.startSession()
 | `locationService.ts` | 好友位置追踪 |
 | `baiduMapService.ts` | 百度地图集成 |
 | `uploadService.ts` | 文件上传处理 |
-| `OSSService.ts` | 阿里云 OSS CDN |
+| `serverOssUploadService.ts` | 服务端上传入口 |
 | `ttsService.ts` | Edge TTS 语音合成 |
 | `notificationService.ts` | 推送通知管理 |
 | `scheduleService.ts` | 日程管理 |

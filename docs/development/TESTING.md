@@ -29,7 +29,6 @@ trix-3d-companion/
 │   │   ├── locationService.test.ts
 │   │   ├── mallService.test.ts
 │   │   ├── notificationService.test.ts
-│   │   ├── OSSService.test.ts
 │   │   ├── placeService.test.ts
 │   │   ├── pointsService.test.ts
 │   │   ├── projectService.test.ts
@@ -153,7 +152,7 @@ npm run test:e2e:ui
 | 模块 | 文件数 | 覆盖内容 |
 |------|--------|---------|
 | **工具函数** `src/utils/` | ~7 | dateFormat, env, logger, errorHandler, escapeHtml, pairingToast, performance |
-| **服务层** `src/services/` | 31 | chatService, databaseService, StorageService, achievementService, ConnectionManager, friendService, clawbotHistoryService, locationService, mallService, notificationService, OSSService, placeService, pointsService, projectService, scheduleService, serverOssUploadService, sessionService, studyHistoryService, studySessionService, todoService, ttsService, uploadService, userStatsService, voicePlaybackService, wardrobeService, TrixNativeChannelClient (含 session-switch), baiduMapService 等 |
+| **服务层** `src/services/` | ~30 | chatService, databaseService, StorageService, achievementService, ConnectionManager, friendService, clawbotHistoryService, locationService, mallService, notificationService, placeService, pointsService, projectService, scheduleService, serverOssUploadService, sessionService, studyHistoryService, studySessionService, todoService, ttsService, uploadService, userStatsService, voicePlaybackService, wardrobeService, TrixNativeChannelClient (含 session-switch), baiduMapService 等 |
 | **组件** `src/components/` | ~37 | AIActionModal, AddFriendModal, Avatar, AchievementsPanel, ConfirmDialog, DynamicBackground, ErrorBoundary, FileAttachmentCard, FilePicker, GlassDock, GlassPanel, HeroBackground, HomeBotBubble, LazyImage, LoadingSpinner, MailPanel, MediaMessage, NotificationPanel, OpenClawControlPanel, OutfitCard, OutfitPreview, PerformanceDashboard, PointsHistory, PrivacySettings, QRScanner, SnapshotModal, StatsDetailDialog, StudyBuddiesList, StudyRoom, UserSwitcher, VirtualizedList, VoiceMessage, VoiceRecorder, WorkbenchCard, WorkbenchModal 等 + chat/, map/, ui/ 子目录 |
 | **Contexts** `src/contexts/` | ~3 | AuthContext, AuthContext.session, ClawbotChannelContext |
 | **Hooks** `src/hooks/` | 11 (+1 组件) | useAudioPlayer, useBotStateMachine, useCamera, useClawbotMessages, useConfirmModal (组件), useImmersiveVoice, useNotification, useResourcePreloader, useSpeechToText, useTouchGestures, useVoiceRecorder, useWebVitals (11 有测试文件) |

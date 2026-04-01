@@ -74,7 +74,6 @@ React App
 | `locationService.ts` | 位置服务 | — |
 | `mallService.ts` | 商城功能 | — |
 | `notificationService.ts` | 通知管理 | — |
-| `OSSService.ts` | 阿里云 OSS | — |
 | `placeService.ts` | 地点数据 | — |
 | `pointsService.ts` | 积分系统 | — |
 | `projectService.ts` | 项目管理 | — |
@@ -92,7 +91,7 @@ React App
 | `voicePlaybackService.ts` | 语音播放 | — |
 | `wardrobeService.ts` | 衣柜/装扮 | — |
 
-共 **27 个** 服务文件。
+共 **26 个** 服务文件。
 
 ### 3.2 Context 层
 

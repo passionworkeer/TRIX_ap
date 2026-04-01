@@ -32,6 +32,45 @@
    - 更新 `docs/guides/DEPLOYMENT.md`
    - 更新 `docs/INDEX.md`
 
+## 📅 2026-04-01 — 仓库安全卫生收口 + 调试页归档 + iOS 隐私日志脱敏
+
+### 完成内容
+
+1. **停止跟踪本地环境文件**:
+   - 仓库根目录 `.env` 已从 git 跟踪集中移除
+   - 保留本地工作副本，但不再继续扩散到后续提交
+
+2. **移除浏览器直传 OSS 旧链路**:
+   - 删除未被生产代码引用的 `src/services/OSSService.ts`
+   - 删除对应的 `src/services/OSSService.test.ts`
+   - `src/utils/env.ts` / `src/vite-env.d.ts` 不再保留浏览器侧 OSS AK/SK 变量声明
+   - `.env.example` 删除 `VITE_ALIYUN_OSS_ACCESS_KEY_ID` / `VITE_ALIYUN_OSS_ACCESS_KEY_SECRET`
+   - `packages/trix-canvas-service` 显式钉住 `path-to-regexp@0.1.13`，清除 `npm audit` 中的 ReDoS 高危项
+
+3. **缩小发布面**:
+   - `public/companion-check.html` 归档到 `docs/.archive/debug-pages/`
+   - `public/env-check.html` 归档到 `docs/.archive/debug-pages/`
+   - 目的: 避免数据库诊断页 / 环境检查页继续进入生产静态资源目录
+
+4. **文档分类更新**:
+   - 新增 `docs/project-reports/INDEX.md`
+   - 新增 `docs/ios/security/INDEX.md`
+   - 更新 `docs/INDEX.md`
+   - 更新 `docs/ios/INDEX.md`
+   - 更新 `docs/project-reports/LAUNCH_READINESS_UPDATE_20260401.md`
+
+5. **iOS 日志与调试凭证收口**:
+   - `TrixBotChatView` / `ClawbotChannelViewModel` / `ClawbotChannelService` 不再把聊天正文写入公开日志
+   - `ios/TRIX3DCompanion/Config/Debug.xcconfig` 清空默认 demo 凭证，改为本地显式注入
+
+6. **Canvas 运行时数据纠偏**:
+   - `packages/trix-canvas-service/.gitignore` 新增 `data_8791/`
+   - 将 `packages/trix-canvas-service/data_8791/` 从 git 跟踪集中移除，仅保留本地运行时目录
+
+7. **依赖安全基线固定**:
+   - 根 `package.json` 新增 `overrides`
+   - 显式固定 `socket.io-parser@4.2.6` 与 `path-to-regexp@0.1.13`
+
 ## 📅 2026-03-31 — Supabase Auth 统一 + Desktop 偏好/Friends/通知 IPC + E2E 9/9
 
 ### 完成内容

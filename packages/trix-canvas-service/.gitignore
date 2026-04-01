@@ -6,6 +6,7 @@ node_modules/
 
 # 数据文件（服务器上由服务生成）
 data/
+data_8791/
 outputs/
 exports/
 

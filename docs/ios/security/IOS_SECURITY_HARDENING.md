@@ -2,41 +2,21 @@
 
 ## Summary
 
-Removed all hardcoded demo credentials from the iOS codebase and implemented proper environment-based configuration for DEBUG builds only.
+Removed hardcoded demo credentials from the iOS codebase and from tracked build configuration defaults. DEBUG builds now require explicit local injection when test credentials are needed.
 
 ## Changes Made
 
-### 1. AuthService.swift Security Fixes
+### 1. Build Configuration Security Fixes
 
-**File**: `TRIX3DCompanion/Core/Services/AuthService.swift`
+**Files**:
+- `ios/TRIX3DCompanion/Config/Debug.xcconfig`
+- `ios/TRIX3DCompanion/Config/Release.xcconfig`
 
 #### Changes:
-- ✅ Removed hardcoded demo credentials (`demo@trix3d.com` / `demo123`)
-- ✅ Added `#if DEBUG` conditional compilation guards
-- ✅ Implemented environment variable fallback for demo credentials
-- ✅ Made `demoLogin()` function DEBUG-only
-
-#### Before:
-```swift
-func login(email: String, password: String) async -> AuthResult<User> {
-    if email.lowercased() == "demo@trix3d.com" && password == "demo123" {
-        return await demoLogin()
-    }
-    // ...
-}
-```
-
-#### After:
-```swift
-func login(email: String, password: String) async -> AuthResult<User> {
-    #if DEBUG
-    if email.lowercased() == getDemoEmail() && password == getDemoPassword() {
-        return await demoLogin()
-    }
-    #endif
-    // ...
-}
-```
+- ✅ Removed tracked default demo credentials from `Debug.xcconfig`
+- ✅ Kept `Release.xcconfig` values empty
+- ✅ Switched debug credential usage to explicit local injection only
+- ✅ Eliminated repository-level fallback secrets for staging/demo logins
 
 ### 2. Environment Configuration Files
 
@@ -44,8 +24,8 @@ Created `.xcconfig` files for build configurations:
 
 #### Debug.xcconfig
 ```bash
-DEMO_EMAIL = demo@trix3d.com
-DEMO_PASSWORD = demo123
+DEMO_EMAIL =
+DEMO_PASSWORD =
 ```
 
 #### Release.xcconfig
@@ -54,7 +34,7 @@ DEMO_EMAIL =
 DEMO_PASSWORD =
 ```
 
-**Key Point**: Release builds have empty values, making demo login impossible.
+**Key Point**: Both tracked configs are empty. Any debug-only test credentials must be injected locally and must never be committed.
 
 ### 3. App Store Metadata Security
 
@@ -79,26 +59,15 @@ Automatically scans for:
 
 ### Development (DEBUG Builds)
 
-Demo credentials work automatically via defaults:
+Inject credentials locally only when a staging/demo flow requires them:
 
-```swift
-#if DEBUG
-private func getDemoEmail() -> String {
-    return ProcessInfo.processInfo.environment["DEMO_EMAIL"] ?? "demo@trix3d.com"
-}
-```
-
-Override via environment:
 ```bash
-DEMO_EMAIL=custom@example.com DEMO_PASSWORD=customPass xcodebuild ...
+DEMO_EMAIL=staging-demo@example.com DEMO_PASSWORD=change-me xcodebuild ...
 ```
 
 ### Production (Release Builds)
 
-Demo login is **completely disabled**. The code is compiled out:
-- No `demoLogin()` function
-- No demo credential checks
-- No way to enable without recompilation
+Tracked release configuration keeps these values empty. Production credentials must come from secure environment or CI/CD secret management, not from source-controlled defaults.
 
 ## CI/CD Integration
 
@@ -123,16 +92,14 @@ variables:
 Run these commands to verify the fix:
 
 ```bash
-# 1. Check no hardcoded credentials exist
-grep -r "demo@trix3d.com" TRIX3DCompanion/Core/Services/AuthService.swift | grep -v "#if DEBUG"
+# 1. Check tracked configs are empty
+grep "DEMO_" ios/TRIX3DCompanion/Config/Debug.xcconfig
+grep "DEMO_" ios/TRIX3DCompanion/Config/Release.xcconfig
 
-# 2. Verify demoLogin is DEBUG-only
-grep -B 2 "demoLogin" TRIX3DCompanion/Core/Services/AuthService.swift | grep "#if DEBUG"
+# 2. Confirm no literal demo password remains in source
+rg "demo123|demo@trix3d.com" ios/TRIX3DCompanion
 
-# 3. Check Release config is empty
-grep "DEMO_" TRIX3DCompanion/Config/Release.xcconfig
-
-# 4. Run security hook
+# 3. Run security hook
 bash scripts/pre-commit-security-check.sh
 ```
 
@@ -156,11 +123,9 @@ bash scripts/pre-commit-security-check.sh
 
 ### Test Demo Mode (DEBUG)
 ```bash
-# Build DEBUG configuration
-xcodebuild -scheme TRIX3DCompanion -configuration Debug
-
-# Test login
-demo@trix3d.com / demo123  # ✅ Should work
+# Inject local-only credentials at invocation time
+DEMO_EMAIL=staging-demo@example.com DEMO_PASSWORD=change-me \
+  xcodebuild -scheme TRIX3DCompanion -configuration Debug
 ```
 
 ### Test Production Mode (Release)
@@ -168,8 +133,7 @@ demo@trix3d.com / demo123  # ✅ Should work
 # Build RELEASE configuration
 xcodebuild -scheme TRIX3DCompanion -configuration Release
 
-# Test login
-demo@trix3d.com / demo123  # ❌ Should NOT work
+# Verify no tracked demo credentials are present in the built configuration
 ```
 
 ## Audit Report
@@ -178,8 +142,8 @@ demo@trix3d.com / demo123  # ❌ Should NOT work
 
 | File | Issue | Severity | Status |
 |------|-------|----------|--------|
-| AuthService.swift:176 | Hardcoded demo credentials | P0 | ✅ Fixed |
-| AuthService.swift:231 | Hardcoded email in demoLogin | P0 | ✅ Fixed |
+| Config/Debug.xcconfig | Tracked default demo credentials | P0 | ✅ Fixed |
+| Config/Release.xcconfig | Release config needed explicit empty values | P1 | ✅ Verified |
 | metadata.json:209 | Demo password in review info | P1 | ✅ Fixed |
 | .env.example | Missing demo credentials docs | P2 | ✅ Fixed |
 
@@ -209,6 +173,6 @@ demo@trix3d.com / demo123  # ❌ Should NOT work
 
 ---
 
-**Last Updated**: 2026-03-05
+**Last Updated**: 2026-04-01
 **Security Level**: Enhanced
 **Status**: ✅ Complete

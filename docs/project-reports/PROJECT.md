@@ -84,7 +84,7 @@ trix-3d-companion/
 │   │   ├── VoiceSettingsContext.tsx   # TTS 设置
 │   │   └── ClawbotChannelContext.tsx  # WebSocket 连接
 │   │
-│   ├── services/                 # 业务服务层 (27个)
+│   ├── services/                 # 业务服务层 (26个)
 │   │   ├── TrixNativeChannelClient.ts  # TRIX Native Channel 配对客户端
 │   │   ├── ConnectionManager.ts        # 连接管理器
 │   │   ├── chatService.ts             # 聊天服务
@@ -100,7 +100,6 @@ trix-3d-companion/
 │   │   ├── wardrobeService.ts       # 换装服务
 │   │   ├── uploadService.ts         # 文件上传
 │   │   ├── serverOssUploadService.ts # 服务端 OSS 上传
-│   │   ├── OSSService.ts           # 阿里云 OSS
 │   │   ├── ttsService.ts          # 语音合成
 │   │   ├── voicePlaybackService.ts  # 语音播放
 │   │   ├── todoService.ts         # 待办服务

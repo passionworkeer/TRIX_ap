@@ -242,11 +242,11 @@ CREATE TABLE pairings (
 
 ---
 
-### 4.3 TTS / OSS 服务
+### 4.3 TTS / 上传服务
 
-TTS 和 OSS 功能：
+TTS 和上传功能：
 - **TTS**: `packages/trix-openclaw-native/src/server/TrixNativeServer.ts` → 使用 `node-edge-tts`（Edge TTS），非豆包 TTS
-- **OSS**: `src/services/OSSService.ts` / `serverOssUploadService.ts` → 阿里云 OSS（可选）
+- **Upload**: `src/services/serverOssUploadService.ts` → Web 端统一走服务端上传链路
 
 ---
 

@@ -1,6 +1,6 @@
 # iOS Documentation Index
 
-> Last updated: 2026-03-31
+> Last updated: 2026-04-01
 
 ## Core Documentation
 
@@ -19,10 +19,22 @@
 | [ARCHITECTURE_DIAGRAM.md](./ARCHITECTURE_DIAGRAM.md) | Voice message architecture diagrams |
 | [TESTING.md](./TESTING.md) | Push notification testing guide |
 
+## Launch Readiness
+
+| Document | Description |
+|----------|-------------|
+| [../project-reports/LAUNCH_READINESS_UPDATE_20260401.md](../project-reports/LAUNCH_READINESS_UPDATE_20260401.md) | Latest iOS launch-readiness update, opt-in test toggles, repo hardening |
+| [../project-reports/LAUNCH_READINESS_SUMMARY_20260331.md](../project-reports/LAUNCH_READINESS_SUMMARY_20260331.md) | Local fixes and verification summary |
+
+Current local regression snapshot:
+- Default `TRIX3DCompanionTests`: `1648 executed / 43 skipped / 0 failures`
+- Skipped items are explicit opt-in suites such as live backend smoke, performance benchmarks, and permission-sensitive checks
+
 ## Security
 
 | Document | Description |
 |----------|-------------|
+| [security/INDEX.md](./security/INDEX.md) | Master index for iOS security docs |
 | [security/SECURITY_AUDIT.md](./security/SECURITY_AUDIT.md) | Main security audit (grade B+) |
 | [security/SECURITY_AUDIT_P0-1.md](./security/SECURITY_AUDIT_P0-1.md) | StoreKit security |
 | [security/SECURITY_AUDIT_P0-2.md](./security/SECURITY_AUDIT_P0-2.md) | Payment API security |

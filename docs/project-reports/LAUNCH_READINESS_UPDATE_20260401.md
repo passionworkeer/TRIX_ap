@@ -6,6 +6,7 @@
 - iOS 认证注册链路回归修复
 - Native / Canvas 服务安全加固
 - 大文件 / 高耦合热点扫描与低风险拆分
+- 仓库安全卫生与发布面收口
 
 边界:
 - 结论仅覆盖本地源码、模拟器、单元/冒烟测试
@@ -40,6 +41,47 @@
   - 检测到 URL 携带 token 时直接清理并提示手动输入
 - `packages/trix-canvas-service/proxy.js`
   - 为内存中的 `tasks` / `sessions` 增加硬上限和终态淘汰
+
+### 1.3 仓库安全卫生与文档收口
+
+- `ios/TRIX3DCompanion/Features/Home/Views/TrixBotChatView.swift`
+  - 调试日志不再输出聊天正文，仅保留长度、状态和错误信息
+- `ios/TRIX3DCompanion/App/ClawbotChannelViewModel.swift`
+  - 发送失败日志不再输出消息正文
+- `ios/TRIX3DCompanion/Core/Services/ClawbotChannelService.swift`
+  - 发送 / WebSocket 事件日志不再输出消息正文
+- `ios/TRIX3DCompanion/Config/Debug.xcconfig`
+  - 移除源码内默认 demo 凭证，改为本地显式注入
+- `packages/trix-canvas-service/.gitignore`
+  - 新增 `data_8791/`
+- `packages/trix-canvas-service/data_8791/`
+  - 从 git 跟踪集中移除，保留为本地运行时目录，不再作为仓库资产
+- `package.json`
+  - 新增 `overrides`，固定 `socket.io-parser@4.2.6` 与 `path-to-regexp@0.1.13`
+- `docs/project-reports/INDEX.md` / `docs/ios/security/INDEX.md`
+  - 补齐项目报告与 iOS 安全文档索引
+
+### 1.3 仓库安全卫生 / 发布面
+
+- 仓库根目录 `.env`
+  - 已停止 git 跟踪，避免后续再次把本地真实凭证直接提交进版本库
+  - 这只能阻止继续扩散，不能清除历史提交中的暴露；如果其中使用过真实密钥，仍需要线下轮换
+- `src/services/OSSService.ts`
+  - 已删除未被生产代码引用的浏览器直传 OSS 旧链路
+  - 同步删除 `OSSService.test.ts`
+  - 目标不是“代码洁癖”，而是避免继续鼓励把 OSS Access Key / Secret 放进 `VITE_*` 前端变量
+- `.env.example`
+  - 已删除 `VITE_ALIYUN_OSS_ACCESS_KEY_ID` / `VITE_ALIYUN_OSS_ACCESS_KEY_SECRET` 示例
+  - 明确要求 Web 端统一走服务端上传链路，不再把 OSS AK/SK 放到浏览器构建配置
+- `packages/trix-canvas-service/package.json`
+  - 已显式钉住 `path-to-regexp@0.1.13`
+  - 用最小改动清除 `express -> path-to-regexp@0.1.12` 带来的 ReDoS 高危依赖告警
+- `public/companion-check.html`
+  - 已从 `public/` 发布目录移出并归档到 `docs/.archive/debug-pages/`
+  - 该页面具备数据库检查 / 手动更新能力，不应继续作为线上静态资源暴露
+- `public/env-check.html`
+  - 已从 `public/` 发布目录移出并归档到 `docs/.archive/debug-pages/`
+  - 虽然页面已做 localhost 限制，但它本质仍是调试页，不应继续进入生产静态包
 
 ## 2. 大文件 / 高耦合扫描
 
@@ -98,6 +140,7 @@ xcodebuild -project ios/TRIX3DCompanion/TRIX3DCompanion.xcodeproj \
 
 结果:
 - 定向认证回归 `11/11` 通过
+- 默认全量 `TRIX3DCompanionTests` 已在后续回归中达到 `1648 executed / 43 skipped / 0 failures`
 
 ### 3.2 Native / Canvas
 
@@ -127,6 +170,18 @@ node --test tests/smoke/trix-canvas-skill-install-smoke.test.mjs tests/smoke/tri
 
 结果:
 - Canvas skill/runtime smoke `2/2` 通过
+
+### 3.3 生产依赖安全审计
+
+已通过:
+
+```bash
+npm audit --omit=dev --json
+```
+
+结果:
+- production dependencies `0 vulnerabilities`
+- 本地 `package-lock.json` 已与当前安全补丁版本对齐
 
 ## 4. 仍未闭环的上线风险
 

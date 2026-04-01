@@ -129,8 +129,8 @@ final class ClawbotChannelViewModel: ObservableObject {
             )
             return true
         } catch {
-            NSLog("[TRIX-UI] viewModel send failed text=%{public}@ error=%{public}@",
-                  content,
+            NSLog("[TRIX-UI] viewModel send failed textLength=%{public}d error=%{public}@",
+                  content.count,
                   error.localizedDescription)
             lastError = error.localizedDescription
             return false

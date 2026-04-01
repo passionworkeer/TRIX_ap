@@ -2,21 +2,20 @@
 // Debug.xcconfig
 // TRIX3DCompanion
 //
-// Debug configuration with demo account enabled
+// Debug configuration with opt-in local test credentials
 //
 
 // Build Settings
 SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG
 OTHER_SWIFT_FLAGS = $(inherited) -DDEBUG
 
-// Demo Account Configuration (DEBUG ONLY)
-// WARNING: These values should NEVER be used in production builds
-DEMO_EMAIL = demo@trix3d.com
-DEMO_PASSWORD = demo123
+// Local test credentials (DEBUG ONLY)
+// Leave empty in source control. Inject explicitly via scheme/user settings when needed.
+DEMO_EMAIL =
+DEMO_PASSWORD =
 
-// Environment Variables (will be passed to ProcessInfo.processInfo.environment)
-// These can be overridden by setting actual environment variables
-// Example: xcodebuild -scheme TRIX3DCompanion DEMO_EMAIL=custom@example.com
+// Example:
+// xcodebuild -scheme TRIX3DCompanion DEMO_EMAIL=staging-demo@example.com DEMO_PASSWORD=change-me
 
 // Network Configuration (Development)
 SLASH = /

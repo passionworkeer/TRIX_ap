@@ -104,8 +104,6 @@ struct TrixBotChatView: View {
         }
         .onAppear {
             UITestEventLogger.log("TrixBotChatView onAppear")
-            NSLog("[TRIX-UI] TrixBotChatView onAppear")
-            print("[TRIX-UI] TrixBotChatView onAppear")
             applyUITestPrefillIfNeeded()
             applyUITestAttachmentIfNeeded()
             scheduleUITestAutoSendIfNeeded()
@@ -368,7 +366,7 @@ struct TrixBotChatView: View {
 
         didApplyUITestPrefill = true
         messageText = prefill
-        NSLog("[TRIX-UI] applied prefill text=%{public}@", prefill)
+        NSLog("[TRIX-UI] applied prefill length=%{public}d", prefill.count)
     }
 
     private func applyUITestAttachmentIfNeeded() {
@@ -393,7 +391,7 @@ struct TrixBotChatView: View {
         }
 
         didAutoSendUITestMessage = true
-        NSLog("[TRIX-UI] scheduling auto-send text=%{public}@", messageText)
+        NSLog("[TRIX-UI] scheduling auto-send length=%{public}d", messageText.count)
 
         Task { @MainActor in
             try? await Task.sleep(nanoseconds: uiTestAutoSendDelayNanoseconds)
@@ -537,10 +535,10 @@ struct TrixBotChatView: View {
         }
 
         let trimmedText = messageText.trimmingCharacters(in: .whitespacesAndNewlines)
-        NSLog("[TRIX-UI] send tapped paired=%{public}@ canSend=%{public}@ text=%{public}@ attachedImage=%{public}@ attachedURL=%{public}@",
+        NSLog("[TRIX-UI] send tapped paired=%{public}@ canSend=%{public}@ textLength=%{public}d attachedImage=%{public}@ attachedURL=%{public}@",
               clawbotChannel.isPaired.description,
               canSend.description,
-              trimmedText,
+              trimmedText.count,
               String(attachedImage != nil),
               String(attachedImageURL != nil))
         isInputFocused = false
@@ -565,7 +563,7 @@ struct TrixBotChatView: View {
         let contentToSend = trimmedText.isEmpty ? defaultImagePrompt : trimmedText
         let hasMedia = mediaURLToSend != nil || nativeMediaData != nil
 
-        NSLog("[TRIX-UI] native send source=%{public}@ text=%{public}@", source, contentToSend)
+        NSLog("[TRIX-UI] native send source=%{public}@ textLength=%{public}d", source, contentToSend.count)
         let success = await clawbotChannel.sendMessage(
             contentToSend,
             contentType: hasMedia ? .image : .text,
@@ -576,11 +574,11 @@ struct TrixBotChatView: View {
         )
 
         if success {
-            NSLog("[TRIX-UI] native send success text=%{public}@", contentToSend)
+            NSLog("[TRIX-UI] native send success textLength=%{public}d", contentToSend.count)
             clearComposer()
         } else {
-            NSLog("[TRIX-UI] native send failed text=%{public}@ error=%{public}@",
-                  contentToSend,
+            NSLog("[TRIX-UI] native send failed textLength=%{public}d error=%{public}@",
+                  contentToSend.count,
                   clawbotChannel.lastError ?? "")
             localErrorMessage = clawbotChannel.lastError ?? L("chat.trixbot.send.failed.message")
         }

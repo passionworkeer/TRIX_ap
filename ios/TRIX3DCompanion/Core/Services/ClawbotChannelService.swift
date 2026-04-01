@@ -1290,15 +1290,15 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
         mediaFileName: String? = nil
     ) async throws {
         guard let conversationId = conversationId, let clientToken = clientToken else {
-            NSLog("[TRIX-UI] service send blocked not paired text=%{public}@", content)
+            NSLog("[TRIX-UI] service send blocked not paired textLength=%{public}d", content.count)
             throw ClawbotError.notPaired
         }
 
         let localMessageId = generateMessageId()
-        NSLog("[TRIX-UI] service send begin conv=%{public}@ localId=%{public}@ text=%{public}@",
+        NSLog("[TRIX-UI] service send begin conv=%{public}@ localId=%{public}@ textLength=%{public}d",
               conversationId,
               localMessageId,
-              content)
+              content.count)
         let uploadedAttachmentIds = try await uploadAttachmentIdsIfNeeded(
             mediaData: mediaData,
             mediaMimeType: mediaMimeType,
@@ -1746,12 +1746,12 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
                        senderRaw.lowercased().hasPrefix("openclaw:") ||
                        senderRaw != (userId ?? "")
 
-        NSLog("[TRIX-UI] ws message.created id=%{public}@ sender=%{public}@ userId=%{public}@ fromBot=%{public}@ text=%{public}@",
+        NSLog("[TRIX-UI] ws message.created id=%{public}@ sender=%{public}@ userId=%{public}@ fromBot=%{public}@ textLength=%{public}d",
               messageId,
               senderRaw,
               userId ?? "",
               String(isFromBot),
-              String(content.prefix(80)))
+              content.count)
 
         if !isFromBot {
             // 忽略自己发送的消息
