@@ -162,10 +162,6 @@ struct ContentViewWithLoading: View {
     // MARK: - Environment Objects
 
     @EnvironmentObject private var appState: AppState
-
-    // MARK: - Environment Objects
-
-    @EnvironmentObject private var appState: AppState
     @EnvironmentObject private var authService: AuthService
 
     // MARK: - State

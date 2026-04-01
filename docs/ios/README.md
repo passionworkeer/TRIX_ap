@@ -54,7 +54,7 @@ enum SupabaseConfig {
 xcodebuild -project TRIX3DCompanion.xcodeproj \
   -scheme TRIX3DCompanion \
   -configuration Debug \
-  -destination 'platform=iOS Simulator,name=iPhone 16' \
+  -destination 'generic/platform=iOS Simulator' \
   build
 ```
 
@@ -102,7 +102,6 @@ ios/TRIX3DCompanion/
     +- Info.plist
 +- Package.swift          # SPM dependencies
 +- project.yml             # XcodeGen configuration
-+- Podfile                 # CocoaPods (if used)
 ```
 
 ---

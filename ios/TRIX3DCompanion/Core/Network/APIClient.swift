@@ -757,8 +757,18 @@ extension APIClient {
         return try await post(.authLogin, body: request)
     }
 
-    func register(username: String, email: String, password: String) async throws -> RegisterResponse {
-        let request = RegisterRequest(username: username, email: email, password: password)
+    func register(
+        username: String,
+        email: String,
+        password: String,
+        redirectTo: String? = nil
+    ) async throws -> RegisterResponse {
+        let request = RegisterRequest(
+            username: username,
+            email: email,
+            password: password,
+            redirectTo: redirectTo
+        )
         return try await post(.authRegister, body: request)
     }
 

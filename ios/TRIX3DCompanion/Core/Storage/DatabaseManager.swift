@@ -826,19 +826,7 @@ final class DatabaseManager: DatabaseManagerProtocol {
     /// - Parameter transaction: 积分记录
     /// - Throws: 数据库错误
     func savePointsTransaction(_ transaction: PointsTransaction) throws {
-        guard let db = db else { throw DatabaseError.notConnected }
-
-        // description is plaintext — no encryption needed (server stores plaintext, not PII)
-        let insert = pointsHistoryTable.insert(or: .replace,
-            transactionId <- transaction.id,
-            transactionPointsChange <- transaction.pointsChange,
-            transactionType <- transaction.type.rawValue,
-            transactionDescription <- transaction.description,
-            transactionBalanceAfter <- transaction.balanceAfter,
-            transactionCreatedAt <- transaction.createdAt
-        )
-
-        try db.run(insert)
+        try insertPointTransaction(transaction)
     }
 
     /// 批量保存积分记录
@@ -998,11 +986,13 @@ final class DatabaseManager: DatabaseManagerProtocol {
     func insertPointTransaction(_ transaction: PointsTransaction) throws {
         guard let db = db else { throw DatabaseError.notConnected }
 
+        let encryptedDescription = encryptField(transaction.description)
+
         let insert = pointsHistoryTable.insert(or: .replace,
             transactionId <- transaction.id,
             transactionPointsChange <- transaction.pointsChange,
             transactionType <- transaction.type.rawValue,
-            transactionDescription <- transaction.description,
+            transactionDescription <- encryptedDescription,
             transactionBalanceAfter <- transaction.balanceAfter,
             transactionCreatedAt <- transaction.createdAt,
             transactionSynced <- false,

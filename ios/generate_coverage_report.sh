@@ -15,7 +15,6 @@ NC='\033[0m' # No Color
 # Configuration
 PROJECT_NAME="TRIX3DCompanion"
 SCHEME="TRIX3DCompanion"
-WORKSPACE="TRIX3DCompanion.xcworkspace"
 PROJECT="TRIX3DCompanion.xcodeproj"
 RESULT_BUNDLE_PATH="TestResults.xcresult"
 COVERAGE_REPORT_HTML="coverage_report.html"
@@ -48,18 +47,21 @@ cd "$IOS_DIR" || exit 1
 echo -e "${BLUE}Current directory: $(pwd)${NC}"
 echo ""
 
-# Check for workspace or project
-if [ -f "$WORKSPACE" ]; then
-    BUILD_CMD="-workspace '$WORKSPACE' -scheme '$SCHEME'"
-    echo -e "${GREEN}Using workspace: $WORKSPACE${NC}"
-elif [ -f "$PROJECT" ]; then
-    BUILD_CMD="-project '$PROJECT' -scheme '$SCHEME'"
-    echo -e "${GREEN}Using project: $PROJECT${NC}"
-else
-    echo -e "${RED}Error: Neither workspace nor project found${NC}"
+# Check for project
+if [ ! -f "$PROJECT" ]; then
+    echo -e "${RED}Error: Project not found: $PROJECT${NC}"
     exit 1
 fi
 
+SIMULATOR_NAME="${SIMULATOR_NAME:-$(xcrun simctl list devices available | sed -n 's/^[[:space:]]*\\(iPhone[^()]*\\) (.*/\\1/p' | head -n 1)}"
+if [ -z "$SIMULATOR_NAME" ]; then
+    echo -e "${RED}Error: No available iPhone simulator found${NC}"
+    exit 1
+fi
+
+BUILD_CMD="-project '$PROJECT' -scheme '$SCHEME'"
+echo -e "${GREEN}Using project: $PROJECT${NC}"
+echo -e "${GREEN}Using simulator: $SIMULATOR_NAME${NC}"
 echo ""
 
 # Clean previous results
@@ -78,7 +80,7 @@ echo ""
 
 eval "xcodebuild test \
     $BUILD_CMD \
-    -destination 'platform=iOS Simulator,name=iPhone 15,OS=latest' \
+    -destination 'platform=iOS Simulator,name=$SIMULATOR_NAME' \
     -enableCodeCoverage YES \
     -resultBundlePath '$RESULT_BUNDLE_PATH' \
     | xcpretty || true"

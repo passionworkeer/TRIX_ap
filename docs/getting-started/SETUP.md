@@ -69,19 +69,20 @@ cd ios/TRIX3DCompanion
 xcodegen generate
 
 # 打开 Xcode
-open TRIX3DCompanion.xcworkspace
+open TRIX3DCompanion.xcodeproj
 
 # 或直接编译
-xcodebuild -workspace TRIX3DCompanion.xcworkspace \
+xcodebuild -project TRIX3DCompanion.xcodeproj \
   -scheme TRIX3DCompanion \
   -configuration Debug \
-  -destination 'platform=iOS Simulator,name=iPhone 16' \
+  -destination 'generic/platform=iOS Simulator' \
   build
 ```
 
 **注意**：
-- 使用 `TRIX3DCompanion.xcworkspace`（**不是** `.xcodeproj`）
-- Podfile 为空（未使用 CocoaPods），完全依赖 **Swift Package Manager**
+- 使用 `TRIX3DCompanion.xcodeproj`
+- 不再使用 CocoaPods，完全依赖 **Swift Package Manager**
+- 如需运行测试，先用 `xcrun simctl list devices available` 查看本机可用模拟器
 
 **技术栈**：Swift 5.9 + SwiftUI + iOS 18.0
 

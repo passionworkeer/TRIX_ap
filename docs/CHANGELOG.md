@@ -281,7 +281,7 @@
 2. **SETUP.md 技术栈补全**：
    - Web: "React 19.2 + TS 5.8 + Vite 6.2 + Tailwind 4.2" → "**19.2.4 + 5.8.2 + 6.2.0 + 4.2.0**"
    - Desktop: "React 19.2 + Tailwind CSS 4" → "**19.2.4 + 4.2.0**"
-   - CocoaPods 描述: "已弃用" → "**Podfile 为空（未使用）**"
+   - CocoaPods 描述: "已弃用" → "**CocoaPods 已移除，仅使用 Swift Package Manager**"
 
 3. **DESKTOP_PRD.md 版本修正**：
    - React 19 → **19.2.4**
@@ -436,7 +436,7 @@
    - iOS 部署目标：18.0
    - Swift 5.9
    - 使用 **XcodeGen project.yml**（非命令行）
-   - Podfile 为空，**仅使用 Swift Package Manager**
+   - 移除 CocoaPods，**仅使用 Swift Package Manager**
    - 14 个 SPM 依赖包完整列表
    - "ClawbotChannel" = iOS 命名别名（TRIX Native Channel）
    - 三语言支持：en, zh-Hans, zh-Hant
@@ -511,7 +511,7 @@
 7. **PRD.md**：
    - WebSocket socket.io-client → 原生 WebSocket（TrixNativeChannelClient）
    - iOS 网络栈 Alamofire + Starscream → URLSession + Supabase Swift
-   - iOS 项目构建工具补充 XcodeGen (project.yml) + CocoaPods (Podfile)
+   - iOS 项目构建工具补充 XcodeGen (project.yml) + Swift Package Manager
    - iOS 文件数 80+ → 988 Swift 文件
    - Zustand 状态管理标注为仅 3D 场景使用
 

@@ -141,7 +141,7 @@ jobs:
       - name: Build iOS project
         run: |
           cd ios/TRIX3DCompanion
-          xcodebuild -workspace TRIX3DCompanion.xcworkspace -scheme TRIX3DCompanion -configuration Debug -destination 'platform=iOS Simulator,name=iPhone 15' build
+          xcodebuild -project TRIX3DCompanion.xcodeproj -scheme TRIX3DCompanion -configuration Debug -destination 'generic/platform=iOS Simulator' build
 
       - name: Upload IPA
         uses: actions/upload-artifact@v4

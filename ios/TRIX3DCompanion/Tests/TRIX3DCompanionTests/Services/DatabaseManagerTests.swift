@@ -336,6 +336,27 @@ final class DatabaseManagerTests: XCTestCase {
         XCTAssertEqual(history.first?.id, "txn-1")
     }
 
+    func test_savePointsTransaction_encryptsPersistedDescription() throws {
+        // Arrange
+        let transaction = createTestTransaction(
+            id: "txn-encrypted-save",
+            pointsChange: 88,
+            type: .studyReward
+        )
+
+        // Act
+        try databaseManager.savePointsTransaction(transaction)
+        let history = try databaseManager.getPointsHistory()
+
+        // Assert
+        try assertPersistedDescriptionIsEncrypted(for: transaction)
+        XCTAssertEqual(
+            history.first(where: { $0.id == transaction.id })?.description,
+            transaction.description,
+            "Stored transaction should be transparently decrypted"
+        )
+    }
+
     func test_savePointsTransactions_batch_success() throws {
         // Arrange
         let transactions = [
@@ -379,6 +400,29 @@ final class DatabaseManagerTests: XCTestCase {
         // Assert
         XCTAssertEqual(history[0].id, "txn-2", "Most recent transaction should be first")
         XCTAssertEqual(history[1].id, "txn-1", "Oldest transaction should be last")
+    }
+
+    func test_insertPointTransaction_encryptsPersistedDescription() throws {
+        // Arrange
+        let transaction = createTestTransaction(
+            id: "txn-encrypted",
+            pointsChange: 88,
+            type: .studyReward
+        )
+
+        // Act
+        try databaseManager.insertPointTransaction(transaction)
+        let pending = try databaseManager.getPendingPointTransactions()
+        let stored = try databaseManager.getPointTransaction("txn-encrypted")
+
+        // Assert
+        try assertPersistedDescriptionIsEncrypted(for: transaction)
+        XCTAssertEqual(
+            pending.first(where: { $0.id == transaction.id })?.description,
+            transaction.description,
+            "Pending transaction should be transparently decrypted"
+        )
+        XCTAssertEqual(stored?.description, transaction.description, "Stored transaction should be transparently decrypted")
     }
 
     // MARK: - Transaction Test
@@ -540,5 +584,51 @@ final class DatabaseManagerTests: XCTestCase {
             balanceAfter: pointsChange,
             createdAt: createdAt
         )
+    }
+
+    private func assertPersistedDescriptionIsEncrypted(
+        for transaction: PointsTransaction,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) throws {
+        let rawDescription = try XCTUnwrap(
+            try rawPersistedTransactionDescription(for: transaction.id),
+            "Transaction should exist in points_history",
+            file: file,
+            line: line
+        )
+
+        XCTAssertTrue(
+            rawDescription.hasPrefix("ENC:"),
+            "Persisted description should be encrypted at rest",
+            file: file,
+            line: line
+        )
+        XCTAssertNotEqual(
+            rawDescription,
+            transaction.description,
+            "Persisted description should not remain plaintext",
+            file: file,
+            line: line
+        )
+    }
+
+    private func rawPersistedTransactionDescription(for transactionId: String) throws -> String? {
+        let fileManager = FileManager.default
+        let appSupportURL = try fileManager.url(
+            for: .applicationSupportDirectory,
+            in: .userDomainMask,
+            appropriateFor: nil,
+            create: true
+        )
+        let dbPath = appSupportURL.appendingPathComponent("trix3d.sqlite").path
+
+        let connection = try Connection(dbPath)
+        let pointsHistoryTable = Table("points_history")
+        let rawId = Expression<String>("id")
+        let rawDescription = Expression<String>("description")
+
+        return try connection
+            .pluck(pointsHistoryTable.filter(rawId == transactionId).limit(1))?[rawDescription]
     }
 }

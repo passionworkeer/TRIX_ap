@@ -7,10 +7,10 @@
     "test:debug": "detox test --debug",
     "build": "detox build",
     "clean": "detox clean",
-    "build:ios": "xcodebuild -workspace TRIX3DCompanion.xcworkspace -scheme TRIX3DCompanion -configuration Debug -destination 'platform=iOS Simulator,name=iPhone 15 Pro' build 2>&1 | tail -20",
+    "build:ios": "xcodebuild -project TRIX3DCompanion.xcodeproj -scheme TRIX3DCompanion -configuration Debug -destination 'generic/platform=iOS Simulator' build 2>&1 | tail -20",
     "test:ios": "detox test --configuration ios.sim.debug",
     "test:ios:ci": "detox test --configuration ios.sim.debug --record-logs all",
-    "test:iphone16": "detox test --configuration ios.sim.debug --device-name 'iPhone 16'",
+    "test:ios:device": "detox test --configuration ios.sim.debug --device-name \"${DETOX_DEVICE_NAME:-iPhone 17 Pro}\"",
     "lint": "tsc --noEmit"
   },
   "devDependencies": {
