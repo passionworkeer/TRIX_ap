@@ -62,6 +62,23 @@ try {
 const isDev = !app.isPackaged && process.env.NODE_ENV !== 'production';
 let isQuitting = false;
 
+// ── Single Instance Lock ──────────────────────────────────────────────────
+const gotTheLock = app.requestSingleInstanceLock();
+if (!gotTheLock) {
+  console.log('[App] Another instance is running, quitting this one...');
+  app.quit();
+} else {
+  app.on('second-instance', (_event, _commandLine, _workingDirectory) => {
+    // Someone tried to run a second instance, we should focus our window.
+    const win = getMainWindow();
+    if (win) {
+      if (win.isMinimized()) win.restore();
+      win.show();
+      win.focus();
+    }
+  });
+}
+
 export function createMainWindow(): void {
   log.info('Creating main window...');
 
@@ -103,10 +120,18 @@ export function createMainWindow(): void {
     windowStateStore.set('height', bounds.height);
   });
 
-  mainWindow.loadFile(getMainUrl()).catch((err) => {
-    console.error('[LOAD FILE ERROR]', err);
-    log.error('loadFile failed:', err);
-  });
+  const mainUrl = getMainUrl();
+  if (mainUrl.startsWith('http')) {
+    mainWindow.loadURL(mainUrl).catch((err) => {
+      console.error('[LOAD URL ERROR]', err);
+      log.error('loadURL failed:', err);
+    });
+  } else {
+    mainWindow.loadFile(mainUrl).catch((err) => {
+      console.error('[LOAD FILE ERROR]', err);
+      log.error('loadFile failed:', err);
+    });
+  }
   log.info('Main window URL:', getMainUrl());
 
   mainWindow.webContents.on('did-finish-load', () => {

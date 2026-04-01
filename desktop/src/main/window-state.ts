@@ -9,10 +9,16 @@ function getPreloadPath(): string {
 }
 
 function getMainUrl(): string {
+  if (process.env.VITE_DEV_SERVER_URL) {
+    return `${process.env.VITE_DEV_SERVER_URL}desktop/src/renderer/main.html`;
+  }
   return path.join(app.getAppPath(), 'dist-desktop', 'renderer', 'desktop', 'src', 'renderer', 'main.html');
 }
 
 function getFloatUrl(): string {
+  if (process.env.VITE_DEV_SERVER_URL) {
+    return `${process.env.VITE_DEV_SERVER_URL}desktop/src/renderer/float.html`;
+  }
   return path.join(app.getAppPath(), 'dist-desktop', 'renderer', 'desktop', 'src', 'renderer', 'float.html');
 }
 

@@ -138,6 +138,7 @@ tmp-*.log
 
 # Playwright CLI tool
 .playwright-cli/
+.playwright-mcp/
 
 # Build/artifacts
 output/
@@ -153,6 +154,8 @@ skills/trix-canvas-skill/canvas/data_8791/
 skills/trix-canvas-skill/canvas/__pycache__/
 skills/trix-canvas-skill/scripts/__pycache__/
 skills/trix-canvas-skill/scripts/adapters/__pycache__/
+skills/trix-canvas-skill/assets/canvas-service/data/
+skills/trix-canvas-skill/assets/canvas-service/exports/
 
 # TRIX Native test temp
 packages/trix-openclaw-native/.tmp/
