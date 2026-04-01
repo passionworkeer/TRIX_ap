@@ -272,6 +272,40 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, []);
 
+  // ── Deep-link handler: Desktop Supabase email confirmation ─────────────────
+  // Receives trix3dcompanion://auth/v1/callback?token=XXX from the main process
+  // and exchanges the confirmation token for a session via Supabase SDK.
+  useEffect(() => {
+    const api = (window as Window & { electronAPI?: { onDeepLink: (cb: (url: string) => void) => () => void } }).electronAPI;
+    if (!api?.onDeepLink) return;
+
+    const unsubscribe = api.onDeepLink(async (url: string) => {
+      try {
+        const parsed = new URL(url);
+        if (!parsed.pathname.includes('/auth/v1/callback')) return;
+
+        const token = parsed.searchParams.get('token') ?? parsed.searchParams.get('confirmation_token');
+        if (!token) {
+          logger.auth.warn('[deep-link] no token found in confirmation URL');
+          return;
+        }
+
+        logger.auth.info('[deep-link] exchanging confirmation token for session');
+        markInteractiveSignIn();
+        const { error } = await supabase.auth.exchangeCodeForSession(token);
+        if (error) {
+          logger.auth.error('[deep-link] exchangeCodeForSession failed:', error);
+        } else {
+          logger.auth.info('[deep-link] session exchange succeeded');
+        }
+      } catch (err) {
+        logger.auth.error('[deep-link] error processing deep link:', err);
+      }
+    });
+
+    return unsubscribe;
+  }, []);
+
   const signIn = async (email: string, password: string) => {
     markInteractiveSignIn();
     try {
@@ -302,12 +336,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signUp = async (email: string, password: string, username: string) => {
     markInteractiveSignIn();
     try {
+      // Desktop: use custom URL scheme so Supabase sends trix3dcompanion:// links.
+      // Web (no electronAPI): Supabase SDK auto-handles #/auth/v1/callback.
+      const isDesktop = Boolean((window as Window & { electronAPI?: unknown }).electronAPI);
+      const emailRedirectTo = isDesktop ? 'trix3dcompanion://auth/v1/callback' : undefined;
+
       const { error } = await supabase.auth.signUp({
         email,
         password,
         options: {
           data: { username },
-          emailRedirectTo: undefined,
+          emailRedirectTo,
         },
       });
 

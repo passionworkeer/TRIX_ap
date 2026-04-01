@@ -68,3 +68,9 @@ electronVersion: 33.4.0
 electronDownload:
   mirror: https://npmmirror.com/mirrors/electron/
 publish: null
+
+# ── Custom URL Scheme (Supabase email confirmation deep link) ───────────────────
+protocols:
+  - name: TRIX Companion
+    schemes:
+      - trix3dcompanion

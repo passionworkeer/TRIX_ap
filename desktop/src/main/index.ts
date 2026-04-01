@@ -32,7 +32,7 @@ import { checkOpenClaw } from './openclaw';
 import { startGateway, stopGateway } from './gateway';
 import { createTray } from './tray';
 import { createFloatWindow } from './float-window';
-import { getPreloadPath, getMainUrl, setMainWindow, showMainWindow } from './window-state';
+import { getPreloadPath, getMainUrl, setMainWindow, showMainWindow, getMainWindow } from './window-state';
 import { destroyTray } from './tray';
 import { petStateManager } from './pet-state';
 
@@ -154,7 +154,28 @@ export function createMainWindow(): void {
 // Re-export
 export { showMainWindow };
 
-// App lifecycle
+// ── Register custom protocol (deep-link) ──────────────────────────────────────
+// Required for Supabase email confirmation: trix3dcompanion://auth/v1/callback
+const PROTOCOL = 'trix3dcompanion';
+if (process.defaultApp) {
+  if (process.argv.length >= 2) {
+    app.setAsDefaultProtocolClient(PROTOCOL);
+  }
+} else {
+  app.setAsDefaultProtocolClient(PROTOCOL);
+}
+
+// Forward deep-link URLs from main process to renderer
+function forwardDeepLinkToRenderer(url: string) {
+  const mainWindow = getMainWindow();
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('deep-link', url);
+    mainWindow.show();
+    mainWindow.focus();
+  }
+}
+
+// ── App lifecycle ─────────────────────────────────────────────────────────────
 app.whenReady().then(async () => {
   log.info('App ready');
 
@@ -167,6 +188,39 @@ app.whenReady().then(async () => {
   createFloatWindow();
   createTray();
   petStateManager.init();
+
+  // ── Deep-link: macOS ────────────────────────────────────────────────────────
+  app.on('open-url', (event, url) => {
+    event.preventDefault();
+    log.info('[deep-link] open-url received:', url);
+    forwardDeepLinkToRenderer(url);
+  });
+
+  // ── Deep-link: Windows / Linux (protocol URL in command-line args) ───────────
+  // second-instance fires when a second instance is launched; if it carries a
+  // protocol URL, treat it as a deep-link and forward to the existing window.
+  const protocolArg = process.argv.find(arg => arg.startsWith(`${PROTOCOL}://`));
+  if (protocolArg) {
+    log.info('[deep-link] startup protocol arg found:', protocolArg);
+    forwardDeepLinkToRenderer(protocolArg);
+  }
+
+  const gotTheLock = app.requestSingleInstanceLock();
+  if (!gotTheLock) {
+    // Another instance is already running — this instance will quit
+    app.quit();
+  } else {
+    app.on('second-instance', (_event, commandLine) => {
+      const url = commandLine.find(arg => arg.startsWith(`${PROTOCOL}://`));
+      if (url) {
+        log.info('[deep-link] second-instance protocol arg:', url);
+        forwardDeepLinkToRenderer(url);
+      }
+      const mainWindow = getMainWindow();
+      mainWindow?.show();
+      mainWindow?.focus();
+    });
+  }
 
   if (openclawStatus.installed) {
     // Start gateway in background — don't block app startup

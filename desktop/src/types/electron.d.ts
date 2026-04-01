@@ -397,6 +397,8 @@ export interface ElectronAPI {
   onChannelMessage: (callback: (msg: ChannelMessage) => void) => () => void;
   /** Fired when a third-party channel connection status changes */
   onChannelStatusUpdate: (callback: (data: ChannelStatusUpdate) => void) => () => void;
+  /** Fired when app is opened via trix3dcompanion:// deep link (Supabase email confirmation) */
+  onDeepLink: (callback: (url: string) => void) => () => void;
 
   // OpenClaw Config Sections
   configReadSection: (section: string) => Promise<ApiResult<unknown>>;
