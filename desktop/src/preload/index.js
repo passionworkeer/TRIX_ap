@@ -229,4 +229,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   notificationsList: () => ipcRenderer.invoke('notifications:list'),
   notificationsMarkRead: (notificationId) => ipcRenderer.invoke('notifications:mark-read', { notificationId }),
   notificationsMarkAllRead: () => ipcRenderer.invoke('notifications:mark-all-read'),
+
+  // === Deep Link (Supabase email confirmation) ===
+  onDeepLink: (callback) => {
+    const handler = (_event, url) => callback(url);
+    ipcRenderer.on('deep-link', handler);
+    return () => ipcRenderer.removeListener('deep-link', handler);
+  },
 });
