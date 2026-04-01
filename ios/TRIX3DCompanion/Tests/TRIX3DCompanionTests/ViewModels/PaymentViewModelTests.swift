@@ -7,25 +7,31 @@
 
 import XCTest
 import Combine
+import StoreKit
 @testable import TRIX3DCompanion
 
+// File-local aliases to avoid StoreKit symbol ambiguity in the test target.
+typealias PaymentVMSubscriptionStatus = TRIX3DCompanion.SubscriptionStatus
+typealias PaymentVMStoreKitError = TRIX3DCompanion.StoreKitError
+
 /// Unit tests for PaymentViewModel
+@MainActor
 final class PaymentViewModelTests: XCTestCase {
 
     // MARK: - Properties
 
     var paymentViewModel: PaymentViewModel!
-    var mockPaymentService: MockPaymentService!
-    var mockStoreKitService: MockStoreKitService!
-    var mockPointsService: MockPointsService!
+    var mockPaymentService: PaymentViewModelTestsMockPaymentService!
+    var mockStoreKitService: PaymentViewModelTestsMockStoreKitService!
+    var mockPointsService: PaymentViewModelTestsMockPointsService!
     var cancellables: Set<AnyCancellable>!
 
     // MARK: - Test Lifecycle
 
     override func setUpWithError() throws {
-        mockPaymentService = MockPaymentService()
-        mockStoreKitService = MockStoreKitService()
-        mockPointsService = MockPointsService()
+        mockPaymentService = PaymentViewModelTestsMockPaymentService()
+        mockStoreKitService = PaymentViewModelTestsMockStoreKitService()
+        mockPointsService = PaymentViewModelTestsMockPointsService()
 
         paymentViewModel = PaymentViewModel(
             paymentService: mockPaymentService,
@@ -204,6 +210,7 @@ final class PaymentViewModelTests: XCTestCase {
 
         // Act
         paymentViewModel.cancelPayment()
+        try await Task.sleep(nanoseconds: 100_000_000)
 
         // Assert
         XCTAssertEqual(mockPaymentService.cancelOrderCallCount, 1)
@@ -262,13 +269,14 @@ final class PaymentViewModelTests: XCTestCase {
             mockPaymentService.createMockOrder(productId: "com.trix3d.points.300", points: 330)
         ]
         mockPaymentService.setMockOrderHistory(mockOrders)
+        let initialCallCount = mockPaymentService.getOrderHistoryCallCount
 
         // Act
         await paymentViewModel.loadOrderHistory()
 
         // Assert
         XCTAssertEqual(paymentViewModel.orderHistory.count, 2)
-        XCTAssertEqual(mockPaymentService.getOrderHistoryCallCount, 1)
+        XCTAssertEqual(mockPaymentService.getOrderHistoryCallCount, initialCallCount + 1)
     }
 
     func test_getOrderDetails_returnsOrder() async throws {
@@ -385,7 +393,7 @@ final class PaymentViewModelTests: XCTestCase {
         paymentViewModel.startPayment(for: product)
 
         // Assert
-        XCTAssertTrue(paymentViewModel.paymentSummary.contains("Points"))
+        XCTAssertEqual(paymentViewModel.paymentSummary, localizedPaymentString("store.summary.purchase.points"))
     }
 
     func test_totalAmount_returnsProductPrice() {
@@ -394,7 +402,7 @@ final class PaymentViewModelTests: XCTestCase {
         paymentViewModel.startPayment(for: product)
 
         // Assert
-        XCTAssertNotNil(paymentViewModel.totalAmount)
+        XCTAssertEqual(paymentViewModel.totalAmount, product.price)
     }
 
     func test_paymentMethodDisplayName_returnsCorrectName() {
@@ -412,13 +420,13 @@ final class PaymentViewModelTests: XCTestCase {
 
         // Assert
         XCTAssertNotNil(paymentViewModel.confirmationMessage)
-        XCTAssertTrue(paymentViewModel.confirmationMessage.contains("Confirm"))
+        XCTAssertTrue(paymentViewModel.confirmationMessage.contains(product.price))
     }
 
     // MARK: - Helper Methods
 
     private func createMockProduct() -> StoreProduct {
-        fatalError("Use createMockPointsProduct or createMockSubscriptionProduct")
+        ProductViewModel.mockPointsProduct()
     }
 
     private func createMockPointsProduct(
@@ -436,4 +444,304 @@ final class PaymentViewModelTests: XCTestCase {
     ) -> StoreProduct {
         return ProductViewModel.mockSubscriptionProduct()
     }
+
+    private func localizedPaymentString(_ key: String) -> String {
+        NSLocalizedString(key, comment: "")
+    }
+}
+
+// MARK: - Local Mocks
+
+@MainActor
+final class PaymentViewModelTestsMockPaymentService: PaymentServiceProtocol {
+
+    @Published private(set) var pendingAppOrders: [AppOrder] = []
+    @Published private(set) var completedAppOrders: [AppOrder] = []
+    @Published private(set) var isProcessing: Bool = false
+    @Published private(set) var lastError: PaymentError?
+
+    var mockPurchaseResult: PaymentResult?
+    var mockSubscribeResult: PaymentResult?
+    var mockVerifyResult: Result<AppOrder, PaymentError>?
+    var mockOrderHistory: [AppOrder] = []
+    var mockOrder: AppOrder?
+
+    var purchasePointsCallCount = 0
+    var subscribeCallCount = 0
+    var verifyReceiptCallCount = 0
+    var getOrderCallCount = 0
+    var getOrderHistoryCallCount = 0
+    var cancelOrderCallCount = 0
+
+    func purchasePoints(productId: String, points: Int) async -> PaymentResult {
+        purchasePointsCallCount += 1
+        isProcessing = true
+        defer { isProcessing = false }
+
+        if let result = mockPurchaseResult {
+            syncOrders(from: result)
+            return result
+        }
+
+        let order = createMockOrder(productId: productId, points: points)
+        completedAppOrders.insert(order, at: 0)
+        return .success(order: order)
+    }
+
+    func subscribe(productId: String) async -> PaymentResult {
+        subscribeCallCount += 1
+        isProcessing = true
+        defer { isProcessing = false }
+
+        if let result = mockSubscribeResult {
+            syncOrders(from: result)
+            return result
+        }
+
+        let order = createMockSubscriptionOrder(productId: productId)
+        completedAppOrders.insert(order, at: 0)
+        return .success(order: order)
+    }
+
+    func verifyReceipt(
+        transactionId: String,
+        productId: String,
+        receiptData: String?
+    ) async -> Result<AppOrder, PaymentError> {
+        verifyReceiptCallCount += 1
+        if let result = mockVerifyResult {
+            return result
+        }
+        return .success(createMockOrder(productId: productId, points: nil))
+    }
+
+    func getAppOrder(orderId: String) async -> AppOrder? {
+        getOrderCallCount += 1
+        if let order = mockOrder {
+            return order
+        }
+        return completedAppOrders.first(where: { $0.id == orderId }) ??
+            pendingAppOrders.first(where: { $0.id == orderId })
+    }
+
+    func getAppOrderHistory(limit: Int, offset: Int) async -> [AppOrder] {
+        getOrderHistoryCallCount += 1
+        let history = mockOrderHistory.isEmpty ? completedAppOrders : mockOrderHistory
+        return Array(history.dropFirst(offset).prefix(limit))
+    }
+
+    func cancelAppOrder(orderId: String) async -> Result<Void, PaymentError> {
+        cancelOrderCallCount += 1
+        if let index = pendingAppOrders.firstIndex(where: { $0.id == orderId }) {
+            pendingAppOrders.remove(at: index)
+            return .success(())
+        }
+        return .failure(.orderNotFound)
+    }
+
+    func getSubscription() async -> PaymentSubscriptionStatus {
+        PaymentSubscriptionStatus(
+            isActive: false,
+            tier: nil,
+            productId: nil,
+            expiresAt: nil,
+            willAutoRenew: false,
+            startedAt: nil,
+            updatedAt: nil
+        )
+    }
+
+    func restorePurchases() async -> Result<[AppOrder], PaymentError> {
+        .success([])
+    }
+
+    func clearError() {
+        lastError = nil
+    }
+
+    func setMockPurchaseSuccess(order: AppOrder? = nil) {
+        mockPurchaseResult = .success(order: order ?? createMockOrder())
+    }
+
+    func setMockPurchasePending(order: AppOrder? = nil) {
+        mockPurchaseResult = .pending(order: order ?? createMockOrder(status: .pending))
+    }
+
+    func setMockPurchaseFailed(error: PaymentError = .paymentFailed(underlying: nil)) {
+        mockPurchaseResult = .failed(error: error)
+        lastError = error
+    }
+
+    func setMockPurchaseCancelled() {
+        mockPurchaseResult = .cancelled
+    }
+
+    func setMockSubscribeSuccess(order: AppOrder? = nil) {
+        mockSubscribeResult = .success(order: order ?? createMockSubscriptionOrder())
+    }
+
+    func setMockOrderHistory(_ orders: [AppOrder]) {
+        mockOrderHistory = orders
+    }
+
+    func createMockOrder(
+        productId: String = "com.trix3d.points.500",
+        points: Int? = 580,
+        status: AppPaymentStatus = .completed
+    ) -> AppOrder {
+        AppOrder(
+            id: UUID().uuidString,
+            userId: "test-user",
+            productId: productId,
+            productType: .points,
+            amount: 28.0,
+            currency: "CNY",
+            status: status,
+            paymentMethod: .applePay,
+            transactionId: "txn_\(UUID().uuidString)",
+            points: points,
+            createdAt: Date(),
+            updatedAt: Date()
+        )
+    }
+
+    func createMockSubscriptionOrder(
+        productId: String = "com.trix3d.subscription.monthly",
+        status: AppPaymentStatus = .completed
+    ) -> AppOrder {
+        AppOrder(
+            id: UUID().uuidString,
+            userId: "test-user",
+            productId: productId,
+            productType: .subscription,
+            amount: 12.0,
+            currency: "CNY",
+            status: status,
+            paymentMethod: .applePay,
+            transactionId: "txn_\(UUID().uuidString)",
+            points: nil,
+            createdAt: Date(),
+            updatedAt: Date()
+        )
+    }
+
+    private func syncOrders(from result: PaymentResult) {
+        switch result {
+        case .success(let order):
+            completedAppOrders.append(order)
+        case .pending(let order):
+            pendingAppOrders.append(order)
+        case .failed, .cancelled:
+            break
+        }
+    }
+}
+
+@MainActor
+final class PaymentViewModelTestsMockStoreKitService: StoreKitServiceProtocol {
+    @Published var availableProducts: [StoreProduct] = []
+    @Published var isLoadingProducts: Bool = false
+    @Published var subscriptionStatus: PaymentVMSubscriptionStatus?
+    @Published var isPurchasing: Bool = false
+    @Published var lastError: PaymentVMStoreKitError?
+
+    func loadProducts(productIds: [String]) async -> Result<Void, PaymentVMStoreKitError> {
+        .success(())
+    }
+
+    func purchase(product productId: String) async -> PurchaseResult {
+        .cancelled
+    }
+
+    func restorePurchases() async -> Result<[TransactionInfo], PaymentVMStoreKitError> {
+        .success([])
+    }
+
+    func checkSubscriptionStatus() async -> PaymentVMSubscriptionStatus? {
+        subscriptionStatus
+    }
+
+    func getTransactionHistory() async -> [TransactionInfo] {
+        []
+    }
+
+    func getReceiptData() async -> String? {
+        nil
+    }
+
+    func getLatestTransactionId(for productId: String) async -> String? {
+        nil
+    }
+
+    func getTransactionInfo(transactionId: String) async -> TransactionInfo? {
+        nil
+    }
+
+    func prepareVerificationPayload(transaction: StoreKit.Transaction, productId: String) -> [String: Any]? {
+        nil
+    }
+
+    func clearError() {}
+}
+
+@MainActor
+final class PaymentViewModelTestsMockPointsService: PointsServiceProtocol {
+    @Published var balance: PointsBalance?
+    @Published var transactions: [PointsTransactionDetail] = []
+    @Published var isLoading: Bool = false
+    @Published var isSyncing: Bool = false
+    @Published var lastError: PointsError?
+
+    func refreshPoints() async -> Result<PointsBalance, PointsError> {
+        .success(balance ?? PointsBalance(
+            totalPoints: 1000,
+            availablePoints: 1000,
+            pendingPoints: 0,
+            level: 1,
+            todayEarned: 0,
+            weekEarned: 0,
+            totalTransactions: 0,
+            updatedAt: Date()
+        ))
+    }
+
+    func getBalance() async -> PointsBalance? {
+        balance
+    }
+
+    func loadHistory(filter: PointsHistoryFilter?) async -> Result<[PointsTransactionDetail], PointsError> {
+        .success([])
+    }
+
+    func addPoints(_ points: Int, description: String, metadata: [String: String]?) async -> PointsResult {
+        .success(balance: balance ?? PointsBalance(
+            totalPoints: 1000,
+            availablePoints: 1000,
+            pendingPoints: 0,
+            level: 1,
+            todayEarned: 0,
+            weekEarned: 0,
+            totalTransactions: 0,
+            updatedAt: Date()
+        ))
+    }
+
+    func deductPoints(_ points: Int, description: String, metadata: [String: String]?) async -> PointsResult {
+        .success(balance: balance ?? PointsBalance(
+            totalPoints: 1000,
+            availablePoints: 1000,
+            pendingPoints: 0,
+            level: 1,
+            todayEarned: 0,
+            weekEarned: 0,
+            totalTransactions: 0,
+            updatedAt: Date()
+        ))
+    }
+
+    func syncWithServer() async -> Result<Void, PointsError> {
+        .success(())
+    }
+
+    func clearError() {}
 }

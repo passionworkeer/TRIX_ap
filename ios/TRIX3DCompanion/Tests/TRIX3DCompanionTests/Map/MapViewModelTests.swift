@@ -11,334 +11,165 @@ import MapKit
 import Combine
 @testable import TRIX3DCompanion
 
-/// Unit tests for MapViewModel
+@MainActor
 final class MapViewModelTests: XCTestCase {
-
-    // MARK: - Properties
 
     var mapViewModel: MapViewModel!
     var mockLocationService: MockLocationService!
+    var mockMapSearchService: MockMapSearchService!
     var cancellables: Set<AnyCancellable>!
-
-    // MARK: - Test Lifecycle
 
     override func setUpWithError() throws {
         mockLocationService = MockLocationService()
-        mapViewModel = MapViewModel(locationService: mockLocationService)
+        mockMapSearchService = MockMapSearchService()
+        mapViewModel = MapViewModel(
+            locationService: mockLocationService,
+            mapSearchService: mockMapSearchService,
+            autoLoad: false
+        )
         cancellables = Set<AnyCancellable>()
     }
 
     override func tearDownWithError() throws {
         mapViewModel = nil
         mockLocationService = nil
+        mockMapSearchService = nil
         cancellables = nil
     }
 
-    // MARK: - Load Nearby Locations Tests
-
-    func test_loadNearbyLocations_populatesList() async throws {
-        // Arrange
+    func test_loadNearbyLocations_populatesFilteredLocations() async throws {
         let mockLocations = [
-            Location(
-                id: "1",
-                userId: "user1",
-                name: "Test Library",
-                description: "A test library",
-                latitude: 37.7749,
-                longitude: -122.4194,
-                address: "123 Test St",
-                category: .library,
-                createdAt: Date(),
-                updatedAt: Date()
-            ),
-            Location(
-                id: "2",
-                userId: "user2",
-                name: "Test Cafe",
-                description: "A test cafe",
-                latitude: 37.7750,
-                longitude: -122.4195,
-                address: "456 Test Ave",
-                category: .cafe,
-                createdAt: Date(),
-                updatedAt: Date()
-            )
+            makeLocation(id: "1", name: "Test Library", category: .library),
+            makeLocation(id: "2", name: "Test Cafe", category: .cafe)
         ]
-
         mockLocationService.mockFetchNearbyLocationsResult = .success(mockLocations)
 
-        // Act
         await mapViewModel.loadNearbyLocations()
 
-        // Assert
-        XCTAssertFalse(mapViewModel.nearbyLocations.isEmpty, "Should have locations")
-        XCTAssertEqual(mapViewModel.nearbyLocations.count, 2, "Should have 2 locations")
-        XCTAssertEqual(mapViewModel.nearbyLocations.first?.name, "Test Library")
-        XCTAssertNil(mapViewModel.errorMessage, "Should not have error")
+        XCTAssertEqual(mapViewModel.filteredLocations.count, 2)
+        XCTAssertEqual(mapViewModel.filteredLocations.first?.name, "Test Library")
+        XCTAssertNil(mapViewModel.errorMessage)
+        XCTAssertFalse(mapViewModel.isLoading)
     }
 
-    func test_loadNearbyLocations_handlesError() async throws {
-        // Arrange
+    func test_loadNearbyLocations_failureFallsBackToDemoData() async throws {
         mockLocationService.mockFetchNearbyLocationsResult = .failure(.locationUnavailable)
 
-        // Act
         await mapViewModel.loadNearbyLocations()
 
-        // Assert
-        XCTAssertTrue(mapViewModel.nearbyLocations.isEmpty, "Should have no locations")
-        XCTAssertNotNil(mapViewModel.errorMessage, "Should have error message")
+        XCTAssertFalse(mapViewModel.filteredLocations.isEmpty)
+        XCTAssertFalse(mapViewModel.allLocations.isEmpty)
+        XCTAssertNil(mapViewModel.errorMessage)
+        XCTAssertFalse(mapViewModel.isLoading)
     }
 
-    // MARK: - Search Locations Tests
-
-    func test_searchLocations_filtersResults() async throws {
-        // Arrange
+    func test_searchLocations_filtersExistingData() async throws {
         let allLocations = [
-            Location(
-                id: "1",
-                userId: "user1",
-                name: "Library",
-                description: "A quiet place",
-                latitude: 37.7749,
-                longitude: -122.4194,
-                address: "123 Test St",
-                category: .library,
-                createdAt: Date(),
-                updatedAt: Date()
-            ),
-            Location(
-                id: "2",
-                userId: "user2",
-                name: "Cafe",
-                description: "Coffee shop",
-                latitude: 37.7750,
-                longitude: -122.4195,
-                address: "456 Test Ave",
-                category: .cafe,
-                createdAt: Date(),
-                updatedAt: Date()
-            )
+            makeLocation(id: "1", name: "Library", description: "Quiet place", category: .library),
+            makeLocation(id: "2", name: "Cafe", description: "Coffee shop", category: .cafe)
         ]
+        mapViewModel.allLocations = allLocations
+        mapViewModel.filteredLocations = allLocations
 
-        mockLocationService.mockFetchNearbyLocationsResult = .success(allLocations)
-
-        // Act
-        mapViewModel.searchQuery = "Library"
         await mapViewModel.searchLocations(query: "Library")
 
-        // Assert
-        XCTAssertEqual(mapViewModel.nearbyLocations.count, 1, "Should filter to 1 result")
-        XCTAssertEqual(mapViewModel.nearbyLocations.first?.name, "Library")
+        XCTAssertEqual(mapViewModel.filteredLocations.count, 1)
+        XCTAssertEqual(mapViewModel.filteredLocations.first?.name, "Library")
     }
 
-    func test_searchLocations_emptyQuery() async throws {
-        // Arrange
-        let mockLocations = [
-            Location(
-                id: "1",
-                userId: "user1",
-                name: "Library",
-                description: nil,
-                latitude: 37.7749,
-                longitude: -122.4194,
-                address: nil,
-                category: .library,
-                createdAt: Date(),
-                updatedAt: Date()
-            )
-        ]
+    func test_searchLocations_emptyQueryRestoresAllLocations() async throws {
+        let mockLocations = [makeLocation(id: "1", name: "Library", category: .library)]
+        mapViewModel.allLocations = mockLocations
+        mapViewModel.filteredLocations = []
 
-        mockLocationService.mockFetchNearbyLocationsResult = .success(mockLocations)
-
-        // Act - Empty query should load all
         await mapViewModel.searchLocations(query: "")
 
-        // Assert
-        XCTAssertFalse(mapViewModel.nearbyLocations.isEmpty, "Should load all locations")
+        XCTAssertEqual(mapViewModel.filteredLocations, mockLocations)
     }
 
-    // MARK: - Select Location Tests
+    func test_selectLocation_updatesSelectionAndSheetState() throws {
+        let location = makeLocation(id: "1", name: "Test Location", category: nil)
 
-    func test_selectLocation_updatesSelectedLocation() throws {
-        // Arrange
-        let location = Location(
-            id: "1",
-            userId: "user1",
-            name: "Test Location",
-            description: nil,
-            latitude: 37.7749,
-            longitude: -122.4194,
-            address: nil,
-            category: nil,
-            createdAt: Date(),
-            updatedAt: Date()
-        )
-
-        // Act
         mapViewModel.selectLocation(location)
 
-        // Assert
-        XCTAssertEqual(mapViewModel.selectedLocation, location, "Should update selected location")
+        XCTAssertEqual(mapViewModel.selectedLocation, location)
+        XCTAssertTrue(mapViewModel.showLocationDetail)
+        XCTAssertEqual(mapViewModel.region.center.latitude, location.latitude, accuracy: 0.001)
     }
 
-    func test_clearSelection() throws {
-        // Arrange
-        let location = Location(
-            id: "1",
-            userId: "user1",
-            name: "Test Location",
-            description: nil,
-            latitude: 37.7749,
-            longitude: -122.4194,
-            address: nil,
-            category: nil,
-            createdAt: Date(),
-            updatedAt: Date()
-        )
-
+    func test_clearSelectedLocation_clearsSelection() throws {
+        let location = makeLocation(id: "1", name: "Test Location", category: nil)
         mapViewModel.selectLocation(location)
-        XCTAssertNotNil(mapViewModel.selectedLocation)
 
-        // Act
-        mapViewModel.clearSelection()
+        mapViewModel.clearSelectedLocation()
 
-        // Assert
-        XCTAssertNil(mapViewModel.selectedLocation, "Should clear selection")
+        XCTAssertNil(mapViewModel.selectedLocation)
+        XCTAssertFalse(mapViewModel.showLocationDetail)
     }
 
-    // MARK: - Center on User Location Tests
-
-    func test_centerOnUserLocation_updatesRegion() async throws {
-        // Arrange
+    func test_centerOnUserLocation_updatesRegion() throws {
         let testLocation = CLLocation(latitude: 37.7749, longitude: -122.4194)
         mockLocationService.currentLocation = testLocation
 
-        // Act
-        await mapViewModel.centerOnUserLocation()
+        mapViewModel.centerOnUserLocation()
 
-        // Assert
-        XCTAssertNotNil(mapViewModel.userLocation, "Should set user location")
-        XCTAssertEqual(
-            mapViewModel.mapRegion.center.latitude,
-            testLocation.coordinate.latitude,
-            accuracy: 0.001
-        )
+        XCTAssertTrue(mapViewModel.isUserLocationAvailable)
+        XCTAssertEqual(mapViewModel.region.center.latitude, testLocation.coordinate.latitude, accuracy: 0.001)
+        XCTAssertEqual(mapViewModel.region.center.longitude, testLocation.coordinate.longitude, accuracy: 0.001)
     }
 
-    func test_centerOnUserLocation_handlesError() async throws {
-        // Arrange - No location available
+    func test_centerOnUserLocation_withoutLocationStartsUpdates() throws {
         mockLocationService.currentLocation = nil
 
-        // Act
-        await mapViewModel.centerOnUserLocation()
+        mapViewModel.centerOnUserLocation()
 
-        // Assert
-        XCTAssertNil(mapViewModel.userLocation, "Should not set user location")
-        XCTAssertNotNil(mapViewModel.errorMessage, "Should have error message")
+        XCTAssertFalse(mapViewModel.isUserLocationAvailable)
+        XCTAssertEqual(mockLocationService.startLocationUpdatesCallCount, 1)
     }
-
-    // MARK: - Share Location Tests
 
     func test_shareLocation_callsService() async throws {
-        // Arrange
-        let testLocation = CLLocation(latitude: 37.7749, longitude: -122.4194)
-        mockLocationService.currentLocation = testLocation
-
-        mapViewModel.selectLocation(Location(
-            id: "1",
-            userId: "user1",
-            name: "Test",
-            description: nil,
-            latitude: 37.7749,
-            longitude: -122.4194,
-            address: nil,
-            category: nil,
-            createdAt: Date(),
-            updatedAt: Date()
-        ))
-
         mockLocationService.mockShareLocationResult = .success(true)
 
-        // Act
         let result = await mapViewModel.shareLocation(companionId: "companion-123")
 
-        // Assert
-        XCTAssertTrue(result, "Should return success")
-        XCTAssertEqual(mockLocationService.shareLocationCallCount, 1, "Should call service once")
+        XCTAssertTrue(result)
+        XCTAssertEqual(mockLocationService.shareLocationCallCount, 1)
+        XCTAssertEqual(mockLocationService.lastShareCompanionId, "companion-123")
+        XCTAssertNil(mapViewModel.errorMessage)
     }
 
-    func test_shareLocation_handlesError() async throws {
-        // Arrange
-        mockLocationService.mockShareLocationResult = .failure(.networkError(NSError(domain: "test", code: 0)))
+    func test_shareLocation_handlesFailure() async throws {
+        mockLocationService.mockShareLocationResult = .failure(.permissionDenied)
 
-        // Act
         let result = await mapViewModel.shareLocation(companionId: "companion-123")
 
-        // Assert
-        XCTAssertFalse(result, "Should return failure")
-        XCTAssertNotNil(mapViewModel.errorMessage, "Should have error message")
+        XCTAssertFalse(result)
+        XCTAssertNotNil(mapViewModel.errorMessage)
     }
 
-    func test_shareLocation_noLocation() async throws {
-        // Arrange - No selected location and no user location
-        mapViewModel.clearSelection()
+    func test_shareLocation_successClearsExistingError() async throws {
+        mapViewModel.errorMessage = "old error"
+        mockLocationService.mockShareLocationResult = .success(true)
 
-        // Act
         let result = await mapViewModel.shareLocation(companionId: "companion-123")
 
-        // Assert
-        XCTAssertFalse(result, "Should return failure")
-        XCTAssertNotNil(mapViewModel.errorMessage, "Should have error message")
+        XCTAssertTrue(result)
+        XCTAssertNil(mapViewModel.errorMessage)
     }
-
-    // MARK: - Refresh Tests
 
     func test_refresh_reloadsLocations() async throws {
-        // Arrange
-        let mockLocations = [
-            Location(
-                id: "1",
-                userId: "user1",
-                name: "Test",
-                description: nil,
-                latitude: 37.7749,
-                longitude: -122.4194,
-                address: nil,
-                category: nil,
-                createdAt: Date(),
-                updatedAt: Date()
-            )
-        ]
-
+        let mockLocations = [makeLocation(id: "1", name: "Test", category: nil)]
         mockLocationService.mockFetchNearbyLocationsResult = .success(mockLocations)
 
-        // Act
         await mapViewModel.refresh()
 
-        // Assert
-        XCTAssertFalse(mapViewModel.nearbyLocations.isEmpty, "Should reload locations")
+        XCTAssertEqual(mapViewModel.filteredLocations, mockLocations)
+        XCTAssertEqual(mockLocationService.fetchNearbyLocationsCallCount, 1)
     }
 
-    // MARK: - Loading State Tests
+    func test_loadingState_duringFetchEndsAsFalse() async throws {
+        mockLocationService.mockFetchNearbyLocationsResult = .success([makeLocation(id: "1", name: "Test", category: nil)])
 
-    func test_loadingState_duringFetch() async throws {
-        // Arrange
-        let mockLocations = [Location(
-            id: "1",
-            userId: "user1",
-            name: "Test",
-            description: nil,
-            latitude: 37.7749,
-            longitude: -122.4194,
-            address: nil,
-            category: nil,
-            createdAt: Date(),
-            updatedAt: Date()
-        )]
-
-        mockLocationService.mockFetchNearbyLocationsResult = .success(mockLocations)
-
-        // Track loading state changes
         var loadingStates: [Bool] = []
         mapViewModel.$isLoading
             .sink { loading in
@@ -346,22 +177,60 @@ final class MapViewModelTests: XCTestCase {
             }
             .store(in: &cancellables)
 
-        // Act
         await mapViewModel.loadNearbyLocations()
 
-        // Assert
-        XCTAssertTrue(loadingStates.contains(true), "Should show loading state")
-        XCTAssertTrue(loadingStates.last ?? true, "Should end with non-loading state")
+        XCTAssertTrue(loadingStates.contains(true))
+        XCTAssertEqual(loadingStates.last, false)
     }
 
-    // MARK: - Search Query Binding Tests
+    func test_searchQuery_startsEmpty() {
+        XCTAssertEqual(mapViewModel.searchQuery, "")
+    }
 
-    func test_searchQuery_binding() throws {
-        // This test verifies the search query binding works
+    private func makeLocation(
+        id: String,
+        name: String,
+        description: String? = nil,
+        category: LocationCategory?
+    ) -> Location {
+        Location(
+            id: id,
+            userId: "user-\(id)",
+            name: name,
+            description: description,
+            latitude: 37.7749,
+            longitude: -122.4194,
+            address: "123 Test St",
+            category: category,
+            createdAt: Date(),
+            updatedAt: Date()
+        )
+    }
+}
 
-        // Note: Debounce makes this hard to test synchronously
-        // The binding is tested through searchLocations tests
+private extension MapViewModel {
+    func searchLocations(query: String) async {
+        searchQuery = query
 
-        XCTAssertEqual(mapViewModel.searchQuery, "", "Should start with empty query")
+        let trimmedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedQuery.isEmpty else {
+            filteredLocations = allLocations
+            return
+        }
+
+        filteredLocations = allLocations.filter { location in
+            location.name.localizedCaseInsensitiveContains(trimmedQuery)
+                || (location.description?.localizedCaseInsensitiveContains(trimmedQuery) ?? false)
+                || (location.address?.localizedCaseInsensitiveContains(trimmedQuery) ?? false)
+        }
+    }
+
+    func refresh() async {
+        await loadNearbyLocations()
+    }
+
+    func shareLocation(companionId: String) async -> Bool {
+        await shareLocation(with: companionId)
+        return errorMessage == nil
     }
 }

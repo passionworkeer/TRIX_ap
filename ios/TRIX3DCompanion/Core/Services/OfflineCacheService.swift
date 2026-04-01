@@ -7,6 +7,7 @@
 
 import Foundation
 import Combine
+import CryptoKit
 
 // MARK: - Cache Configuration
 
@@ -268,7 +269,12 @@ final class OfflineCacheService: ObservableObject, OfflineCacheServiceProtocol {
         let data = try Data(contentsOf: fileURL)
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
-        let entry = try decoder.decode(CacheEntry<T>.self, from: data)
+        let entry: CacheEntry<T>
+        do {
+            entry = try decoder.decode(CacheEntry<T>.self, from: data)
+        } catch {
+            throw CacheError.decodingFailed
+        }
 
         // Check expiration
         if entry.isExpired {
@@ -478,8 +484,15 @@ final class OfflineCacheService: ObservableObject, OfflineCacheServiceProtocol {
 
     private func getFileURL(for key: String, type: CacheType) -> URL {
         let typeDirectory = getTypeDirectory(for: type)
-        let sanitizedKey = key.replacingOccurrences(of: "/", with: "_")
-        return typeDirectory.appendingPathComponent("\(sanitizedKey).json")
+        let fileName = makeCacheFileName(for: key, type: type)
+        return typeDirectory.appendingPathComponent(fileName)
+    }
+
+    private func makeCacheFileName(for key: String, type: CacheType) -> String {
+        let keyData = Data("\(type.rawValue):\(key)".utf8)
+        let digest = SHA256.hash(data: keyData)
+        let hash = digest.map { String(format: "%02x", $0) }.joined()
+        return "\(type.rawValue)_\(hash).json"
     }
 
     private func cleanExpired(type: CacheType) async throws {

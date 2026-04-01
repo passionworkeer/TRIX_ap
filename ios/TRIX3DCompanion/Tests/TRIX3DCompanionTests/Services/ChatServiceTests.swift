@@ -16,6 +16,8 @@ import XCTest
 import Combine
 @testable import TRIX3DCompanion
 
+typealias ChatServiceTestsChatMessage = TRIX3DCompanion.ChatMessage
+
 // MARK: - Mock Chat Service Dependencies
 
 @MainActor
@@ -23,7 +25,7 @@ final class MockAPIClientForChat: APIClientProtocol {
     var shouldFailRequests = false
     var mockError: NetworkError?
     var mockChatRooms: [ChatRoom] = []
-    var mockMessages: [ChatMessage] = []
+    var mockMessages: [ChatServiceTestsChatMessage] = []
 
     func get<T>(_ endpoint: APIEndpoint) async throws -> T where T: Decodable {
         if shouldFailRequests {
@@ -34,7 +36,7 @@ final class MockAPIClientForChat: APIClientProtocol {
             return mockChatRooms as! T
         }
 
-        if T.self == [ChatMessage].self {
+        if T.self == [ChatServiceTestsChatMessage].self {
             return mockMessages as! T
         }
 
@@ -76,16 +78,16 @@ final class MockAPIClientForChat: APIClientProtocol {
         return mockChatRooms
     }
 
-    func getChatMessages(roomId: String, page: Int, limit: Int) async throws -> [ChatMessage] {
+    func getChatMessages(roomId: String, page: Int, limit: Int) async throws -> [ChatServiceTestsChatMessage] {
         return mockMessages
     }
 
-    func getChatMessagesSince(roomId: String, since: Date) async throws -> [ChatMessage] {
+    func getChatMessagesSince(roomId: String, since: Date) async throws -> [ChatServiceTestsChatMessage] {
         return mockMessages
     }
 
-    func sendMessage(roomId: String, content: String, contentType: MessageType, mediaUrl: String?, mediaMimeType: String?) async throws -> ChatMessage {
-        return ChatMessage(
+    func sendMessage(roomId: String, content: String, contentType: MessageType, mediaUrl: String?, mediaMimeType: String?) async throws -> ChatServiceTestsChatMessage {
+        return ChatServiceTestsChatMessage(
             id: UUID().uuidString,
             roomId: roomId,
             senderId: "user",
@@ -113,7 +115,6 @@ final class MockAPIClientForChat: APIClientProtocol {
     }
 }
 
-@MainActor
 final class MockWebSocketManagerForChat: ClawbotChannelServiceProtocol {
     var isConnectedValue = false
     var shouldFailConnection = false
@@ -426,8 +427,8 @@ extension ChatServiceTests {
         )
     }
 
-    private func createMockMessage(id: String, roomId: String, isRead: Bool) -> ChatMessage {
-        ChatMessage(
+    private func createMockMessage(id: String, roomId: String, isRead: Bool) -> ChatServiceTestsChatMessage {
+        ChatServiceTestsChatMessage(
             id: id,
             roomId: roomId,
             senderId: "user123",

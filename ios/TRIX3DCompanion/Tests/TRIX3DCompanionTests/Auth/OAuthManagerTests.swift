@@ -16,21 +16,21 @@ final class OAuthManagerTests: XCTestCase {
     // MARK: - Properties
 
     var oauthManager: OAuthManager!
-    var mockAuthService: MockAuthService!
-    var mockAPIClient: MockAPIClient!
-    var mockKeychainManager: MockKeychainManager!
-    var mockAppleSignInService: MockAppleSignInService!
-    var mockWeChatSignInService: MockWeChatSignInService!
+    var mockAuthService: OAuthManagerMockAuthService!
+    var mockAPIClient: OAuthManagerMockAPIClient!
+    var mockKeychainManager: OAuthManagerMockKeychainManager!
+    var mockAppleSignInService: OAuthManagerMockAppleSignInService!
+    var mockWeChatSignInService: OAuthManagerMockWeChatSignInService!
     var cancellables: Set<AnyCancellable>!
 
     // MARK: - Test Lifecycle
 
     override func setUpWithError() throws {
-        mockAuthService = MockAuthService()
-        mockAPIClient = MockAPIClient()
-        mockKeychainManager = MockKeychainManager()
-        mockAppleSignInService = MockAppleSignInService()
-        mockWeChatSignInService = MockWeChatSignInService()
+        mockAuthService = OAuthManagerMockAuthService()
+        mockAPIClient = OAuthManagerMockAPIClient()
+        mockKeychainManager = OAuthManagerMockKeychainManager()
+        mockAppleSignInService = OAuthManagerMockAppleSignInService()
+        mockWeChatSignInService = OAuthManagerMockWeChatSignInService()
 
         oauthManager = OAuthManager(
             authService: mockAuthService,
@@ -788,7 +788,7 @@ final class OAuthManagerTests: XCTestCase {
 
 // MARK: - Mock Classes
 
-class MockAuthService: AuthService {
+class OAuthManagerMockAuthService: AuthService {
     var mockIsLoggedIn = false
     var currentUser: User?
     var isLoggedIn: Bool { mockIsLoggedIn }
@@ -815,7 +815,7 @@ class MockAuthService: AuthService {
     }
 }
 
-class MockAPIClient: APIClient {
+class OAuthManagerMockAPIClient: APIClient {
     var mockAuthResponse: AuthResponse?
     var mockOAuthAccounts: [OAuthAccount]?
 
@@ -840,7 +840,7 @@ class MockAPIClient: APIClient {
     }
 }
 
-class MockKeychainManager: KeychainManager {
+class OAuthManagerMockKeychainManager: KeychainManager {
     var mockToken: OAuthToken?
 
     override func save(key: String, data: Data) throws {
@@ -861,7 +861,7 @@ class MockKeychainManager: KeychainManager {
     }
 }
 
-class MockAppleSignInService: AppleSignInServiceProtocol {
+class OAuthManagerMockAppleSignInService: AppleSignInServiceProtocol {
     var mockIsAvailable = true
     var mockSignInResult: AppleSignInResult?
     var mockCredentialState: ASAuthorizationAppleIDProvider.CredentialState = .authorized
@@ -873,7 +873,7 @@ class MockAppleSignInService: AppleSignInServiceProtocol {
     }
 }
 
-class MockWeChatSignInService: WeChatSignInServiceProtocol {
+class OAuthManagerMockWeChatSignInService: WeChatSignInServiceProtocol {
     var mockIsAvailable = true
     var mockIsInstalled = true
     var mockSignInResult: WeChatSignInResult?

@@ -37,7 +37,7 @@ final class PaymentService: ObservableObject, PaymentServiceProtocol {
 
     private let storeKitService: any StoreKitServiceProtocol
     private let pointsService: any PointsServiceProtocol
-    private let apiClient: APIClient
+    private let apiClient: any APIClientProtocol
 
     // MARK: - Private Properties
 
@@ -57,11 +57,11 @@ final class PaymentService: ObservableObject, PaymentServiceProtocol {
     init(
         storeKitService: (any StoreKitServiceProtocol)? = nil,
         pointsService: (any PointsServiceProtocol)? = nil,
-        apiClient: APIClient? = nil
+        apiClient: (any APIClientProtocol)? = nil
     ) {
         self.storeKitService = storeKitService ?? StoreKitService.shared
         self.pointsService = pointsService ?? PointsService.shared
-        self.apiClient = apiClient ?? .shared
+        self.apiClient = apiClient ?? APIClient.shared
 
         // Load order history first (needed for de-dup in retryPendingTransactions)
         // THEN retry pending StoreKit transactions that failed backend verification

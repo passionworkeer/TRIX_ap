@@ -10,6 +10,8 @@ import XCTest
 import SwiftUI
 @testable import TRIX3DCompanion
 
+typealias MessageBubbleViewTestsChatMessage = TRIX3DCompanion.ChatMessage
+
 // MARK: - MessageBubbleView Tests
 
 @MainActor
@@ -22,8 +24,8 @@ final class MessageBubbleViewTests: XCTestCase {
         content: String = "Hello, world!",
         sender: MessageSender = .user,
         isRead: Bool = true
-    ) -> ChatMessage {
-        ChatMessage(
+    ) -> MessageBubbleViewTestsChatMessage {
+        MessageBubbleViewTestsChatMessage(
             id: id,
             roomId: "room_1",
             senderId: "user_1",
@@ -46,8 +48,8 @@ final class MessageBubbleViewTests: XCTestCase {
 
     private func makeImageMessage(
         mediaUrl: String = "https://example.com/image.jpg"
-    ) -> ChatMessage {
-        ChatMessage(
+    ) -> MessageBubbleViewTestsChatMessage {
+        MessageBubbleViewTestsChatMessage(
             id: "msg_image",
             roomId: "room_1",
             senderId: "user_1",
@@ -71,8 +73,8 @@ final class MessageBubbleViewTests: XCTestCase {
     private func makeVoiceMessage(
         duration: Int = 32,
         sender: MessageSender = .user
-    ) -> ChatMessage {
-        ChatMessage(
+    ) -> MessageBubbleViewTestsChatMessage {
+        MessageBubbleViewTestsChatMessage(
             id: "msg_voice",
             roomId: "room_1",
             senderId: "user_1",
@@ -96,8 +98,8 @@ final class MessageBubbleViewTests: XCTestCase {
     private func makeVideoMessage(
         mediaUrl: String = "https://example.com/video.mp4",
         duration: Double = 120
-    ) -> ChatMessage {
-        ChatMessage(
+    ) -> MessageBubbleViewTestsChatMessage {
+        MessageBubbleViewTestsChatMessage(
             id: "msg_video",
             roomId: "room_1",
             senderId: "user_1",
@@ -120,8 +122,8 @@ final class MessageBubbleViewTests: XCTestCase {
 
     private func makeFileMessage(
         fileName: String = "Report.pdf"
-    ) -> ChatMessage {
-        ChatMessage(
+    ) -> MessageBubbleViewTestsChatMessage {
+        MessageBubbleViewTestsChatMessage(
             id: "msg_file",
             roomId: "room_1",
             senderId: "user_1",
@@ -513,7 +515,7 @@ final class MessageBubbleViewTests: XCTestCase {
     // MARK: - Empty Message Edge Case Tests
 
     func testEmptyTextMessage() throws {
-        let message = ChatMessage(
+        let message = MessageBubbleViewTestsChatMessage(
             id: "msg_empty",
             roomId: "room_1",
             senderId: "user_1",
@@ -548,7 +550,7 @@ final class MessageBubbleViewTests: XCTestCase {
     }
 
     func testEmptyImageMessageCaption() throws {
-        let message = ChatMessage(
+        let message = MessageBubbleViewTestsChatMessage(
             id: "msg_img_empty",
             roomId: "room_1",
             senderId: "user_1",

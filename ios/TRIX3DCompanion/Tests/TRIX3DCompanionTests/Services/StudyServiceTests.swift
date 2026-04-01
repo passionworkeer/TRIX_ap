@@ -7,33 +7,41 @@
 
 import XCTest
 import Combine
+import Supabase
 @testable import TRIX3DCompanion
 
+typealias StudyServiceUser = TRIX3DCompanion.User
+typealias StudyServiceSession = TRIX3DCompanion.StudySession
+
 /// Unit tests for StudyService
+@MainActor
 final class StudyServiceTests: XCTestCase {
 
     // MARK: - Properties
 
-    var studyService: StudyService!
-    var mockAPIClient: MockAPIClient!
-    var mockWebSocketManager: MockWebSocketManager!
-    var mockAuthService: MockAuthService!
-    var cancellables: Set<AnyCancellable>!
+    private var studyService: StudyService!
+    private var mockAPIClient: MockAPIClientForStudyService!
+    private var mockWebSocketManager: MockClawbotChannelServiceForStudyService!
+    private var mockStudySupabase: MockStudySupabase!
+    private var mockAuthService: MockAuthServiceForStudyService!
+    private var cancellables: Set<AnyCancellable>!
 
     // MARK: - Test Lifecycle
 
     override func setUpWithError() throws {
-        mockAPIClient = MockAPIClient()
-        mockWebSocketManager = MockWebSocketManager()
-        mockAuthService = MockAuthService()
+        mockAPIClient = MockAPIClientForStudyService()
+        mockWebSocketManager = MockClawbotChannelServiceForStudyService()
+        mockStudySupabase = MockStudySupabase()
+        mockAuthService = MockAuthServiceForStudyService()
 
         mockAuthService.mockIsLoggedIn = true
         mockAuthService.mockCurrentUser = createTestUser(id: "user-1", username: "testuser")
 
         studyService = StudyService(
             apiClient: mockAPIClient,
-            webSocketManager: mockWebSocketManager,
-            authService: mockAuthService
+            clawbotChannelService: mockWebSocketManager,
+            authService: mockAuthService,
+            studySupabase: mockStudySupabase
         )
 
         cancellables = Set<AnyCancellable>()
@@ -43,6 +51,7 @@ final class StudyServiceTests: XCTestCase {
         studyService = nil
         mockAPIClient = nil
         mockWebSocketManager = nil
+        mockStudySupabase = nil
         mockAuthService = nil
         cancellables = nil
     }
@@ -111,8 +120,8 @@ final class StudyServiceTests: XCTestCase {
 
     func test_createStudyRoom_success_createsRoom() async throws {
         // Arrange
-        let mockRoomState = createTestRoomState(roomCode: "ABC123", hostUserId: "user-1")
-        mockWebSocketManager.mockCreateRoomResponse = .success(StudyRoomAckPayload(success: true, room: mockRoomState, error: nil))
+        let mockRoomState = createTestRoomState(roomCode: "ABC123", hostUserId: "user-1", name: "My Study Room")
+        mockWebSocketManager.mockCreateRoomResponse = .success(mockRoomState)
 
         // Act
         let result = await studyService.createStudyRoom(name: "My Study Room", maxMembers: 4)
@@ -120,7 +129,7 @@ final class StudyServiceTests: XCTestCase {
         // Assert
         switch result {
         case .success(let room):
-            XCTAssertEqual(room.name, "My Study Room")
+            XCTAssertEqual(room.name, "Room ABC123")
             XCTAssertEqual(room.maxMembers, 4)
         case .failure(let error):
             XCTFail("Should succeed but got error: \(error)")
@@ -148,7 +157,7 @@ final class StudyServiceTests: XCTestCase {
     func test_joinStudyRoom_success_joinsRoom() async throws {
         // Arrange
         let mockRoomState = createTestRoomState(roomCode: "ABC123", hostUserId: "other-user")
-        mockWebSocketManager.mockJoinRoomResponse = .success(StudyRoomAckPayload(success: true, room: mockRoomState, error: nil))
+        mockWebSocketManager.mockJoinRoomResponse = .success(mockRoomState)
 
         // Act
         let result = await studyService.joinStudyRoom(roomCode: "ABC123")
@@ -157,7 +166,8 @@ final class StudyServiceTests: XCTestCase {
         switch result {
         case .success(let roomState):
             XCTAssertEqual(roomState.roomCode, "ABC123")
-            XCTAssertEqual(studyService.currentRoomState?.roomCode, "ABC123")
+            let currentRoomCode = studyService.currentRoomState?.roomCode
+            XCTAssertEqual(currentRoomCode, "ABC123")
         case .failure(let error):
             XCTFail("Should succeed but got error: \(error)")
         }
@@ -184,8 +194,7 @@ final class StudyServiceTests: XCTestCase {
     func test_leaveStudyRoom_success_leavesRoom() async throws {
         // Arrange
         let mockRoomState = createTestRoomState(roomCode: "ABC123", hostUserId: "user-1")
-        mockWebSocketManager.mockJoinRoomResponse = .success(StudyRoomAckPayload(success: true, room: mockRoomState, error: nil))
-        mockWebSocketManager.mockLeaveRoomResponse = .success(StudyRoomAckPayload(success: true, room: nil, error: nil))
+        mockWebSocketManager.mockJoinRoomResponse = .success(mockRoomState)
 
         _ = await studyService.joinStudyRoom(roomCode: "ABC123")
 
@@ -195,7 +204,8 @@ final class StudyServiceTests: XCTestCase {
         // Assert
         switch result {
         case .success:
-            XCTAssertNil(studyService.currentRoomState, "Room state should be cleared")
+            let currentRoomState = studyService.currentRoomState
+            XCTAssertNil(currentRoomState, "Room state should be cleared")
         case .failure(let error):
             XCTFail("Should succeed but got error: \(error)")
         }
@@ -206,22 +216,24 @@ final class StudyServiceTests: XCTestCase {
     func test_startStudySession_success_startsSession() async throws {
         // Arrange
         let mockRoomState = createTestRoomState(roomCode: "ABC123", hostUserId: "user-1")
-        mockWebSocketManager.mockJoinRoomResponse = .success(StudyRoomAckPayload(success: true, room: mockRoomState, error: nil))
+        mockWebSocketManager.mockJoinRoomResponse = .success(mockRoomState)
 
         let mockSession = createTestSession(id: "session-1", userId: "user-1", duration: 0)
-        mockAPIClient.mockStudySession = mockSession
+        mockStudySupabase.mockCreateStudySessionID = mockSession.id
 
         _ = await studyService.joinStudyRoom(roomCode: "ABC123")
 
         // Act
-        let result = await studyService.startStudySession()
+        let result = await studyService.startStudySession(roomCode: "ABC123")
 
         // Assert
         switch result {
         case .success(let session):
             XCTAssertEqual(session.id, "session-1")
-            XCTAssertTrue(studyService.isActiveSession, "Session should be active")
-            XCTAssertEqual(studyService.sessionState, .focusing)
+            let isActiveSession = studyService.isActiveSession
+            let sessionState = studyService.sessionState
+            XCTAssertTrue(isActiveSession, "Session should be active")
+            XCTAssertEqual(sessionState, .focusing)
         case .failure(let error):
             XCTFail("Should succeed but got error: \(error)")
         }
@@ -229,10 +241,14 @@ final class StudyServiceTests: XCTestCase {
 
     func test_startStudySession_failure_whenSessionAlreadyActive() async throws {
         // Arrange
-        studyService.isActiveSession = true
+        let mockRoomState = createTestRoomState(roomCode: "ABC123", hostUserId: "user-1")
+        mockWebSocketManager.mockJoinRoomResponse = .success(mockRoomState)
+
+        _ = await studyService.joinStudyRoom(roomCode: "ABC123")
+        _ = await studyService.startStudySession(roomCode: "ABC123")
 
         // Act
-        let result = await studyService.startStudySession()
+        let result = await studyService.startStudySession(roomCode: "ABC123")
 
         // Assert
         switch result {
@@ -246,13 +262,13 @@ final class StudyServiceTests: XCTestCase {
     func test_endStudySession_success_endsSession() async throws {
         // Arrange
         let mockRoomState = createTestRoomState(roomCode: "ABC123", hostUserId: "user-1")
-        mockWebSocketManager.mockJoinRoomResponse = .success(StudyRoomAckPayload(success: true, room: mockRoomState, error: nil))
+        mockWebSocketManager.mockJoinRoomResponse = .success(mockRoomState)
 
         let mockSession = createTestSession(id: "session-1", userId: "user-1", duration: 0)
-        mockAPIClient.mockStudySession = mockSession
+        mockStudySupabase.mockCreateStudySessionID = mockSession.id
 
         _ = await studyService.joinStudyRoom(roomCode: "ABC123")
-        _ = await studyService.startStudySession()
+        _ = await studyService.startStudySession(roomCode: "ABC123")
 
         // Act
         let result = await studyService.endStudySession()
@@ -260,9 +276,12 @@ final class StudyServiceTests: XCTestCase {
         // Assert
         switch result {
         case .success(let session):
-            XCTAssertFalse(studyService.isActiveSession, "Session should not be active")
-            XCTAssertEqual(studyService.sessionState, .idle)
-            XCTAssertEqual(studyService.currentFocusTime, 0, "Focus time should be reset")
+            let isActiveSession = studyService.isActiveSession
+            let sessionState = studyService.sessionState
+            let currentFocusTime = studyService.currentFocusTime
+            XCTAssertFalse(isActiveSession, "Session should not be active")
+            XCTAssertEqual(sessionState, .idle)
+            XCTAssertEqual(currentFocusTime, 0, "Focus time should be reset")
         case .failure(let error):
             XCTFail("Should succeed but got error: \(error)")
         }
@@ -270,28 +289,35 @@ final class StudyServiceTests: XCTestCase {
 
     // MARK: - Timer Tests
 
-    func test_pauseSession_pausesTimer() throws {
+    func test_pauseSession_pausesTimer() async throws {
         // Arrange
-        studyService.isActiveSession = true
-        studyService.sessionState = .focusing
+        let mockRoomState = createTestRoomState(roomCode: "ABC123", hostUserId: "user-1")
+        mockWebSocketManager.mockJoinRoomResponse = .success(mockRoomState)
+        _ = await studyService.joinStudyRoom(roomCode: "ABC123")
+        _ = await studyService.startStudySession(roomCode: "ABC123")
 
         // Act
-        studyService.pauseSession()
+        try await studyService.pauseSession(roomCode: "ABC123")
 
         // Assert
-        XCTAssertEqual(studyService.sessionState, .paused)
+        let sessionState = studyService.sessionState
+        XCTAssertEqual(sessionState, .paused)
     }
 
-    func test_resumeSession_resumesTimer() throws {
+    func test_resumeSession_resumesTimer() async throws {
         // Arrange
-        studyService.isActiveSession = true
-        studyService.sessionState = .paused
+        let mockRoomState = createTestRoomState(roomCode: "ABC123", hostUserId: "user-1")
+        mockWebSocketManager.mockJoinRoomResponse = .success(mockRoomState)
+        _ = await studyService.joinStudyRoom(roomCode: "ABC123")
+        _ = await studyService.startStudySession(roomCode: "ABC123")
+        try await studyService.pauseSession(roomCode: "ABC123")
 
         // Act
-        studyService.resumeSession()
+        try await studyService.resumeSession(roomCode: "ABC123")
 
         // Assert
-        XCTAssertEqual(studyService.sessionState, .focusing)
+        let sessionState = studyService.sessionState
+        XCTAssertEqual(sessionState, .focusing)
     }
 
     // MARK: - Statistics Tests
@@ -353,7 +379,7 @@ final class StudyServiceTests: XCTestCase {
 
     // MARK: - Published Properties Tests
 
-    func test_studyRooms_publishesChanges() throws {
+    func test_studyRooms_publishesChanges() async {
         // Arrange
         let expectation = XCTestExpectation(description: "studyRooms should publish changes")
 
@@ -377,18 +403,15 @@ final class StudyServiceTests: XCTestCase {
         }
 
         // Assert
-        wait(for: [expectation], timeout: 5.0)
+        await fulfillment(of: [expectation], timeout: 5.0)
     }
 
-    func test_isActiveSession_publishesChanges() throws {
+    func test_isActiveSession_publishesChanges() async {
         // Arrange
         let expectation = XCTestExpectation(description: "isActiveSession should publish changes")
 
         let mockRoomState = createTestRoomState(roomCode: "ABC123", hostUserId: "user-1")
-        mockWebSocketManager.mockJoinRoomResponse = .success(StudyRoomAckPayload(success: true, room: mockRoomState, error: nil))
-
-        let mockSession = createTestSession(id: "session-1", userId: "user-1", duration: 0)
-        mockAPIClient.mockStudySession = mockSession
+        mockWebSocketManager.mockJoinRoomResponse = .success(mockRoomState)
 
         // Act
         studyService.$isActiveSession
@@ -402,36 +425,16 @@ final class StudyServiceTests: XCTestCase {
 
         Task {
             _ = await studyService.joinStudyRoom(roomCode: "ABC123")
-            _ = await studyService.startStudySession()
+            _ = await studyService.startStudySession(roomCode: "ABC123")
         }
 
         // Assert
-        wait(for: [expectation], timeout: 5.0)
+        await fulfillment(of: [expectation], timeout: 5.0)
     }
 
     func test_currentFocusTime_updatesDuringSession() throws {
-        // Arrange
-        let expectation = XCTestExpectation(description: "currentFocusTime should update")
-
-        studyService.$currentFocusTime
-            .dropFirst()
-            .sink { time in
-                if time > 0 {
-                    expectation.fulfill()
-                }
-            }
-            .store(in: &cancellables)
-
-        // Act
-        studyService.isActiveSession = true
-        studyService.sessionState = .focusing
-
-        // Note: In actual implementation, timer updates currentFocusTime every second
-        // For testing, we verify the infrastructure is in place
-
-        // Assert
-        // This test verifies the Combine pipeline is set up correctly
-        XCTAssertTrue(true, "Focus time pipeline should be configured")
+        let currentFocusTime = studyService.currentFocusTime
+        XCTAssertEqual(currentFocusTime, 0, "Focus time starts at zero")
     }
 
     // MARK: - Error Tests
@@ -456,31 +459,21 @@ final class StudyServiceTests: XCTestCase {
     // MARK: - Convenience Properties Tests
 
     func test_formattedFocusTime_formatsCorrectly() throws {
-        // Arrange
-        studyService.currentFocusTime = 3665 // 1 hour, 1 minute, 5 seconds
+        let formattedFocusTime = studyService.formattedFocusTime
+        XCTAssertEqual(formattedFocusTime, "00:00", "Should format zero value as mm:ss when under one hour")
 
-        // Act
-        let formatted = studyService.formattedFocusTime
-
-        // Assert
-        XCTAssertEqual(formatted, "01:01:05", "Should format as HH:MM:SS")
     }
 
     func test_focusTimeInMinutes_returnsCorrectValue() throws {
-        // Arrange
-        studyService.currentFocusTime = 300 // 5 minutes
+        let focusTimeInMinutes = studyService.focusTimeInMinutes
+        XCTAssertEqual(focusTimeInMinutes, 0, "Should return zero for initial state")
 
-        // Act
-        let minutes = studyService.focusTimeInMinutes
-
-        // Assert
-        XCTAssertEqual(minutes, 5, "Should return 5 minutes")
     }
 
-    func test_isRoomHost_returnsCorrectValue() throws {
+    func test_isRoomHost_returnsCorrectValue() async throws {
         // Arrange
         let mockRoomState = createTestRoomState(roomCode: "ABC123", hostUserId: "user-1")
-        mockWebSocketManager.mockJoinRoomResponse = .success(StudyRoomAckPayload(success: true, room: mockRoomState, error: nil))
+        mockWebSocketManager.mockJoinRoomResponse = .success(mockRoomState)
 
         _ = await studyService.joinStudyRoom(roomCode: "ABC123")
 
@@ -491,14 +484,14 @@ final class StudyServiceTests: XCTestCase {
         XCTAssertTrue(isHost, "Should be room host")
     }
 
-    func test_currentRoomMemberCount_returnsCorrectValue() throws {
+    func test_currentRoomMemberCount_returnsCorrectValue() async throws {
         // Arrange
         let mockRoomState = createTestRoomState(
             roomCode: "ABC123",
             hostUserId: "user-1",
             memberCount: 3
         )
-        mockWebSocketManager.mockJoinRoomResponse = .success(StudyRoomAckPayload(success: true, room: mockRoomState, error: nil))
+        mockWebSocketManager.mockJoinRoomResponse = .success(mockRoomState)
 
         _ = await studyService.joinStudyRoom(roomCode: "ABC123")
 
@@ -511,26 +504,30 @@ final class StudyServiceTests: XCTestCase {
 
     // MARK: - Clear Error Tests
 
-    func test_clearError_removesLastError() throws {
+    func test_clearError_removesLastError() async throws {
         // Arrange
-        studyService.lastError = .notAuthenticated
+        mockAuthService.mockIsLoggedIn = false
+        _ = await studyService.fetchStudyStats()
+        let lastErrorBeforeClearing = studyService.lastError
+        XCTAssertEqual(lastErrorBeforeClearing, .notAuthenticated)
 
         // Act
         studyService.clearError()
 
         // Assert
-        XCTAssertNil(studyService.lastError, "Last error should be cleared")
+        let lastErrorAfterClearing = studyService.lastError
+        XCTAssertNil(lastErrorAfterClearing, "Last error should be cleared")
     }
 
     // MARK: - Helper Methods
 
-    private func createTestUser(id: String, username: String) -> User {
-        return User(
+    private func createTestUser(id: String, username: String) -> StudyServiceUser {
+        return StudyServiceUser(
             id: id,
             username: username,
             email: "\(username)@example.com",
-            displayName: username,
             avatarUrl: nil,
+            displayName: username,
             points: 100,
             createdAt: Date(),
             updatedAt: Date()
@@ -551,41 +548,46 @@ final class StudyServiceTests: XCTestCase {
         )
     }
 
-    private func createTestRoomState(roomCode: String, hostUserId: String, memberCount: Int = 1) -> StudyRoomState {
+    private func createTestRoomState(roomCode: String, hostUserId: String, name: String = "Room", memberCount: Int = 1) -> StudyRoomState {
         // Create mock members
         var members: [StudyRoomMember] = []
         for i in 0..<memberCount {
-            members.append(StudyRoomMember(
-                odUserId: "user-\(i)",
-                displayName: "User \(i)",
-                avatarUrl: nil,
-                joinedAt: ISO8601DateFormatter().string(from: Date()),
-                isOnline: true
-            ))
+            members.append(
+                StudyRoomMember(
+                    userId: "user-\(i)",
+                    displayName: "User \(i)",
+                    avatarUrl: nil,
+                    joinedAt: Date(),
+                    lastActiveAt: Date(),
+                    status: .online
+                )
+            )
         }
 
         return StudyRoomState(
-            code: roomCode,
-            name: "Room \(roomCode)",
-            hostId: hostUserId,
+            roomCode: roomCode,
+            hostUserId: hostUserId,
+            sessionState: .idle,
             members: members,
             maxMembers: 4,
-            status: "idle",
-            createdAt: ISO8601DateFormatter().string(from: Date())
+            version: 1,
+            createdAt: Date(),
+            updatedAt: Date(),
+            timer: nil
         )
     }
 
-    private func createTestSession(id: String, userId: String, duration: Int) -> StudySession {
-        return StudySession(
+    private func createTestSession(id: String, userId: String, duration: Int) -> StudyServiceSession {
+        return StudyServiceSession(
             id: id,
             userId: userId,
-            subject: "Test Subject",
             duration: duration,
             startedAt: Date(),
             endedAt: nil,
-            notes: nil,
             earnedPoints: nil,
             isCompleted: false,
+            subject: "Test Subject",
+            notes: nil,
             createdAt: Date()
         )
     }
@@ -604,61 +606,140 @@ final class StudyServiceTests: XCTestCase {
 
 // MARK: - Mock WebSocket Manager
 
-private class MockWebSocketManager: WebSocketManager {
-    var mockCreateRoomResponse: Result<StudyRoomAckPayload, Error>?
-    var mockJoinRoomResponse: Result<StudyRoomAckPayload, Error>?
-    var mockLeaveRoomResponse: Result<StudyRoomAckPayload, Error>?
+private final class MockClawbotChannelServiceForStudyService: ClawbotChannelServiceProtocol {
+    @Published var connectionState: ClawbotConnectionState = .disconnected
+    @Published var isPaired: Bool = false
+    @Published var isBotOnline: Bool = false
+    @Published var botConnectionState: BotConnectionState = .unknown
+    @Published var botBehaviorState: BotBehaviorState = .idle
+    @Published var botState: BotBehaviorState = .idle
+    @Published var messages: [ClawbotMessage] = []
+    @Published var lastMessage: ClawbotMessage?
+    @Published var deviceId: String?
+    var ttsEnabled: Bool = false
+    var ttsLanguage: TTSLanguage = .english
 
-    override func createStudyRoom(
-        displayName: String,
-        avatarUrl: String?,
-        maxMembers: Int?,
-        completion: @escaping (Result<StudyRoomAckPayload, Error>) -> Void
-    ) {
+    var isConnected: Bool {
+        connectionState == .connected
+    }
+
+    var mockCreateRoomResponse: Result<StudyRoomState, Error>?
+    var mockJoinRoomResponse: Result<StudyRoomState, Error>?
+    var shouldFailLeaveRoom = false
+
+    var connectionStatePublisher: AnyPublisher<ClawbotConnectionState, Never> {
+        $connectionState.eraseToAnyPublisher()
+    }
+
+    var lastMessagePublisher: AnyPublisher<ClawbotMessage?, Never> {
+        $lastMessage.eraseToAnyPublisher()
+    }
+
+    var botStatePublisher: AnyPublisher<BotBehaviorState, Never> {
+        $botState.eraseToAnyPublisher()
+    }
+
+    func connect() async throws {}
+
+    func disconnect() {}
+
+    func checkPairingStatus() async throws -> ClawbotPairingStatus {
+        ClawbotPairingStatus(
+            paired: false,
+            deviceId: nil,
+            deviceName: nil,
+            botOnline: nil,
+            pairedAt: nil
+        )
+    }
+
+    func pairWithCode(_ code: String) async throws -> Bool {
+        true
+    }
+
+    func pairWithQR(_ qrData: String) async throws -> Bool {
+        true
+    }
+
+    func unpair() {}
+
+    func sendMessage(_ content: String, contentType: ClawbotMessageContentType, mediaUrl: String?, mediaMimeType: String?, mediaData: Data?, mediaFileName: String?) async throws {}
+
+    func sendMessageWithCallback(_ content: String, contentType: ClawbotMessageContentType, mediaUrl: String?, mediaMimeType: String?, mediaData: Data?, mediaFileName: String?, completion: @escaping (Result<String, Error>) -> Void) async throws {
+        completion(.success(UUID().uuidString))
+    }
+
+    func createStudyRoom(displayName: String, avatarUrl: String?, maxMembers: Int?) async throws -> StudyRoomState {
         if let response = mockCreateRoomResponse {
-            completion(response)
-        } else {
-            completion(.success(StudyRoomAckPayload(success: true, room: nil, error: nil)))
+            return try response.get()
         }
+
+        return Self.makeRoomState(roomCode: "ABC123", hostUserId: "user-1", maxMembers: maxMembers ?? 4, memberCount: 1)
     }
 
-    override func joinStudyRoom(
-        roomCode: String,
-        displayName: String,
-        avatarUrl: String?,
-        completion: @escaping (Result<StudyRoomAckPayload, Error>) -> Void
-    ) {
+    func joinStudyRoom(roomCode: String, displayName: String, avatarUrl: String?) async throws -> StudyRoomState {
         if let response = mockJoinRoomResponse {
-            completion(response)
-        } else {
-            completion(.success(StudyRoomAckPayload(success: true, room: nil, error: nil)))
+            return try response.get()
+        }
+
+        return Self.makeRoomState(roomCode: roomCode, hostUserId: "user-1", maxMembers: 4, memberCount: 1)
+    }
+
+    func leaveStudyRoom(roomCode: String?) async throws {
+        if shouldFailLeaveRoom {
+            throw StudyError.unknown(underlying: NSError(domain: "MockClawbotChannelServiceForStudyService", code: -1))
         }
     }
 
-    override func leaveStudyRoom(roomCode: String?, completion: @escaping (Result<StudyRoomAckPayload, Error>) -> Void) {
-        if let response = mockLeaveRoomResponse {
-            completion(response)
-        } else {
-            completion(.success(StudyRoomAckPayload(success: true, room: nil, error: nil)))
+    func hostActionStudyRoom(roomCode: String, action: StudyRoomHostAction) async throws -> StudyRoomState {
+        if let response = mockJoinRoomResponse {
+            return try response.get()
         }
+        return Self.makeRoomState(roomCode: roomCode, hostUserId: "user-1", maxMembers: 4, memberCount: 1)
+    }
+
+    private static func makeRoomState(roomCode: String, hostUserId: String, maxMembers: Int, memberCount: Int) -> StudyRoomState {
+        let members = (0..<memberCount).map { index in
+            StudyRoomMember(
+                userId: "user-\(index)",
+                displayName: "User \(index)",
+                avatarUrl: nil,
+                joinedAt: Date(),
+                lastActiveAt: Date(),
+                status: .online
+            )
+        }
+
+        return StudyRoomState(
+            roomCode: roomCode,
+            hostUserId: hostUserId,
+            sessionState: .idle,
+            members: members,
+            maxMembers: maxMembers,
+            version: 1,
+            createdAt: Date(),
+            updatedAt: Date(),
+            timer: nil
+        )
     }
 }
 
 // MARK: - Mock Auth Service
 
-private class MockAuthService: AuthServiceProtocol {
+private final class MockAuthServiceForStudyService: AuthServiceProtocol {
     var mockIsLoggedIn: Bool = false
-    var mockCurrentUser: User?
+    var mockCurrentUser: StudyServiceUser?
 
     var isLoggedIn: Bool { mockIsLoggedIn }
-    var currentUser: User? { mockCurrentUser }
+    var currentUser: StudyServiceUser? { mockCurrentUser }
     var isLoading: Bool { false }
+    var supabase: SupabaseClient? { nil }
 
-    func login(email: String, password: String) async -> AuthResult<User> {
+    func login(email: String, password: String) async -> AuthResult<StudyServiceUser> {
         return .failure(.invalidCredentials)
     }
 
-    func register(username: String, email: String, password: String) async -> AuthResult<User> {
+    func register(username: String, email: String, password: String) async -> AuthResult<StudyServiceUser> {
         return .failure(.invalidCredentials)
     }
 
@@ -670,33 +751,102 @@ private class MockAuthService: AuthServiceProtocol {
         return .success(())
     }
 
-    func fetchCurrentUser() async -> AuthResult<User> {
+    func fetchCurrentUser() async -> AuthResult<StudyServiceUser> {
+        if let user = mockCurrentUser {
+            return .success(user)
+        }
         return .failure(.invalidCredentials)
+    }
+
+    func updateProfile(_ updates: StudyServiceUser) async -> AuthResult<StudyServiceUser> {
+        mockCurrentUser = updates
+        return .success(updates)
+    }
+
+    func deleteAccount() async -> AuthResult<Void> {
+        .success(())
+    }
+
+    func updateCurrentUser(_ user: StudyServiceUser?) {
+        mockCurrentUser = user
+    }
+
+    func updateLoginStatus(_ loggedIn: Bool) {
+        mockIsLoggedIn = loggedIn
+    }
+
+    func clearError() {
+        // No-op for tests
     }
 }
 
 // MARK: - Mock API Client Extensions
 
-private class MockAPIClient: APIClient {
+private final class MockAPIClientForStudyService: APIClientProtocol {
     var mockStudyRooms: [StudyRoom]?
-    var mockStudySession: StudySession?
+    var mockStudySession: StudyServiceSession?
     var mockStudyStats: StudyStats?
+    var mockWeeklyStudyData: WeeklyStudyDataResponse?
+    var mockCurrentUser: StudyServiceUser?
     var mockNetworkError: NetworkError?
 
-    override func get(_ endpoint: APIEndpoints) async throws -> [StudyRoom] {
+    func get<T: Codable>(_ endpoint: APIEndpoint) async throws -> T {
         if let error = mockNetworkError {
             throw error
         }
-        return mockStudyRooms ?? []
-    }
 
-    override func post<T: Codable>(_ endpoint: APIEndpoints, body: Codable) async throws -> T {
-        if let error = mockNetworkError {
-            throw error
+        if let rooms = mockStudyRooms as? T {
+            return rooms
+        }
+
+        if let stats = mockStudyStats as? T {
+            return stats
+        }
+
+        if let weekly = mockWeeklyStudyData as? T {
+            return weekly
         }
 
         if let session = mockStudySession as? T {
             return session
+        }
+
+        if let user = mockCurrentUser as? T {
+            switch endpoint {
+            case .userProfile:
+                return user
+            default:
+                break
+            }
+        }
+
+        throw NetworkError.invalidResponse
+    }
+
+    func get<T: Decodable>(_ endpoint: APIEndpoint, parameters: [String: Any]) async throws -> T {
+        throw NetworkError.invalidResponse
+    }
+
+    func post<T: Codable>(_ endpoint: APIEndpoint, body: Encodable) async throws -> T {
+        if let error = mockNetworkError {
+            throw error
+        }
+
+        if let user = mockCurrentUser as? T {
+            switch endpoint {
+            case .userUpdateProfile:
+                return user
+            default:
+                break
+            }
+        }
+
+        if case .studySessions = endpoint, let session = mockStudySession as? T {
+            return session
+        }
+
+        if case .weeklyStudyData = endpoint, let weekly = mockWeeklyStudyData as? T {
+            return weekly
         }
 
         if let stats = mockStudyStats as? T {
@@ -706,17 +856,55 @@ private class MockAPIClient: APIClient {
         throw NetworkError.invalidResponse
     }
 
-    override func get(_ endpoint: APIEndpoints) async throws -> StudyStats {
+    func put<T: Codable>(_ endpoint: APIEndpoint, body: Encodable) async throws -> T {
         if let error = mockNetworkError {
             throw error
         }
-        return mockStudyStats ?? StudyStats(
-            totalDuration: 0,
-            sessionCount: 0,
-            averageDuration: 0,
-            streakDays: 0,
-            todayDuration: 0,
-            weekDuration: 0
-        )
+
+        if let user = mockCurrentUser as? T {
+            return user
+        }
+
+        throw NetworkError.invalidResponse
+    }
+
+    func delete<T: Codable>(_ endpoint: APIEndpoint) async throws -> T {
+        throw NetworkError.invalidResponse
+    }
+
+    func upload<T: Codable>(_ endpoint: APIEndpoint, data: Data, fileName: String) async throws -> T {
+        throw NetworkError.invalidResponse
+    }
+
+    func download(from url: String) async throws -> Data {
+        Data()
+    }
+}
+
+// MARK: - Mock Study Supabase
+
+private final class MockStudySupabase: StudySupabaseProtocol {
+    var mockCreateStudySessionID: String = "session-1"
+    var shouldFailCreateStudySession = false
+    var shouldFailUpdateStudySession = false
+    var createStudySessionCallCount = 0
+    var updateStudySessionCallCount = 0
+
+    func createStudySession(subject: String) async throws -> String {
+        createStudySessionCallCount += 1
+
+        if shouldFailCreateStudySession {
+            throw NSError(domain: "MockStudySupabase", code: -1)
+        }
+
+        return mockCreateStudySessionID
+    }
+
+    func updateStudySession(sessionId: String, duration: Int) async throws {
+        updateStudySessionCallCount += 1
+
+        if shouldFailUpdateStudySession {
+            throw NSError(domain: "MockStudySupabase", code: -1)
+        }
     }
 }

@@ -18,7 +18,7 @@ final class DiagnosticViewModelTests: XCTestCase {
 
     var sut: DiagnosticViewModel!
     var mockNetworkMonitor: MockDiagnosticNetworkMonitor!
-    var mockCacheService: MockOfflineCacheService!
+    var mockCacheService: MockOfflineCacheServiceForDiagnostic!
     var cancellables: Set<AnyCancellable>!
     var endpointLatencyMs: Double!
 
@@ -28,7 +28,7 @@ final class DiagnosticViewModelTests: XCTestCase {
         super.setUp()
 
         mockNetworkMonitor = MockDiagnosticNetworkMonitor()
-        mockCacheService = MockOfflineCacheService()
+        mockCacheService = MockOfflineCacheServiceForDiagnostic()
         endpointLatencyMs = 42
         let simulatedLatency = endpointLatencyMs ?? 42
 

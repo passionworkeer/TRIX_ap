@@ -12,6 +12,7 @@
 
 import XCTest
 import Combine
+import Supabase
 @testable import TRIX3DCompanion
 
 // MARK: - Mock API Client for UserStatsService
@@ -97,12 +98,13 @@ final class MockAPIClientForUserStats: ObservableObject, APIClientProtocol {
 final class MockAuthServiceForUserStats: AuthServiceProtocol {
     var isLoggedIn: Bool = false
     var shouldFailGetCurrentUser = false
+    var supabase: SupabaseClient? { nil }
 
-    var currentUser: User? {
+    var currentUser: AppUser? {
         if shouldFailGetCurrentUser {
             return nil
         }
-        return isLoggedIn ? User(
+        return isLoggedIn ? AppUser(
             id: "test_user_id",
             username: "test_user",
             email: "test@example.com",
@@ -131,11 +133,11 @@ final class MockAuthServiceForUserStats: AuthServiceProtocol {
     var isLoading: Bool = false
     var lastError: AuthError?
 
-    func login(email: String, password: String) async -> AuthResult<User> {
+    func login(email: String, password: String) async -> AuthResult<AppUser> {
         return .failure(.invalidCredentials)
     }
 
-    func register(username: String, email: String, password: String) async -> AuthResult<User> {
+    func register(username: String, email: String, password: String) async -> AuthResult<AppUser> {
         return .failure(.invalidCredentials)
     }
 
@@ -148,7 +150,7 @@ final class MockAuthServiceForUserStats: AuthServiceProtocol {
         return .success(())
     }
 
-    func fetchCurrentUser() async -> AuthResult<User> {
+    func fetchCurrentUser() async -> AuthResult<AppUser> {
         if let user = currentUser {
             return .success(user)
         }
@@ -157,7 +159,7 @@ final class MockAuthServiceForUserStats: AuthServiceProtocol {
 
     func clearError() {}
 
-    func updateProfile(_ updates: User) async -> AuthResult<User> {
+    func updateProfile(_ updates: AppUser) async -> AuthResult<AppUser> {
         return .success(updates)
     }
 
@@ -165,9 +167,11 @@ final class MockAuthServiceForUserStats: AuthServiceProtocol {
         return .success(())
     }
 
-    func updateCurrentUser(_ user: User?) {}
+    func updateCurrentUser(_ user: AppUser?) {}
 
     func updateLoginStatus(_ loggedIn: Bool) {}
+
+    func resetEmailConfirmationSuccess() {}
 
 }
 

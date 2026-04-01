@@ -44,8 +44,8 @@ final class LocationService: NSObject, ObservableObject, LocationServiceProtocol
 
     // MARK: - Dependencies
 
-    private let apiClient: APIClient
-    private let authService: AuthService
+    private let apiClient: any APIClientProtocol
+    private let authService: any AuthServiceProtocol
 
     // MARK: - Private Properties
 
@@ -74,11 +74,11 @@ final class LocationService: NSObject, ObservableObject, LocationServiceProtocol
     ///   - apiClient: API 客户端实例
     ///   - authService: 认证服务实例
     init(
-        apiClient: APIClient? = nil,
-        authService: AuthService? = nil
+        apiClient: (any APIClientProtocol)? = nil,
+        authService: (any AuthServiceProtocol)? = nil
     ) {
-        self.apiClient = apiClient ?? .shared
-        self.authService = authService ?? .shared
+        self.apiClient = apiClient ?? APIClient.shared
+        self.authService = authService ?? AuthService.shared
 
         // 初始化位置管理器
         self.locationManager = CLLocationManager()

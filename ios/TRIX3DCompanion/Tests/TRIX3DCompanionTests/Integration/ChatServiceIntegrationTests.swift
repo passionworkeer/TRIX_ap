@@ -17,6 +17,8 @@ import XCTest
 import Combine
 @testable import TRIX3DCompanion
 
+typealias ChatServiceIntegrationChatMessage = TRIX3DCompanion.ChatMessage
+
 // MARK: - Mock WebSocket Manager for Integration
 
 /// Mock WebSocket manager for testing real-time message functionality
@@ -104,7 +106,7 @@ final class MockWebSocketManagerForIntegration: ClawbotChannelServiceProtocol {
 
     // MARK: - Test Helpers
 
-    func simulateIncomingMessage(_ message: ChatMessage) {
+    func simulateIncomingMessage(_ message: ChatServiceIntegrationChatMessage) {
         lastMessage = ClawbotMessage(
             id: message.id,
             content: message.content,
@@ -140,8 +142,8 @@ final class MockAPIClientForChatIntegration: APIClientProtocol {
     var shouldFailRequests = false
     var mockError: NetworkError?
     var mockChatRooms: [ChatRoom] = []
-    var mockMessages: [ChatMessage] = []
-    var sentMessages: [ChatMessage] = []
+    var mockMessages: [ChatServiceIntegrationChatMessage] = []
+    var sentMessages: [ChatServiceIntegrationChatMessage] = []
     var uploadedMedia: [(data: Data, fileName: String, mimeType: String)] = []
 
     func get<T>(_ endpoint: APIEndpoint) async throws -> T where T: Decodable {
@@ -153,7 +155,7 @@ final class MockAPIClientForChatIntegration: APIClientProtocol {
             return mockChatRooms as! T
         }
 
-        if T.self == [ChatMessage].self {
+        if T.self == [ChatServiceIntegrationChatMessage].self {
             return mockMessages as! T
         }
 
@@ -166,7 +168,7 @@ final class MockAPIClientForChatIntegration: APIClientProtocol {
         }
 
         // Simulate sending message
-        if case let message as ChatMessage = body {
+        if case let message as ChatServiceIntegrationChatMessage = body {
             sentMessages.append(message)
             return message as! T
         }
@@ -213,26 +215,26 @@ final class MockAPIClientForChatIntegration: APIClientProtocol {
         return mockChatRooms
     }
 
-    func getChatMessages(roomId: String, page: Int, limit: Int) async throws -> [ChatMessage] {
+    func getChatMessages(roomId: String, page: Int, limit: Int) async throws -> [ChatServiceIntegrationChatMessage] {
         if shouldFailRequests {
             throw mockError ?? NetworkError.unauthorized
         }
         return mockMessages
     }
 
-    func getChatMessagesSince(roomId: String, since: Date) async throws -> [ChatMessage] {
+    func getChatMessagesSince(roomId: String, since: Date) async throws -> [ChatServiceIntegrationChatMessage] {
         if shouldFailRequests {
             throw mockError ?? NetworkError.unauthorized
         }
         return mockMessages.filter { $0.createdAt > since }
     }
 
-    func sendMessage(roomId: String, content: String, contentType: MessageType, mediaUrl: String?, mediaMimeType: String?) async throws -> ChatMessage {
+    func sendMessage(roomId: String, content: String, contentType: MessageType, mediaUrl: String?, mediaMimeType: String?) async throws -> ChatServiceIntegrationChatMessage {
         if shouldFailRequests {
             throw mockError ?? NetworkError.timeout
         }
 
-        let message = ChatMessage(
+        let message = ChatServiceIntegrationChatMessage(
             id: UUID().uuidString,
             roomId: roomId,
             senderId: "test-user",
@@ -263,7 +265,7 @@ final class MockAPIClientForChatIntegration: APIClientProtocol {
 
     // MARK: - Test Helpers
 
-    func configureMessages(_ messages: [ChatMessage]) {
+    func configureMessages(_ messages: [ChatServiceIntegrationChatMessage]) {
         mockMessages = messages
     }
 
@@ -780,8 +782,8 @@ final class ChatServiceIntegrationTests: XCTestCase {
         )
     }
 
-    private func createMockMessage(id: String, roomId: String, content: String, createdAt: Date = Date()) -> ChatMessage {
-        ChatMessage(
+    private func createMockMessage(id: String, roomId: String, content: String, createdAt: Date = Date()) -> ChatServiceIntegrationChatMessage {
+        ChatServiceIntegrationChatMessage(
             id: id,
             roomId: roomId,
             senderId: "test_user",
@@ -802,7 +804,7 @@ final class ChatServiceIntegrationTests: XCTestCase {
         )
     }
 
-    private func createMockMessages(count: Int, roomId: String) -> [ChatMessage] {
+    private func createMockMessages(count: Int, roomId: String) -> [ChatServiceIntegrationChatMessage] {
         (0..<count).map { i in
             createMockMessage(
                 id: "msg_\(i)",

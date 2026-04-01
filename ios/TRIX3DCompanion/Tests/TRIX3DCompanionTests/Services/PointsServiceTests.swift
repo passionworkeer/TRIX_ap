@@ -2,52 +2,33 @@
 //  PointsServiceTests.swift
 //  TRIX3DCompanionTests
 //
-//  Comprehensive unit tests for PointsService
+//  Focused unit tests for PointsService against the current API surface
 //
 
 import XCTest
 import Combine
 @testable import TRIX3DCompanion
 
-// MARK: - PointsResponse Extension for Testing
-
-extension PointsResponse {
-    init(
-        totalPoints: Int,
-        level: Int,
-        todayEarned: Int,
-        weekEarned: Int,
-        totalTransactions: Int
-    ) {
-        self.totalPoints = totalPoints
-        self.level = level
-        self.todayEarned = todayEarned
-        self.weekEarned = weekEarned
-        self.totalTransactions = totalTransactions
-    }
-}
-
-/// Comprehensive unit tests for PointsService
+@MainActor
 final class PointsServiceTests: XCTestCase {
 
-    // MARK: - Properties
-
-    var pointsService: PointsService!
-    var mockAPIClient: MockAPIClient!
-    var mockUserDefaults: MockUserDefaultsManager!
-    var cancellables: Set<AnyCancellable>!
-
-    // MARK: - Test Lifecycle
+    private var pointsService: PointsService!
+    private var mockAPIClient: PointsServiceTestsMockAPIClient!
+    private var mockUserDefaults: PointsServiceTestsMockUserDefaultsStore!
+    private var mockMutationService: PointsServiceTestsMockMutationService!
+    private var cancellables: Set<AnyCancellable>!
 
     override func setUpWithError() throws {
-        mockAPIClient = MockAPIClient()
-        mockUserDefaults = MockUserDefaultsManager()
-
+        mockAPIClient = PointsServiceTestsMockAPIClient()
+        mockUserDefaults = PointsServiceTestsMockUserDefaultsStore()
+        mockMutationService = PointsServiceTestsMockMutationService()
         pointsService = PointsService(
             apiClient: mockAPIClient,
-            userDefaults: mockUserDefaults
+            userDefaults: mockUserDefaults,
+            pointsMutationService: mockMutationService,
+            enablePeriodicSync: false,
+            performInitialRefresh: false
         )
-
         cancellables = Set<AnyCancellable>()
     }
 
@@ -55,817 +36,513 @@ final class PointsServiceTests: XCTestCase {
         pointsService = nil
         mockAPIClient = nil
         mockUserDefaults = nil
+        mockMutationService = nil
         cancellables = nil
     }
 
-    // MARK: - Refresh Points Tests
-
-    func test_refreshPoints_success() async throws {
-        // Arrange
-        let mockResponse = PointsResponse(
+    func test_refreshPoints_success() async {
+        mockAPIClient.mockPointsResponse = makePointsResponse(
             totalPoints: 1500,
             level: 2,
             todayEarned: 100,
             weekEarned: 300,
             totalTransactions: 15
         )
-        mockAPIClient.mockPointsResponse = mockResponse
 
-        // Act
         let result = await pointsService.refreshPoints()
 
-        // Assert
         switch result {
         case .success(let balance):
-            XCTAssertEqual(balance.totalPoints, 1500, "Should have correct total points")
-            XCTAssertEqual(balance.level, 2, "Should have correct level")
-            XCTAssertEqual(balance.todayEarned, 100, "Should have correct today earned")
+            XCTAssertEqual(balance.totalPoints, 1500)
+            XCTAssertEqual(balance.level, 2)
+            XCTAssertEqual(balance.todayEarned, 100)
+            XCTAssertEqual(pointsService.balance?.totalPoints, 1500)
         case .failure(let error):
-            XCTFail("Should succeed but got error: \(error)")
+            XCTFail("Expected success, got \(error)")
         }
     }
 
-    func test_refreshPoints_networkError() async throws {
-        // Arrange
+    func test_refreshPoints_networkError() async {
         mockAPIClient.mockNetworkError = .noConnection
 
-        // Act
         let result = await pointsService.refreshPoints()
 
-        // Assert
         switch result {
         case .success:
-            XCTFail("Should fail with network error")
+            XCTFail("Expected network error")
         case .failure(let error):
-            XCTAssertEqual(error, .networkError, "Should return network error")
+            XCTAssertEqual(error, .networkError)
+            XCTAssertEqual(pointsService.lastError, .networkError)
         }
     }
 
-    func test_refreshPoints_unauthorized() async throws {
-        // Arrange
+    func test_refreshPoints_unauthorized() async {
         mockAPIClient.mockNetworkError = .unauthorized
 
-        // Act
         let result = await pointsService.refreshPoints()
 
-        // Assert
         switch result {
         case .success:
-            XCTFail("Should fail with unauthorized")
+            XCTFail("Expected unauthorized")
         case .failure(let error):
-            XCTAssertEqual(error, .unauthorized, "Should return unauthorized error")
+            XCTAssertEqual(error, .unauthorized)
+            XCTAssertEqual(pointsService.lastError, .unauthorized)
         }
     }
 
-    // MARK: - Get Balance Tests
-
-    func test_getBalance_returnsCachedBalance() async {
-        // Arrange
-        let mockResponse = PointsResponse(
-            totalPoints: 2000,
-            level: 3,
-            todayEarned: 150,
-            weekEarned: 400,
-            totalTransactions: 20
-        )
-        mockAPIClient.mockPointsResponse = mockResponse
+    func test_getBalance_returnsCachedBalanceWithinSyncWindow() async {
+        mockAPIClient.mockPointsResponse = makePointsResponse(totalPoints: 2000, level: 3)
         _ = await pointsService.refreshPoints()
 
-        // Act
         let balance = await pointsService.getBalance()
 
-        // Assert
-        XCTAssertNotNil(balance, "Should return cached balance")
-        XCTAssertEqual(balance?.totalPoints, 2000, "Should have correct cached points")
+        XCTAssertEqual(balance?.totalPoints, 2000)
+        XCTAssertEqual(mockAPIClient.getPointsCallCount, 1)
     }
 
-    func test_getBalance_refreshesWhenStale() async {
-        // Arrange - First call sets initial balance
-        let firstResponse = PointsResponse(
-            totalPoints: 1000,
-            level: 1,
-            todayEarned: 50,
-            weekEarned: 200,
-            totalTransactions: 10
-        )
-        mockAPIClient.mockPointsResponse = firstResponse
-        _ = await pointsService.refreshPoints()
+    func test_getBalance_refreshesWhenNeverSynced() async {
+        mockAPIClient.mockPointsResponse = makePointsResponse(totalPoints: 2500, level: 4)
 
-        // Second response for refresh
-        let secondResponse = PointsResponse(
-            totalPoints: 2500,
-            level: 3,
-            todayEarned: 200,
-            weekEarned: 500,
-            totalTransactions: 25
-        )
-        mockAPIClient.mockPointsResponse = secondResponse
-
-        // Act - Wait for sync interval to pass (simulated by forcing refresh)
-        _ = await pointsService.refreshPoints()
         let balance = await pointsService.getBalance()
 
-        // Assert
-        XCTAssertEqual(balance?.totalPoints, 2500, "Should refresh stale balance")
+        XCTAssertEqual(balance?.totalPoints, 2500)
+        XCTAssertEqual(mockAPIClient.getPointsCallCount, 1)
     }
 
-    // MARK: - Load History Tests
-
-    func test_loadHistory_success() async throws {
-        // Arrange
-        let mockTransactions = [
-            PointsTransaction(
+    func test_loadHistory_success() async {
+        mockAPIClient.mockTransactions = [
+            makePointsTransaction(
                 id: "tx-1",
-                userId: "user-1",
                 pointsChange: 100,
                 balanceAfter: 1100,
                 type: .studyComplete,
-                description: "完成学习",
-                orderId: nil,
-                metadata: nil,
-                createdAt: Date()
+                description: "完成学习"
             ),
-            PointsTransaction(
+            makePointsTransaction(
                 id: "tx-2",
-                userId: "user-1",
                 pointsChange: 50,
                 balanceAfter: 1150,
                 type: .dailyLogin,
-                description: "每日登录",
-                orderId: nil,
-                metadata: nil,
-                createdAt: Date()
+                description: "每日登录"
             )
         ]
-        mockAPIClient.mockTransactions = mockTransactions
 
-        // Act
         let result = await pointsService.loadHistory()
 
-        // Assert
         switch result {
         case .success(let transactions):
-            XCTAssertEqual(transactions.count, 2, "Should return all transactions")
-            XCTAssertEqual(transactions[0].pointsChange, 100, "First transaction should have correct points")
+            XCTAssertEqual(transactions.count, 2)
+            XCTAssertEqual(transactions.first?.pointsChange, 100)
+            XCTAssertEqual(transactions.first?.type, .earned)
         case .failure(let error):
-            XCTFail("Should succeed but got error: \(error)")
+            XCTFail("Expected success, got \(error)")
         }
     }
 
-    func test_loadHistory_withTypeFilter() async throws {
-        // Arrange
-        let mockTransactions = [
-            PointsTransaction(
+    func test_loadHistory_withTypeFilter() async {
+        mockAPIClient.mockTransactions = [
+            makePointsTransaction(
                 id: "tx-1",
-                userId: "user-1",
                 pointsChange: 100,
                 balanceAfter: 1100,
-                type: .studyComplete,
-                description: "完成学习",
-                orderId: nil,
-                metadata: nil,
-                createdAt: Date()
+                type: .studyComplete
             ),
-            PointsTransaction(
+            makePointsTransaction(
                 id: "tx-2",
-                userId: "user-1",
                 pointsChange: -100,
                 balanceAfter: 1000,
-                type: .redeem,
-                description: "兑换商品",
-                orderId: "order-123",
-                metadata: nil,
-                createdAt: Date()
+                type: .redeem
             )
         ]
-        mockAPIClient.mockTransactions = mockTransactions
 
-        // Act
-        let filter = PointsHistoryFilter(type: .earned)
-        let result = await pointsService.loadHistory(filter: filter)
+        let result = await pointsService.loadHistory(filter: PointsHistoryFilter(type: .earned))
 
-        // Assert
         switch result {
         case .success(let transactions):
-            XCTAssertEqual(transactions.count, 1, "Should filter to earned transactions only")
-            XCTAssertEqual(transactions.first?.pointsChange, 100, "Should be earned transaction")
+            XCTAssertEqual(transactions.count, 1)
+            XCTAssertEqual(transactions.first?.pointsChange, 100)
+            XCTAssertEqual(transactions.first?.type, .earned)
         case .failure(let error):
-            XCTFail("Should succeed but got error: \(error)")
+            XCTFail("Expected success, got \(error)")
         }
     }
 
-    func test_loadHistory_withDateRangeFilter() async throws {
-        // Arrange
+    func test_loadHistory_withDateRangeFilter() async {
         let now = Date()
         let yesterday = Calendar.current.date(byAdding: .day, value: -1, to: now)!
 
-        let mockTransactions = [
-            PointsTransaction(
+        mockAPIClient.mockTransactions = [
+            makePointsTransaction(
                 id: "tx-1",
-                userId: "user-1",
                 pointsChange: 100,
                 balanceAfter: 1100,
                 type: .studyComplete,
-                description: "今天的学习",
-                orderId: nil,
-                metadata: nil,
                 createdAt: now
             ),
-            PointsTransaction(
+            makePointsTransaction(
                 id: "tx-2",
-                userId: "user-1",
                 pointsChange: 50,
                 balanceAfter: 1050,
                 type: .dailyLogin,
-                description: "昨天的登录",
-                orderId: nil,
-                metadata: nil,
                 createdAt: yesterday
             )
         ]
-        mockAPIClient.mockTransactions = mockTransactions
 
-        // Act - Filter for today only
-        let filter = PointsHistoryFilter(startDate: now, endDate: now)
+        let filter = PointsHistoryFilter(
+            startDate: now.addingTimeInterval(-1),
+            endDate: now.addingTimeInterval(1)
+        )
         let result = await pointsService.loadHistory(filter: filter)
 
-        // Assert
         switch result {
         case .success(let transactions):
-            XCTAssertEqual(transactions.count, 1, "Should filter by date range")
+            XCTAssertEqual(transactions.count, 1)
+            XCTAssertEqual(transactions.first?.id, "tx-1")
         case .failure(let error):
-            XCTFail("Should succeed but got error: \(error)")
+            XCTFail("Expected success, got \(error)")
         }
     }
 
-    func test_loadHistory_withPagination() async throws {
-        // Arrange
-        var mockTransactions: [PointsTransaction] = []
-        for i in 1...60 {
-            mockTransactions.append(PointsTransaction(
-                id: "tx-\(i)",
-                userId: "user-1",
+    func test_loadHistory_withPagination() async {
+        mockAPIClient.mockTransactions = (1...60).map { index in
+            makePointsTransaction(
+                id: "tx-\(index)",
                 pointsChange: 10,
-                balanceAfter: 1000 + (i * 10),
+                balanceAfter: 1000 + (index * 10),
                 type: .studyComplete,
-                description: "学习 #\(i)",
-                orderId: nil,
-                metadata: nil,
-                createdAt: Date()
-            ))
+                description: "学习 #\(index)"
+            )
         }
-        mockAPIClient.mockTransactions = mockTransactions
 
-        // Act - Load first page
         let filter = PointsHistoryFilter(limit: 20, offset: 0)
         let result = await pointsService.loadHistory(filter: filter)
 
-        // Assert
         switch result {
         case .success(let transactions):
-            XCTAssertEqual(transactions.count, 20, "Should return limited results")
+            XCTAssertEqual(transactions.count, 20)
+            XCTAssertEqual(transactions.first?.id, "tx-1")
+            XCTAssertEqual(mockAPIClient.lastHistoryPage, 1)
+            XCTAssertEqual(mockAPIClient.lastHistoryLimit, 20)
         case .failure(let error):
-            XCTFail("Should succeed but got error: \(error)")
+            XCTFail("Expected success, got \(error)")
         }
     }
 
-    // MARK: - Add Points Tests
-
-    func test_addPoints_success() async throws {
-        // Arrange
-        let pointsToAdd = 500
-        let mockResponse = PointsResponse(
+    func test_addPoints_success() async {
+        mockMutationService.mockResponse = makePointsResponse(
             totalPoints: 2000,
             level: 2,
             todayEarned: 500,
             weekEarned: 700,
             totalTransactions: 15
         )
-        mockAPIClient.mockPointsResponse = mockResponse
 
-        // Act
         let result = await pointsService.addPoints(
-            pointsToAdd,
+            500,
             description: "管理员奖励",
             metadata: ["source": "admin"]
         )
 
-        // Assert
         switch result {
         case .success(let balance):
-            XCTAssertEqual(balance.totalPoints, 2000, "Should have updated balance")
-        case .invalidAmount:
-            XCTFail("Should not return invalid amount")
-        case .failed(let error):
-            XCTFail("Should succeed but got error: \(error)")
+            XCTAssertEqual(balance.totalPoints, 2000)
+            XCTAssertEqual(mockMutationService.lastPointsDelta, 500)
+            XCTAssertEqual(mockMutationService.lastTransactionType, .adminAdjust)
+        default:
+            XCTFail("Expected success")
         }
     }
 
-    func test_addPoints_invalidAmount_zero() async {
-        // Arrange
-        let pointsToAdd = 0
-
-        // Act
+    func test_addPoints_invalidAmount() async {
         let result = await pointsService.addPoints(
-            pointsToAdd,
+            0,
             description: "无效积分",
             metadata: nil
         )
 
-        // Assert
-        XCTAssertEqual(result, .invalidAmount, "Should return invalid amount for zero")
+        switch result {
+        case .invalidAmount:
+            XCTAssertEqual(pointsService.lastError, .invalidAmount)
+        default:
+            XCTFail("Expected invalidAmount")
+        }
     }
 
-    func test_addPoints_invalidAmount_negative() async {
-        // Arrange
-        let pointsToAdd = -100
+    func test_addPoints_networkError() async {
+        mockMutationService.mockError = .noConnection
 
-        // Act
-        let result = await pointsService.addPoints(
-            pointsToAdd,
-            description: "负数积分",
-            metadata: nil
-        )
-
-        // Assert
-        XCTAssertEqual(result, .invalidAmount, "Should return invalid amount for negative")
-    }
-
-    func test_addPoints_networkError() async throws {
-        // Arrange
-        mockAPIClient.mockNetworkError = .noConnection
-
-        // Act
         let result = await pointsService.addPoints(
             100,
             description: "测试",
             metadata: nil
         )
 
-        // Assert
         switch result {
         case .failed(let error):
-            XCTAssertEqual(error, .networkError, "Should return network error")
+            XCTAssertEqual(error, .networkError)
+            XCTAssertEqual(pointsService.lastError, .networkError)
         default:
-            XCTFail("Should return failed with network error")
+            XCTFail("Expected failed(networkError)")
         }
     }
 
-    // MARK: - Deduct Points Tests
+    func test_deductPoints_success() async {
+        mockAPIClient.mockPointsResponse = makePointsResponse(totalPoints: 1000, level: 1)
+        _ = await pointsService.refreshPoints()
 
-    func test_deductPoints_success() async throws {
-        // Arrange
-        let pointsToDeduct = 200
-        let mockResponse = PointsResponse(
+        mockMutationService.mockResponse = makePointsResponse(
             totalPoints: 800,
             level: 1,
             todayEarned: 0,
             weekEarned: 0,
             totalTransactions: 15
         )
-        mockAPIClient.mockPointsResponse = mockResponse
 
-        // First set up balance
-        _ = await pointsService.refreshPoints()
-
-        // Act
         let result = await pointsService.deductPoints(
-            pointsToDeduct,
+            200,
             description: "兑换商品",
             metadata: ["product": "item-123"]
         )
 
-        // Assert
         switch result {
         case .success(let balance):
-            XCTAssertEqual(balance.totalPoints, 800, "Should have deducted balance")
-        case .insufficientBalance:
-            XCTFail("Should have sufficient balance")
-        case .invalidAmount:
-            XCTFail("Should not return invalid amount")
-        case .failed(let error):
-            XCTFail("Should succeed but got error: \(error)")
+            XCTAssertEqual(balance.totalPoints, 800)
+            XCTAssertEqual(mockMutationService.lastPointsDelta, -200)
+            XCTAssertEqual(mockMutationService.lastTransactionType, .redeem)
+        default:
+            XCTFail("Expected success")
         }
     }
 
-    func test_deductPoints_insufficientBalance() async throws {
-        // Arrange
-        let mockResponse = PointsResponse(
-            totalPoints: 100,
-            level: 1,
-            todayEarned: 0,
-            weekEarned: 0,
-            totalTransactions: 10
-        )
-        mockAPIClient.mockPointsResponse = mockResponse
+    func test_deductPoints_insufficientBalance() async {
+        mockAPIClient.mockPointsResponse = makePointsResponse(totalPoints: 100, level: 1)
         _ = await pointsService.refreshPoints()
 
-        // Act - Try to deduct more than available
         let result = await pointsService.deductPoints(
             500,
             description: "积分不足",
             metadata: nil
         )
 
-        // Assert
-        XCTAssertEqual(result, .insufficientBalance, "Should return insufficient balance")
+        switch result {
+        case .insufficientBalance:
+            XCTAssertEqual(pointsService.lastError, .insufficientBalance)
+        default:
+            XCTFail("Expected insufficientBalance")
+        }
     }
 
-    func test_deductPoints_invalidAmount_zero() async {
-        // Arrange
-        let pointsToDeduct = 0
-
-        // Act
+    func test_deductPoints_invalidAmount() async {
         let result = await pointsService.deductPoints(
-            pointsToDeduct,
+            -50,
             description: "测试",
             metadata: nil
         )
 
-        // Assert
-        XCTAssertEqual(result, .invalidAmount, "Should return invalid amount for zero")
+        switch result {
+        case .invalidAmount:
+            XCTAssertEqual(pointsService.lastError, .invalidAmount)
+        default:
+            XCTFail("Expected invalidAmount")
+        }
     }
 
-    func test_deductPoints_invalidAmount_negative() async {
-        // Arrange
-        let pointsToDeduct = -50
-
-        // Act
-        let result = await pointsService.deductPoints(
-            pointsToDeduct,
-            description: "测试",
-            metadata: nil
-        )
-
-        // Assert
-        XCTAssertEqual(result, .invalidAmount, "Should return invalid amount for negative")
-    }
-
-    // MARK: - Sync with Server Tests
-
-    func test_syncWithServer_success() async throws {
-        // Arrange
-        let mockResponse = PointsResponse(
+    func test_syncWithServer_success() async {
+        mockAPIClient.mockPointsResponse = makePointsResponse(
             totalPoints: 3000,
             level: 3,
             todayEarned: 300,
             weekEarned: 900,
             totalTransactions: 30
         )
-        mockAPIClient.mockPointsResponse = mockResponse
 
-        // Act
         let result = await pointsService.syncWithServer()
 
-        // Assert
         switch result {
         case .success:
-            XCTAssertTrue(true, "Should sync successfully")
+            XCTAssertEqual(pointsService.balance?.totalPoints, 3000)
         case .failure(let error):
-            XCTFail("Should succeed but got error: \(error)")
+            XCTFail("Expected success, got \(error)")
         }
     }
 
-    func test_syncWithServer_failure() async throws {
-        // Arrange
+    func test_syncWithServer_failure() async {
         mockAPIClient.mockNetworkError = .timeout
 
-        // Act
         let result = await pointsService.syncWithServer()
 
-        // Assert
         switch result {
         case .success:
-            XCTFail("Should fail with timeout")
+            XCTFail("Expected network error")
         case .failure(let error):
-            XCTAssertEqual(error, .networkError, "Should return network error")
+            XCTAssertEqual(error, .networkError)
+            XCTAssertEqual(pointsService.lastError, .networkError)
         }
     }
 
-    // MARK: - Published Properties Tests
-
     func test_balance_publishedChanges() async {
-        // Arrange
-        let expectation = XCTestExpectation(description: "balance should publish change")
+        let expectation = expectation(description: "balance should publish change")
 
         pointsService.$balance
             .dropFirst()
             .sink { balance in
-                if balance != nil {
+                if balance?.totalPoints == 5000 {
                     expectation.fulfill()
                 }
             }
             .store(in: &cancellables)
 
-        let mockResponse = PointsResponse(
-            totalPoints: 5000,
-            level: 5,
-            todayEarned: 500,
-            weekEarned: 1500,
-            totalTransactions: 50
-        )
-        mockAPIClient.mockPointsResponse = mockResponse
+        mockAPIClient.mockPointsResponse = makePointsResponse(totalPoints: 5000, level: 5)
 
-        // Act
         await pointsService.refreshPoints()
 
-        // Assert
-        wait(for: [expectation], timeout: 2.0)
+        await fulfillment(of: [expectation], timeout: 2.0)
     }
 
     func test_isLoading_updatesDuringRefresh() async {
-        // Arrange
-        let expectation = XCTestExpectation(description: "isLoading should update")
-        var loadingStates: [Bool] = []
+        let expectation = expectation(description: "isLoading should toggle")
+        var states: [Bool] = []
 
         pointsService.$isLoading
             .sink { isLoading in
-                loadingStates.append(isLoading)
-                if loadingStates.count >= 2 {
+                states.append(isLoading)
+                if states.contains(true), states.last == false {
                     expectation.fulfill()
                 }
             }
             .store(in: &cancellables)
 
-        mockAPIClient.mockPointsResponse = PointsResponse(
-            totalPoints: 1000,
-            level: 1,
-            todayEarned: 0,
-            weekEarned: 0,
-            totalTransactions: 0
-        )
+        mockAPIClient.mockPointsResponse = makePointsResponse(totalPoints: 1000, level: 1)
+        mockAPIClient.responseDelayNanos = 50_000_000
 
-        // Act
         await pointsService.refreshPoints()
 
-        // Assert
-        wait(for: [expectation], timeout: 2.0)
-        XCTAssertTrue(loadingStates.contains(true), "Should have loading state true")
-        XCTAssertTrue(loadingStates.contains(false), "Should have loading state false")
+        await fulfillment(of: [expectation], timeout: 2.0)
+        XCTAssertTrue(states.contains(true))
+        XCTAssertTrue(states.contains(false))
     }
 
     func test_isSyncing_updatesDuringSync() async {
-        // Arrange
-        let expectation = XCTestExpectation(description: "isSyncing should update")
+        let expectation = expectation(description: "isSyncing should toggle")
+        var states: [Bool] = []
 
         pointsService.$isSyncing
-            .dropFirst()
             .sink { isSyncing in
-                if !isSyncing {
+                states.append(isSyncing)
+                if states.contains(true), states.last == false {
                     expectation.fulfill()
                 }
             }
             .store(in: &cancellables)
 
-        mockAPIClient.mockPointsResponse = PointsResponse(
-            totalPoints: 1000,
-            level: 1,
-            todayEarned: 0,
-            weekEarned: 0,
-            totalTransactions: 0
-        )
+        mockAPIClient.mockPointsResponse = makePointsResponse(totalPoints: 1000, level: 1)
+        mockAPIClient.responseDelayNanos = 50_000_000
 
-        // Act
-        await pointsService.syncWithServer()
+        _ = await pointsService.syncWithServer()
 
-        // Assert
-        wait(for: [expectation], timeout: 2.0)
+        await fulfillment(of: [expectation], timeout: 2.0)
+        XCTAssertTrue(states.contains(true))
+        XCTAssertTrue(states.contains(false))
     }
 
     func test_lastError_setOnFailure() async {
-        // Arrange
-        mockAPIClient.mockNetworkError = .unauthorized
-        let expectation = XCTestExpectation(description: "lastError should be set")
+        let expectation = expectation(description: "lastError should publish")
 
         pointsService.$lastError
             .dropFirst()
             .sink { error in
-                if error != nil {
+                if error == .unauthorized {
                     expectation.fulfill()
                 }
             }
             .store(in: &cancellables)
 
-        // Act
-        await pointsService.refreshPoints()
+        mockAPIClient.mockNetworkError = .unauthorized
 
-        // Assert
-        wait(for: [expectation], timeout: 2.0)
-        XCTAssertNotNil(pointsService.lastError, "Should have last error set")
+        _ = await pointsService.refreshPoints()
+
+        await fulfillment(of: [expectation], timeout: 2.0)
+        XCTAssertEqual(pointsService.lastError, .unauthorized)
     }
-
-    // MARK: - Clear Error Tests
 
     func test_clearError_removesLastError() async {
-        // Arrange - Set an error
         mockAPIClient.mockNetworkError = .noConnection
-        await pointsService.refreshPoints()
-        XCTAssertNotNil(pointsService.lastError, "Should have error after failed request")
+        _ = await pointsService.refreshPoints()
+        XCTAssertEqual(pointsService.lastError, .networkError)
 
-        // Act
         pointsService.clearError()
 
-        // Assert
-        XCTAssertNil(pointsService.lastError, "Error should be cleared")
+        XCTAssertNil(pointsService.lastError)
     }
 
-    // MARK: - Transaction Type Mapping Tests
-
-    func test_transactionTypeMapping_earned() async throws {
-        // Arrange
-        let earnedTypes: [TransactionType] = [
-            .studyComplete, .studyStreak, .dailyLogin, .achievement, .socialShare
+    func test_transactionTypeMapping_coversCurrentCases() async {
+        mockAPIClient.mockTransactions = [
+            makePointsTransaction(id: "earned-study", pointsChange: 100, balanceAfter: 1100, type: .studyComplete),
+            makePointsTransaction(id: "earned-streak", pointsChange: 50, balanceAfter: 1150, type: .studyStreak),
+            makePointsTransaction(id: "earned-login", pointsChange: 20, balanceAfter: 1170, type: .dailyLogin),
+            makePointsTransaction(id: "earned-achievement", pointsChange: 30, balanceAfter: 1200, type: .achievement),
+            makePointsTransaction(id: "earned-share", pointsChange: 10, balanceAfter: 1210, type: .socialShare),
+            makePointsTransaction(id: "redeemed", pointsChange: -100, balanceAfter: 1110, type: .redeem),
+            makePointsTransaction(id: "admin", pointsChange: 500, balanceAfter: 1610, type: .adminAdjust)
         ]
 
-        let mockTransactions = earnedTypes.map { type in
-            PointsTransaction(
-                id: UUID().uuidString,
-                userId: "user-1",
-                pointsChange: 100,
-                balanceAfter: 1000,
-                type: type,
-                description: "Test",
-                orderId: nil,
-                metadata: nil,
-                createdAt: Date()
-            )
-        }
-        mockAPIClient.mockTransactions = mockTransactions
-
-        // Act
         let result = await pointsService.loadHistory()
 
-        // Assert
         switch result {
         case .success(let transactions):
-            for transaction in transactions {
-                XCTAssertEqual(transaction.type, .earned, "All should map to earned type")
-            }
-        case .failure:
-            XCTFail("Should succeed")
-        }
-    }
-
-    func test_transactionTypeMapping_redeemed() async throws {
-        // Arrange
-        let mockTransactions = [
-            PointsTransaction(
-                id: "tx-1",
-                userId: "user-1",
-                pointsChange: -100,
-                balanceAfter: 900,
-                type: .redeem,
-                description: "兑换",
-                orderId: "order-123",
-                metadata: nil,
-                createdAt: Date()
-            )
-        ]
-        mockAPIClient.mockTransactions = mockTransactions
-
-        // Act
-        let result = await pointsService.loadHistory()
-
-        // Assert
-        switch result {
-        case .success(let transactions):
-            XCTAssertEqual(transactions.first?.type, .redeemed, "Should map to redeemed")
-        case .failure:
-            XCTFail("Should succeed")
-        }
-    }
-
-    func test_transactionTypeMapping_admin() async throws {
-        // Arrange
-        let mockTransactions = [
-            PointsTransaction(
-                id: "tx-1",
-                userId: "user-1",
-                pointsChange: 500,
-                balanceAfter: 1500,
-                type: .adminAdjust,
-                description: "管理员调整",
-                orderId: nil,
-                metadata: nil,
-                createdAt: Date()
-            )
-        ]
-        mockAPIClient.mockTransactions = mockTransactions
-
-        // Act
-        let result = await pointsService.loadHistory()
-
-        // Assert
-        switch result {
-        case .success(let transactions):
-            XCTAssertEqual(transactions.first?.type, .admin, "Should map to admin")
-        case .failure:
-            XCTFail("Should succeed")
-        }
-    }
-
-    // MARK: - Error Mapping Tests
-
-    func test_errorMapping_noConnection() async {
-        // Arrange
-        mockAPIClient.mockNetworkError = .noConnection
-
-        // Act
-        let result = await pointsService.refreshPoints()
-
-        // Assert
-        switch result {
+            let mappedTypes = Dictionary(uniqueKeysWithValues: transactions.map { ($0.id, $0.type) })
+            XCTAssertEqual(mappedTypes["earned-study"], .earned)
+            XCTAssertEqual(mappedTypes["earned-streak"], .earned)
+            XCTAssertEqual(mappedTypes["earned-login"], .earned)
+            XCTAssertEqual(mappedTypes["earned-achievement"], .earned)
+            XCTAssertEqual(mappedTypes["earned-share"], .earned)
+            XCTAssertEqual(mappedTypes["redeemed"], .redeemed)
+            XCTAssertEqual(mappedTypes["admin"], .admin)
         case .failure(let error):
-            XCTAssertEqual(error, .networkError, "Should map to network error")
-        default:
-            XCTFail("Should return network error")
-        }
-    }
-
-    func test_errorMapping_timeout() async {
-        // Arrange
-        mockAPIClient.mockNetworkError = .timeout
-
-        // Act
-        let result = await pointsService.refreshPoints()
-
-        // Assert
-        switch result {
-        case .failure(let error):
-            XCTAssertEqual(error, .networkError, "Should map to network error")
-        default:
-            XCTFail("Should return network error")
+            XCTFail("Expected success, got \(error)")
         }
     }
 
     func test_errorMapping_customMessage() async {
-        // Arrange
-        mockAPIClient.mockNetworkError = .custom("服务器错误")
+        mockAPIClient.mockNetworkError = .custom(message: "服务器错误")
 
-        // Act
         let result = await pointsService.refreshPoints()
 
-        // Assert
         switch result {
         case .failure(let error):
-            if case .serverError(let message) = error {
-                XCTAssertEqual(message, "服务器错误", "Should preserve custom message")
-            } else {
-                XCTFail("Should return server error")
-            }
+            XCTAssertEqual(error, .serverError(message: "服务器错误"))
         default:
-            XCTFail("Should return error")
+            XCTFail("Expected serverError(message:)")
         }
     }
 
-    // MARK: - Caching Tests
+    func test_balanceCaching_storesAndLoadsCachedBalance() async {
+        mockAPIClient.mockPointsResponse = makePointsResponse(totalPoints: 1800, level: 2)
 
-    func test_balanceCaching() async throws {
-        // Arrange
-        let mockResponse = PointsResponse(
-            totalPoints: 1000,
-            level: 1,
-            todayEarned: 50,
-            weekEarned: 200,
-            totalTransactions: 10
+        _ = await pointsService.refreshPoints()
+
+        XCTAssertNotNil(mockUserDefaults.storedData["cached_points_balance"])
+
+        let cachedService = PointsService(
+            apiClient: mockAPIClient,
+            userDefaults: mockUserDefaults,
+            pointsMutationService: mockMutationService,
+            enablePeriodicSync: false,
+            performInitialRefresh: false
         )
-        mockAPIClient.mockPointsResponse = mockResponse
 
-        // Act - First call should hit API
-        let result1 = await pointsService.refreshPoints()
-        // Second call should use cache (if within sync interval)
-        let balance = await pointsService.getBalance()
-
-        // Assert
-        switch result1 {
-        case .success(let initialBalance):
-            XCTAssertEqual(balance?.totalPoints, initialBalance.totalPoints, "Cached balance should match")
-        case .failure:
-            XCTFail("First call should succeed")
-        }
+        XCTAssertEqual(cachedService.balance?.totalPoints, 1800)
+        XCTAssertEqual(cachedService.balance?.level, 2)
     }
 
-    // MARK: - PointsError Tests
-
-    func test_PointsError_descriptions() {
-        // Arrange & Assert
-        let networkError = PointsError.networkError
-        XCTAssertNotNil(networkError.localizedDescription, "networkError should have description")
-
-        let unauthorized = PointsError.unauthorized
-        XCTAssertNotNil(unauthorized.localizedDescription, "unauthorized should have description")
-
-        let insufficientBalance = PointsError.insufficientBalance
-        XCTAssertNotNil(insufficientBalance.localizedDescription, "insufficientBalance should have description")
-
-        let invalidAmount = PointsError.invalidAmount
-        XCTAssertNotNil(invalidAmount.localizedDescription, "invalidAmount should have description")
+    func test_pointsError_descriptions_exist() {
+        XCTAssertNotNil(PointsError.networkError.localizedDescription)
+        XCTAssertNotNil(PointsError.unauthorized.localizedDescription)
+        XCTAssertNotNil(PointsError.insufficientBalance.localizedDescription)
+        XCTAssertNotNil(PointsError.invalidAmount.localizedDescription)
     }
 
-    // MARK: - PointsResult Tests
-
-    func test_PointsResult_allCases() {
-        // Test all points result cases
+    func test_pointsResult_allCases() {
         let balance = PointsBalance(
             totalPoints: 1000,
             availablePoints: 1000,
@@ -882,194 +559,159 @@ final class PointsServiceTests: XCTestCase {
         let insufficient: PointsResult = .insufficientBalance
         let failed: PointsResult = .failed(error: .networkError)
 
-        // Assert - All cases should be creatable
-        switch success {
-        case .success: break
-        default: XCTFail("Should be success case")
-        }
+        if case .success = success {} else { XCTFail("Expected success") }
+        if case .invalidAmount = invalid {} else { XCTFail("Expected invalidAmount") }
+        if case .insufficientBalance = insufficient {} else { XCTFail("Expected insufficientBalance") }
+        if case .failed = failed {} else { XCTFail("Expected failed") }
+    }
 
-        switch invalid {
-        case .invalidAmount: break
-        default: XCTFail("Should be invalidAmount case")
-        }
+    private func makePointsResponse(
+        totalPoints: Int,
+        level: Int,
+        todayEarned: Int = 0,
+        weekEarned: Int = 0,
+        totalTransactions: Int = 0
+    ) -> PointsResponse {
+        PointsResponse(
+            totalPoints: totalPoints,
+            level: level,
+            todayEarned: todayEarned,
+            weekEarned: weekEarned,
+            totalTransactions: totalTransactions
+        )
+    }
 
-        switch insufficient {
-        case .insufficientBalance: break
-        default: XCTFail("Should be insufficientBalance case")
-        }
-
-        switch failed {
-        case .failed: break
-        default: XCTFail("Should be failed case")
-        }
+    private func makePointsTransaction(
+        id: String,
+        pointsChange: Int,
+        balanceAfter: Int,
+        type: TransactionType,
+        description: String = "Test",
+        createdAt: Date = Date()
+    ) -> PointsTransaction {
+        PointsTransaction(
+            id: id,
+            pointsChange: pointsChange,
+            type: type,
+            description: description,
+            balanceAfter: balanceAfter,
+            createdAt: createdAt
+        )
     }
 }
 
-// MARK: - Mock Classes
-
-class MockAPIClient: APIClient {
-    var mockPointsResponse: PointsResponse?
-    var mockTransactions: [PointsTransaction]?
+private final class PointsServiceTestsMockAPIClient: APIClientProtocol {
+    var mockPointsResponse = PointsResponse(
+        totalPoints: 0,
+        level: 0,
+        todayEarned: 0,
+        weekEarned: 0,
+        totalTransactions: 0
+    )
+    var mockTransactions: [PointsTransaction] = []
     var mockNetworkError: NetworkError?
+    var responseDelayNanos: UInt64 = 0
+    var getPointsCallCount = 0
+    var lastHistoryPage: Int?
+    var lastHistoryLimit: Int?
 
-    override func get<T: Codable>(_ endpoint: APIEndpoint) async throws -> T {
-        if let error = mockNetworkError {
-            throw error
-        }
-
-        if T.self == PointsResponse.self, let response = mockPointsResponse as? T {
-            return response
-        }
-
-        if T.self == [PointsTransaction].self, let transactions = mockTransactions as? T {
-            return transactions
-        }
-
-        throw NetworkError.unknown(NSError(domain: "Mock", code: -1))
+    func get<T: Codable>(_ endpoint: APIEndpoint) async throws -> T {
+        throw NetworkError.custom(message: "Not implemented in PointsServiceTestsMockAPIClient")
     }
 
-    override func getPointsHistory(page: Int, limit: Int) async throws -> [PointsTransaction] {
-        if let error = mockNetworkError {
-            throw error
-        }
-
-        return mockTransactions ?? []
+    func get<T: Decodable>(_ endpoint: APIEndpoint, parameters: [String : Any]) async throws -> T {
+        throw NetworkError.custom(message: "Not implemented in PointsServiceTestsMockAPIClient")
     }
 
-    override func post<T: Codable>(_ endpoint: APIEndpoint, parameters: Parameters? = nil, body: Encodable? = nil, headers: HTTPHeaders? = nil) async throws -> T {
-        if let error = mockNetworkError {
-            throw error
+    func post<T: Codable>(_ endpoint: APIEndpoint, body: Encodable) async throws -> T {
+        throw NetworkError.custom(message: "Not implemented in PointsServiceTestsMockAPIClient")
+    }
+
+    func put<T: Codable>(_ endpoint: APIEndpoint, body: Encodable) async throws -> T {
+        throw NetworkError.custom(message: "Not implemented in PointsServiceTestsMockAPIClient")
+    }
+
+    func delete<T: Codable>(_ endpoint: APIEndpoint) async throws -> T {
+        throw NetworkError.custom(message: "Not implemented in PointsServiceTestsMockAPIClient")
+    }
+
+    func upload<T: Codable>(_ endpoint: APIEndpoint, data: Data, fileName: String) async throws -> T {
+        throw NetworkError.custom(message: "Not implemented in PointsServiceTestsMockAPIClient")
+    }
+
+    func download(from url: String) async throws -> Data {
+        throw NetworkError.custom(message: "Not implemented in PointsServiceTestsMockAPIClient")
+    }
+
+    func getPoints() async throws -> PointsResponse {
+        getPointsCallCount += 1
+        if responseDelayNanos > 0 {
+            try await Task.sleep(nanoseconds: responseDelayNanos)
+        }
+        if let mockNetworkError {
+            throw mockNetworkError
+        }
+        return mockPointsResponse
+    }
+
+    func getPointsHistory(page: Int, limit: Int) async throws -> [PointsTransaction] {
+        lastHistoryPage = page
+        lastHistoryLimit = limit
+        if let mockNetworkError {
+            throw mockNetworkError
         }
 
-        if T.self == PointsResponse.self, let response = mockPointsResponse as? T {
-            return response
+        let start = max(0, (page - 1) * limit)
+        guard start < mockTransactions.count else {
+            return []
         }
 
-        throw NetworkError.unknown(NSError(domain: "Mock", code: -1))
+        let end = min(mockTransactions.count, start + limit)
+        return Array(mockTransactions[start..<end])
     }
 }
 
-class MockUserDefaultsManager: UserDefaultsManager {
+private final class PointsServiceTestsMockUserDefaultsStore: PointsServiceUserDefaultsStore {
     var storedData: [String: Data] = [:]
 
-    override func getData(forKey key: String) -> Data? {
-        return storedData[key]
+    func getData(forKey key: String) -> Data? {
+        storedData[key]
     }
 
-    override func setData(_ data: Data, forKey key: String) {
+    func setData(_ data: Data, forKey key: String) {
         storedData[key] = data
     }
 }
 
-// MARK: - Model Mocks
+private final class PointsServiceTestsMockMutationService: PointsMutationServiceProtocol {
+    var mockResponse = PointsResponse(
+        totalPoints: 0,
+        level: 0,
+        todayEarned: 0,
+        weekEarned: 0,
+        totalTransactions: 0
+    )
+    var mockError: NetworkError?
+    var lastPointsDelta: Int?
+    var lastTransactionType: TransactionType?
+    var lastDescription: String?
+    var lastMetadata: [String: String]?
 
-struct PointsResponse: Codable {
-    let totalPoints: Int
-    let level: Int
-    let todayEarned: Int
-    let weekEarned: Int
-    let totalTransactions: Int
-}
+    func applyPointsChange(
+        points delta: Int,
+        transactionType: TransactionType,
+        description: String,
+        metadata: [String : String]?
+    ) async throws -> PointsResponse {
+        lastPointsDelta = delta
+        lastTransactionType = transactionType
+        lastDescription = description
+        lastMetadata = metadata
 
-struct PointsTransaction: Codable {
-    let id: String
-    let userId: String
-    let pointsChange: Int
-    let balanceAfter: Int
-    let type: TransactionType
-    let description: String
-    let orderId: String?
-    let metadata: [String: String]?
-    let createdAt: Date
-}
-
-enum TransactionType: String, Codable {
-    case studyComplete
-    case studyStreak
-    case dailyLogin
-    case achievement
-    case socialShare
-    case redeem
-    case adminAdjust
-}
-
-struct PointsBalance {
-    let totalPoints: Int
-    let availablePoints: Int
-    let pendingPoints: Int
-    let level: Int
-    let todayEarned: Int
-    let weekEarned: Int
-    let totalTransactions: Int
-    let updatedAt: Date
-}
-
-struct PointsTransactionDetail {
-    let id: String
-    let userId: String
-    let pointsChange: Int
-    let balanceBefore: Int
-    let balanceAfter: Int
-    let type: PointsTransactionType
-    let description: String
-    let orderId: String?
-    let metadata: [String: String]?
-    let createdAt: Date
-}
-
-enum PointsTransactionType {
-    case earned
-    case redeemed
-    case admin
-}
-
-struct PointsHistoryFilter {
-    let type: PointsTransactionType?
-    let startDate: Date?
-    let endDate: Date?
-    let limit: Int
-    let offset: Int
-
-    init(type: PointsTransactionType? = nil, startDate: Date? = nil, endDate: Date? = nil, limit: Int = 50, offset: Int = 0) {
-        self.type = type
-        self.startDate = startDate
-        self.endDate = endDate
-        self.limit = limit
-        self.offset = offset
-    }
-}
-
-enum PointsError: Error, LocalizedError {
-    case networkError
-    case unauthorized
-    case insufficientBalance
-    case invalidAmount
-    case serverError(message: String)
-    case unknown(Error)
-
-    var errorDescription: String? {
-        switch self {
-        case .networkError:
-            return "网络错误，请检查连接"
-        case .unauthorized:
-            return "未授权，请重新登录"
-        case .insufficientBalance:
-            return "积分余额不足"
-        case .invalidAmount:
-            return "无效的积分数量"
-        case .serverError(let message):
-            return "服务器错误: \(message)"
-        case .unknown(let error):
-            return error.localizedDescription
+        if let mockError {
+            throw mockError
         }
+
+        return mockResponse
     }
-}
-
-typealias PointsResult = Result<PointsBalance, PointsError>
-
-enum PointsResult {
-    case success(balance: PointsBalance)
-    case invalidAmount
-    case insufficientBalance
-    case failed(error: PointsError)
 }

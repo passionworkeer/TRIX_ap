@@ -8,7 +8,10 @@
 import Foundation
 import UIKit
 import AuthenticationServices
+import Supabase
 @testable import TRIX3DCompanion
+
+typealias AppUser = TRIX3DCompanion.User
 
 // MARK: - Mock Auth Service for Testing
 
@@ -18,7 +21,7 @@ final class MockAuthService: AuthServiceProtocol {
 
     var isLoggedInValue: Bool = false
     var isLoadingValue: Bool = false
-    var currentUserValue: User?
+    var currentUserValue: AppUser?
     var shouldFailLogin: Bool = false
     var loginFailure: AuthError?
     var shouldFailRegister: Bool = false
@@ -46,7 +49,7 @@ final class MockAuthService: AuthServiceProtocol {
         return isLoggedInValue
     }
 
-    var currentUser: User? {
+    var currentUser: AppUser? {
         return currentUserValue
     }
 
@@ -54,7 +57,9 @@ final class MockAuthService: AuthServiceProtocol {
         return isLoadingValue
     }
 
-    func login(email: String, password: String) async -> AuthResult<User> {
+    var supabase: SupabaseClient? { nil }
+
+    func login(email: String, password: String) async -> AuthResult<AppUser> {
         lastLoginEmail = email
         lastLoginPassword = password
         loginCallCount += 1
@@ -74,7 +79,7 @@ final class MockAuthService: AuthServiceProtocol {
             return .failure(.invalidCredentials)
         }
 
-        let user = User(
+        let user = AppUser(
             id: UUID().uuidString,
             username: email.components(separatedBy: "@").first ?? "user",
             email: email,
@@ -105,7 +110,7 @@ final class MockAuthService: AuthServiceProtocol {
         return .success(user)
     }
 
-    func register(username: String, email: String, password: String) async -> AuthResult<User> {
+    func register(username: String, email: String, password: String) async -> AuthResult<AppUser> {
         lastRegisterUsername = username
         lastRegisterEmail = email
         lastRegisterPassword = password
@@ -128,7 +133,7 @@ final class MockAuthService: AuthServiceProtocol {
             return .failure(.emailConfirmationRequired(email: email))
         }
 
-        let user = User(
+        let user = AppUser(
             id: UUID().uuidString,
             username: username,
             email: email,
@@ -195,7 +200,7 @@ final class MockAuthService: AuthServiceProtocol {
         return .success(())
     }
 
-    func fetchCurrentUser() async -> AuthResult<User> {
+    func fetchCurrentUser() async -> AuthResult<AppUser> {
         fetchCurrentUserCallCount += 1
 
         if simulatedDelayNanoseconds > 0 {
@@ -208,7 +213,7 @@ final class MockAuthService: AuthServiceProtocol {
         return .failure(.invalidCredentials)
     }
 
-    func updateProfile(_ updates: User) async -> AuthResult<User> {
+    func updateProfile(_ updates: AppUser) async -> AuthResult<AppUser> {
         return .success(updates)
     }
 
@@ -216,7 +221,7 @@ final class MockAuthService: AuthServiceProtocol {
         return .success(())
     }
 
-    func updateCurrentUser(_ user: User?) {
+    func updateCurrentUser(_ user: AppUser?) {
         currentUserValue = user
     }
 
@@ -226,7 +231,9 @@ final class MockAuthService: AuthServiceProtocol {
 
     func clearError() {}
 
-    func reset() {
+    func resetEmailConfirmationSuccess() {}
+
+func reset() {
         isLoggedInValue = false
         isLoadingValue = false
         currentUserValue = nil
@@ -247,6 +254,67 @@ final class MockAuthService: AuthServiceProtocol {
         logoutCallCount = 0
         refreshTokenCallCount = 0
         fetchCurrentUserCallCount = 0
+    }
+}
+
+// MARK: - User Compatibility Initializer
+
+extension TRIX3DCompanion.User {
+    /// Backward-compatible initializer for older test fixtures.
+    init(
+        id: String,
+        username: String? = nil,
+        email: String? = nil,
+        avatarUrl: String? = nil,
+        avatarConfig: [String: AnyCodable]? = nil,
+        fullName: String? = nil,
+        displayName: String? = nil,
+        bio: String? = nil,
+        website: String? = nil,
+        points: Int? = nil,
+        isStudying: Bool? = nil,
+        companionId: String? = nil,
+        totalStudyTime: Int? = nil,
+        lastActiveAt: Date? = nil,
+        currentStreak: Int? = nil,
+        daysActive: Int? = nil,
+        interactionCount: Int? = nil,
+        showOnlineStatus: Bool? = nil,
+        school: String? = nil,
+        grade: String? = nil,
+        createdAt: Date? = nil,
+        updatedAt: Date? = nil
+    ) {
+        self = TRIX3DCompanion.User(
+            id: id,
+            username: username,
+            email: email,
+            phone: nil,
+            role: nil,
+            avatarUrl: avatarUrl,
+            avatarConfig: avatarConfig,
+            fullName: fullName,
+            displayName: displayName,
+            bio: bio,
+            website: website,
+            points: points,
+            isStudying: isStudying,
+            companionId: companionId,
+            totalStudyTime: totalStudyTime,
+            lastActiveAt: lastActiveAt,
+            lastSignInAt: nil,
+            currentStreak: currentStreak,
+            daysActive: daysActive,
+            interactionCount: interactionCount,
+            showOnlineStatus: showOnlineStatus,
+            school: school,
+            grade: grade,
+            confirmationSentAt: nil,
+            confirmedAt: nil,
+            emailConfirmedAt: nil,
+            createdAt: createdAt,
+            updatedAt: updatedAt
+        )
     }
 }
 
@@ -288,7 +356,7 @@ final class MockOAuthManager: OAuthManagerProtocol {
         return hasLinkedAccountsValue
     }
 
-    func signIn(with provider: OAuthProvider, presentationAnchor: ASPresentationAnchor?) async -> AuthResult<User> {
+    func signIn(with provider: OAuthProvider, presentationAnchor: ASPresentationAnchor?) async -> AuthResult<AppUser> {
         lastSignInProvider = provider
         signInCallCount += 1
 
@@ -300,7 +368,7 @@ final class MockOAuthManager: OAuthManagerProtocol {
             return .failure(.unknown(underlying: nil))
         }
 
-        let user = User(
+        let user = AppUser(
             id: UUID().uuidString,
             username: provider.rawValue + "_user",
             email: "oauth_\(provider.rawValue)@example.com",
@@ -407,8 +475,8 @@ extension MockAuthService {
         email: String = "test@example.com",
         username: String = "test_user",
         displayName: String = "Test User"
-    ) -> User {
-        User(
+    ) -> AppUser {
+        AppUser(
             id: id,
             username: username,
             email: email,

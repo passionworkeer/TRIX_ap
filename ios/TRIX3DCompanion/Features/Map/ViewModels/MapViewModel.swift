@@ -108,7 +108,11 @@ final class MapViewModel: ObservableObject {
 
     /// Initialize MapViewModel
     /// - Parameter locationService: Location service dependency
-    init(locationService: (any LocationServiceProtocol)? = nil, mapSearchService: (any MapSearchServiceProtocol)? = nil) {
+    init(
+        locationService: (any LocationServiceProtocol)? = nil,
+        mapSearchService: (any MapSearchServiceProtocol)? = nil,
+        autoLoad: Bool = true
+    ) {
         self.locationService = locationService ?? LocationService.shared
         self.mapSearchService = mapSearchService ?? MapSearchService.shared
 
@@ -123,6 +127,8 @@ final class MapViewModel: ObservableObject {
 
         // Check location permission
         checkLocationPermission()
+
+        guard autoLoad else { return }
 
         // Preload demo friend markers so the first render has stable data.
         loadMockFriends()

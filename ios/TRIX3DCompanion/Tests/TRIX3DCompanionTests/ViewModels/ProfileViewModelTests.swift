@@ -15,6 +15,7 @@
 
 import XCTest
 import Combine
+import Supabase
 @testable import TRIX3DCompanion
 
 // MARK: - Mock Profile Dependencies
@@ -23,14 +24,15 @@ import Combine
 final class MockAuthServiceForProfile: AuthServiceProtocol {
     var isLoggedInValue = true
     var isLoadingValue = false
-    var mockUser: User?
+    var mockUser: AppUser?
     var shouldFailUpdate = false
+    var supabase: SupabaseClient? { nil }
 
     var isLoggedIn: Bool {
         return isLoggedInValue
     }
 
-    var currentUser: User? {
+    var currentUser: AppUser? {
         return mockUser
     }
 
@@ -40,11 +42,11 @@ final class MockAuthServiceForProfile: AuthServiceProtocol {
 
     // supabase is provided by AuthServiceProtocol extension
 
-    func login(email: String, password: String) async -> AuthResult<User> {
+    func login(email: String, password: String) async -> AuthResult<AppUser> {
         return .failure(.invalidCredentials)
     }
 
-    func register(username: String, email: String, password: String) async -> AuthResult<User> {
+    func register(username: String, email: String, password: String) async -> AuthResult<AppUser> {
         return .failure(.invalidCredentials)
     }
 
@@ -56,14 +58,14 @@ final class MockAuthServiceForProfile: AuthServiceProtocol {
         return .success(())
     }
 
-    func fetchCurrentUser() async -> AuthResult<User> {
+    func fetchCurrentUser() async -> AuthResult<AppUser> {
         if let user = mockUser {
             return .success(user)
         }
         return .failure(.invalidCredentials)
     }
 
-    func updateProfile(_ updates: User) async -> AuthResult<User> {
+    func updateProfile(_ updates: AppUser) async -> AuthResult<AppUser> {
         if shouldFailUpdate {
             return .failure(.unknown(underlying: nil))
         }
@@ -75,7 +77,7 @@ final class MockAuthServiceForProfile: AuthServiceProtocol {
         return .success(())
     }
 
-    func updateCurrentUser(_ user: User?) {
+    func updateCurrentUser(_ user: AppUser?) {
         mockUser = user
     }
 
@@ -84,6 +86,8 @@ final class MockAuthServiceForProfile: AuthServiceProtocol {
     }
 
     func clearError() {}
+
+    func resetEmailConfirmationSuccess() {}
 }
 
 // MARK: - Mock API Client for Profile
@@ -92,7 +96,7 @@ final class MockAuthServiceForProfile: AuthServiceProtocol {
 final class MockAPIClientForProfile: APIClientProtocol {
     var shouldFailRequests = false
     var mockError: NetworkError?
-    var mockUser: User?
+    var mockUser: AppUser?
     var mockUserStats: UserStats?
     var mockPointsResponse: PointsResponse?
 
@@ -101,7 +105,7 @@ final class MockAPIClientForProfile: APIClientProtocol {
             throw mockError ?? NetworkError.unauthorized
         }
 
-        if T.self == User.self, let user = mockUser {
+        if T.self == AppUser.self, let user = mockUser {
             return user as! T
         }
 
@@ -141,7 +145,7 @@ final class MockAPIClientForProfile: APIClientProtocol {
         throw NetworkError.custom(message: "Not implemented")
     }
 
-    func getUserProfile() async throws -> User {
+    func getUserProfile() async throws -> AppUser {
         if shouldFailRequests {
             throw mockError ?? NetworkError.unauthorized
         }
@@ -153,12 +157,12 @@ final class MockAPIClientForProfile: APIClientProtocol {
         return mockUser
     }
 
-    func updateUserProfile(_ update: ProfileUpdate) async throws -> User {
+    func updateUserProfile(_ update: ProfileUpdate) async throws -> AppUser {
         if shouldFailRequests {
             throw mockError ?? NetworkError.unauthorized
         }
 
-        let baseUser = mockUser ?? User(
+        let baseUser = mockUser ?? AppUser(
             id: "test_user_id",
             username: "test_user",
             email: "test@example.com",
@@ -183,7 +187,7 @@ final class MockAPIClientForProfile: APIClientProtocol {
             updatedAt: Date()
         )
 
-        let updatedUser = User(
+        let updatedUser = AppUser(
             id: baseUser.id,
             username: update.username ?? baseUser.username,
             email: baseUser.email,
@@ -402,7 +406,7 @@ extension ProfileViewModelTests {
     func testUpdateBioWithNilValue() async {
         // Given
         var mockUser = createMockUser()
-        mockUser = User(
+        mockUser = AppUser(
             id: mockUser.id,
             username: mockUser.username,
             email: mockUser.email,
@@ -566,7 +570,7 @@ extension ProfileViewModelTests {
     func testTotalPointsReturnsCorrectValue() {
         // Given
         var mockUser = createMockUser()
-        mockUser = User(
+        mockUser = AppUser(
             id: mockUser.id,
             username: mockUser.username,
             email: mockUser.email,
@@ -599,7 +603,7 @@ extension ProfileViewModelTests {
     func testLevelCalculation() {
         // Given
         var mockUser = createMockUser()
-        mockUser = User(
+        mockUser = AppUser(
             id: mockUser.id,
             username: mockUser.username,
             email: mockUser.email,
@@ -684,8 +688,8 @@ extension ProfileViewModelTests {
 
 extension ProfileViewModelTests {
 
-    private func createMockUser() -> User {
-        User(
+    private func createMockUser() -> AppUser {
+        AppUser(
             id: "test_user_id",
             username: "test_user",
             email: "test@example.com",

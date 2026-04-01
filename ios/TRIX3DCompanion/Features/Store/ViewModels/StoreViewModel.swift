@@ -228,7 +228,7 @@ extension StoreViewModel {
                 type: .points,
                 points: 100,
                 subscriptionPeriod: nil,
-                product: Product.mock(id: StoreProductConfiguration.points100)
+                product: nil
             ),
             StoreProduct(
                 id: StoreProductConfiguration.points300,
@@ -239,7 +239,7 @@ extension StoreViewModel {
                 type: .points,
                 points: 330,
                 subscriptionPeriod: nil,
-                product: Product.mock(id: StoreProductConfiguration.points300)
+                product: nil
             )
         ]
 
@@ -253,21 +253,13 @@ extension StoreViewModel {
                 type: .subscription,
                 points: nil,
                 subscriptionPeriod: SubscriptionPeriod(value: 1, unit: .month),
-                product: Product.mock(id: StoreProductConfiguration.monthlySubscription)
+                product: nil
             )
         ]
 
         vm.userPoints = 150
 
         return vm
-    }
-}
-
-extension Product {
-    static func mock(id: String) -> Product {
-        // This is a mock - actual Product cannot be instantiated directly
-        // In practice, use real StoreKit products for preview
-        fatalError("Use actual StoreKit products for preview")
     }
 }
 #endif

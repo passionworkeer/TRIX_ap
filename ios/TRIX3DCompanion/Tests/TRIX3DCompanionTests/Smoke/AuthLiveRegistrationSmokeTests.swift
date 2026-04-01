@@ -59,8 +59,7 @@ final class AuthLiveRegistrationSmokeTests: LiveBackendSmokeTestCase {
     }
 
     private func isLiveSignupEnabled() -> Bool {
-        if let value = smokeEnvironmentValue(for: "TRIX_RUN_LIVE_SIGNUP")?
-            .trimmingCharacters(in: .whitespacesAndNewlines)
+        if let value = explicitSmokeToggleValue(for: "TRIX_RUN_LIVE_SIGNUP")?
             .lowercased() {
             return ["1", "true", "yes", "on"].contains(value)
         }

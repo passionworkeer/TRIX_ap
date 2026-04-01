@@ -374,11 +374,13 @@ final class DataSyncService: ObservableObject, DataSyncServiceProtocol {
     func sync(type: SyncType, priority: SyncPriority = .normal) async throws -> SyncResult {
         // Check network availability
         guard networkMonitor.currentStatus.isConnected else {
+            lastError = .networkUnavailable
             throw SyncError.networkUnavailable
         }
 
         // Check authentication
         guard authService.isLoggedIn else {
+            lastError = .authenticationRequired
             throw SyncError.authenticationRequired
         }
 
@@ -425,10 +427,12 @@ final class DataSyncService: ObservableObject, DataSyncServiceProtocol {
     /// - Returns: Overall sync result
     func syncAll(priority: SyncPriority = .normal) async throws -> SyncResult {
         guard networkMonitor.currentStatus.isConnected else {
+            lastError = .networkUnavailable
             throw SyncError.networkUnavailable
         }
 
         guard authService.isLoggedIn else {
+            lastError = .authenticationRequired
             throw SyncError.authenticationRequired
         }
 
@@ -545,7 +549,7 @@ final class DataSyncService: ObservableObject, DataSyncServiceProtocol {
         do {
             pendingMessages = try databaseManager.getPendingMessages()
         } catch {
-            throw SyncError.clientError(underlying: error)
+            throw mapClientSyncError(error)
         }
 
         guard !pendingMessages.isEmpty else {
@@ -581,7 +585,7 @@ final class DataSyncService: ObservableObject, DataSyncServiceProtocol {
         do {
             sessions = try databaseManager.getUnsyncedStudySessions()
         } catch {
-            throw SyncError.clientError(underlying: error)
+            throw mapClientSyncError(error)
         }
 
         guard !sessions.isEmpty else {
@@ -662,7 +666,7 @@ final class DataSyncService: ObservableObject, DataSyncServiceProtocol {
                 }
             }
         } catch {
-            throw SyncError.clientError(underlying: error)
+            throw mapClientSyncError(error)
         }
 
         do {
@@ -705,6 +709,16 @@ final class DataSyncService: ObservableObject, DataSyncServiceProtocol {
             timestamp: Date(),
             error: failed > 0 ? .unknown(underlying: nil) : nil
         )
+    }
+
+    private func mapClientSyncError(_ error: Error) -> SyncError {
+        if let databaseError = error as? DatabaseError,
+           case .queryFailed(let message) = databaseError,
+           message.localizedCaseInsensitiveContains("timeout") {
+            return .timeout
+        }
+
+        return .clientError(underlying: error)
     }
 
 

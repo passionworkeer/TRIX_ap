@@ -95,7 +95,7 @@ final class MockDiagnosticNetworkMonitor: NetworkMonitorProtocol {
 
 /// Mock implementation of OfflineCacheServiceProtocol for testing
 @MainActor
-final class MockOfflineCacheService: OfflineCacheServiceProtocol, ObservableObject, ClearCacheTracking {
+final class MockOfflineCacheServiceForDiagnostic: OfflineCacheServiceProtocol, ObservableObject {
 
     // MARK: - Published Properties
 
@@ -268,7 +268,7 @@ final class MockOfflineCacheService: OfflineCacheServiceProtocol, ObservableObje
         return simulatedCacheSizes[type] ?? 0
     }
 
-    func cacheUserProfile(_ user: User) async throws {
+    func cacheUserProfile(_ user: TRIX3DCompanion.User) async throws {
     }
 
     // MARK: - Helper Methods
@@ -304,11 +304,6 @@ final class MockOfflineCacheService: OfflineCacheServiceProtocol, ObservableObje
         case .studyRecords: return .sessions
         case .messages: return .temporary
         }
-    }
-
-    func setOriginalClearType(_ type: DiagnosticCacheType) {
-        originalClearType = type
-        clearType = type
     }
 
     func setStatistics(_ stats: CacheStatistics, for type: CacheType) {

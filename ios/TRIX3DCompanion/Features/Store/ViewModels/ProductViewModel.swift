@@ -370,7 +370,7 @@ extension ProductViewModel {
             type: .points,
             points: 580,
             subscriptionPeriod: nil,
-            product: Product.mock(id: StoreProductConfiguration.points500)
+            product: nil
         )
     }
 
@@ -385,7 +385,7 @@ extension ProductViewModel {
             type: .subscription,
             points: nil,
             subscriptionPeriod: SubscriptionPeriod(value: 1, unit: .month),
-            product: Product.mock(id: StoreProductConfiguration.monthlySubscription)
+            product: nil
         )
     }
 }

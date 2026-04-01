@@ -15,103 +15,75 @@ import Combine
 // MARK: - Mock Location Service for Map Tests
 
 @MainActor
-final class MockLocationServiceForMap: LocationServiceProtocol {
-    // MARK: - State
+final class MockLocationService: LocationServiceProtocol {
+    var currentLocation: CLLocation?
+    var authorizationStatus: CLAuthorizationStatus = .authorizedWhenInUse
+    var isLocationUpdating: Bool = false
 
-    var currentLocationValue: CLLocation?
-    var authorizationStatusValue: CLAuthorizationStatus = .authorizedWhenInUse
-    var isLocationUpdatingValue: Bool = false
-    var shouldFailFetchNearby: Bool = false
-    var shouldFailShareLocation: Bool = false
-
-    // MARK: - Mock Data
-
-    var mockNearbyLocations: [Location] = []
-    var mockShareResult: Bool = true
-
-    // MARK: - Call Tracking
+    var mockPermissionResult: Bool = true
+    var mockFetchNearbyLocationsResult: Result<[Location], LocationError>?
+    var mockShareLocationResult: Result<Bool, LocationError>?
+    var mockShouldReturnCachedLocation: Bool = true
 
     var requestPermissionCallCount: Int = 0
     var getCurrentLocationCallCount: Int = 0
     var startLocationUpdatesCallCount: Int = 0
     var stopLocationUpdatesCallCount: Int = 0
     var fetchNearbyLocationsCallCount: Int = 0
-    var lastFetchRadius: Double?
     var shareLocationCallCount: Int = 0
+    var lastFetchRadius: Double?
     var lastShareCompanionId: String?
-
-    // MARK: - LocationServiceProtocol
-
-    var currentLocation: CLLocation? {
-        return currentLocationValue
-    }
-
-    var authorizationStatus: CLAuthorizationStatus {
-        return authorizationStatusValue
-    }
-
-    var isLocationUpdating: Bool {
-        return isLocationUpdatingValue
-    }
 
     func requestPermission() -> Bool {
         requestPermissionCallCount += 1
-        authorizationStatusValue = .authorizedWhenInUse
-        return true
+        return mockPermissionResult
     }
 
     func getCurrentLocation() -> CLLocation? {
         getCurrentLocationCallCount += 1
-        return currentLocationValue
+        if mockShouldReturnCachedLocation {
+            return currentLocation
+        }
+        return currentLocation
     }
 
     func startLocationUpdates() {
         startLocationUpdatesCallCount += 1
-        isLocationUpdatingValue = true
+        isLocationUpdating = true
     }
 
     func stopLocationUpdates() {
         stopLocationUpdatesCallCount += 1
-        isLocationUpdatingValue = false
+        isLocationUpdating = false
     }
 
     func fetchNearbyLocations(radius: Double) async -> LocationResult<[Location]> {
         fetchNearbyLocationsCallCount += 1
         lastFetchRadius = radius
-
-        if shouldFailFetchNearby {
-            return .failure(.networkError(NSError(domain: "Test", code: -1)))
-        }
-
-        return .success(mockNearbyLocations)
+        return mockFetchNearbyLocationsResult ?? .success([])
     }
 
     func shareLocation(with companionId: String) async -> LocationResult<Bool> {
         shareLocationCallCount += 1
         lastShareCompanionId = companionId
-
-        if shouldFailShareLocation {
-            return .failure(.permissionDenied)
-        }
-
-        return .success(mockShareResult)
+        return mockShareLocationResult ?? .success(true)
     }
 
     func reset() {
-        currentLocationValue = nil
-        authorizationStatusValue = .authorizedWhenInUse
-        isLocationUpdatingValue = false
-        shouldFailFetchNearby = false
-        shouldFailShareLocation = false
-        mockNearbyLocations = []
-        mockShareResult = true
+        currentLocation = nil
+        authorizationStatus = .authorizedWhenInUse
+        isLocationUpdating = false
+        mockPermissionResult = true
+        mockFetchNearbyLocationsResult = nil
+        mockShareLocationResult = nil
+        mockShouldReturnCachedLocation = true
         requestPermissionCallCount = 0
         getCurrentLocationCallCount = 0
         startLocationUpdatesCallCount = 0
         stopLocationUpdatesCallCount = 0
         fetchNearbyLocationsCallCount = 0
-        lastFetchRadius = nil
         shareLocationCallCount = 0
+        lastFetchRadius = nil
         lastShareCompanionId = nil
     }
 }
@@ -409,7 +381,7 @@ final class MockImageUploadServiceForSnapshot: ImageUploadServiceProtocol {
 
 // MARK: - Helper Extensions
 
-extension MockLocationServiceForMap {
+extension MockLocationService {
     static func createMockLocation(
         id: String = "loc_1",
         name: String = "Test Location",

@@ -8,6 +8,20 @@
 import Foundation
 import Combine
 
+protocol PointsServiceUserDefaultsStore {
+    func getData(forKey key: String) -> Data?
+    func setData(_ data: Data, forKey key: String)
+}
+
+protocol PointsMutationServiceProtocol {
+    func applyPointsChange(
+        points delta: Int,
+        transactionType: TransactionType,
+        description: String,
+        metadata: [String: String]?
+    ) async throws -> PointsResponse
+}
+
 // MARK: - Points Service
 
 /// Main points service handling all points operations
@@ -37,8 +51,9 @@ final class PointsService: ObservableObject, PointsServiceProtocol {
 
     // MARK: - Dependencies
 
-    private let apiClient: APIClient
-    private let userDefaults: UserDefaultsManager
+    private let apiClient: any APIClientProtocol
+    private let userDefaults: any PointsServiceUserDefaultsStore
+    private let pointsMutationService: any PointsMutationServiceProtocol
 
     // MARK: - Private Properties
 
@@ -60,22 +75,33 @@ final class PointsService: ObservableObject, PointsServiceProtocol {
     /// - Parameters:
     ///   - apiClient: API client instance
     ///   - userDefaults: UserDefaults manager instance
+    ///   - pointsMutationService: Points mutation backend
+    ///   - enablePeriodicSync: Whether periodic sync timer should start
+    ///   - performInitialRefresh: Whether service should refresh points on init
     init(
-        apiClient: APIClient = .shared,
-        userDefaults: UserDefaultsManager = .shared
+        apiClient: any APIClientProtocol = APIClient.shared,
+        userDefaults: any PointsServiceUserDefaultsStore = UserDefaultsManager.shared,
+        pointsMutationService: any PointsMutationServiceProtocol = SupabaseService.shared,
+        enablePeriodicSync: Bool = true,
+        performInitialRefresh: Bool = true
     ) {
         self.apiClient = apiClient
         self.userDefaults = userDefaults
+        self.pointsMutationService = pointsMutationService
 
         // Load cached balance
         loadCachedBalance()
 
         // Setup periodic sync
-        setupPeriodicSync()
+        if enablePeriodicSync {
+            setupPeriodicSync()
+        }
 
         // Initial load
-        Task {
-            await refreshPoints()
+        if performInitialRefresh {
+            Task {
+                await refreshPoints()
+            }
         }
     }
 
@@ -248,7 +274,7 @@ final class PointsService: ObservableObject, PointsServiceProtocol {
         lastError = nil
 
         do {
-            let response = try await SupabaseService.shared.applyPointsChange(
+            let response = try await pointsMutationService.applyPointsChange(
                 points: points,
                 transactionType: .adminAdjust,
                 description: description,
@@ -312,7 +338,7 @@ final class PointsService: ObservableObject, PointsServiceProtocol {
         lastError = nil
 
         do {
-            let response = try await SupabaseService.shared.applyPointsChange(
+            let response = try await pointsMutationService.applyPointsChange(
                 points: -points,
                 transactionType: .redeem,
                 description: description,
@@ -443,3 +469,6 @@ struct DeductPointsRequest: Codable {
     let description: String
     let metadata: [String: String]?
 }
+
+extension UserDefaultsManager: PointsServiceUserDefaultsStore {}
+extension SupabaseService: PointsMutationServiceProtocol {}

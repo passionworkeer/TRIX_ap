@@ -32,6 +32,14 @@ protocol APIClientProtocol {
     func getPoints() async throws -> PointsResponse
     func getPointsHistory(page: Int, limit: Int) async throws -> [PointsTransaction]
     func deleteSnapshot(id: String) async throws
+    func getNearbyLocations(radius: Double) async throws -> [Location]
+    func shareLocation(_ request: ShareLocationRequest) async throws -> ShareLocationResponse
+    func verifyReceipt(_ request: ReceiptVerificationRequest) async throws -> ReceiptVerificationResponse
+    func getOrders(page: Int, limit: Int) async throws -> OrdersListResponse
+    func getOrder(orderId: String) async throws -> OrderDetailsResponse
+    func cancelOrder(orderId: String) async throws
+    func getSubscription() async throws -> SubscriptionStatusResponse
+    func restorePurchases() async throws -> RestorePurchasesResponse
 }
 
 /// Chat-specific API methods for testing
@@ -75,6 +83,30 @@ extension APIClientProtocol {
 extension APIClientProtocol {
     func getPoints() async throws -> PointsResponse { throw NetworkError.custom(message: "Not implemented") }
     func getPointsHistory(page: Int, limit: Int) async throws -> [PointsTransaction] { throw NetworkError.custom(message: "Not implemented") }
+    func getNearbyLocations(radius: Double) async throws -> [Location] {
+        try await get(.locationNearby(radius: radius))
+    }
+    func shareLocation(_ request: ShareLocationRequest) async throws -> ShareLocationResponse {
+        try await post(.locationShare, body: request)
+    }
+    func verifyReceipt(_ request: ReceiptVerificationRequest) async throws -> ReceiptVerificationResponse {
+        try await post(.verifyReceipt, body: request)
+    }
+    func getOrders(page: Int, limit: Int) async throws -> OrdersListResponse {
+        try await get(.getOrders, parameters: ["page": page, "limit": limit])
+    }
+    func getOrder(orderId: String) async throws -> OrderDetailsResponse {
+        try await get(.getOrder(id: orderId))
+    }
+    func cancelOrder(orderId: String) async throws {
+        let _: EmptyResponse = try await put(.cancelOrder(id: orderId), body: EmptyRequest())
+    }
+    func getSubscription() async throws -> SubscriptionStatusResponse {
+        try await get(.getSubscription)
+    }
+    func restorePurchases() async throws -> RestorePurchasesResponse {
+        try await post(.restorePurchases, body: EmptyRequest())
+    }
 }
 
 /// API Client for making HTTP requests

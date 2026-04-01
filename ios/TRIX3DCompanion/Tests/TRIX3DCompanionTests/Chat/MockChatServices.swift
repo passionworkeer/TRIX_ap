@@ -10,11 +10,12 @@ import Foundation
 import Combine
 @testable import TRIX3DCompanion
 
-// MARK: - Mock ClawbotChannelService
+typealias ChatMocksChatMessage = TRIX3DCompanion.ChatMessage
+
+// MARK: - Mock Chat ClawbotChannelService
 
 /// Minimal mock for ClawbotChannelService - needed to construct ChatService
-@MainActor
-final class MockClawbotChannelService: ObservableObject, ClawbotChannelServiceProtocol {
+final class MockChatClawbotChannelService: ObservableObject, ClawbotChannelServiceProtocol {
 
     @Published var connectionState: ClawbotConnectionState = .disconnected
     @Published var isPaired: Bool = false
@@ -120,7 +121,7 @@ final class MockChatService: ObservableObject, ChatServiceProtocol {
     // MARK: - Published Properties (ChatServiceProtocol)
 
     @Published private(set) var chatRooms: [ChatRoom] = []
-    @Published private(set) var currentMessages: [ChatMessage] = []
+    @Published private(set) var currentMessages: [ChatMocksChatMessage] = []
     @Published private(set) var isLoadingRooms: Bool = false
     @Published private(set) var isLoadingMessages: Bool = false
     @Published var isConnected: Bool = false
@@ -131,7 +132,7 @@ final class MockChatService: ObservableObject, ChatServiceProtocol {
 
     // MARK: - Test-Accessible Cache
 
-    var messagesCache: [String: [ChatMessage]] = [:]
+    var messagesCache: [String: [ChatMocksChatMessage]] = [:]
 
     // MARK: - Call Tracking
 
@@ -185,7 +186,7 @@ final class MockChatService: ObservableObject, ChatServiceProtocol {
         return .success(chatRooms)
     }
 
-    func fetchMessages(roomId: String, before: Date?) async -> ChatResult<[ChatMessage]> {
+    func fetchMessages(roomId: String, before: Date?) async -> ChatResult<[ChatMocksChatMessage]> {
         fetchMessagesCallCount += 1
         lastFetchMessagesRoomId = roomId
         lastFetchMessagesBefore = before
@@ -209,7 +210,7 @@ final class MockChatService: ObservableObject, ChatServiceProtocol {
         type: MessageType = .text,
         mediaUrl: String? = nil,
         mediaMimeType: String? = nil
-    ) async -> ChatResult<ChatMessage> {
+    ) async -> ChatResult<ChatMocksChatMessage> {
         sendMessageCallCount += 1
         lastSendMessageRoomId = roomId
         lastSendMessageContent = content
@@ -226,7 +227,7 @@ final class MockChatService: ObservableObject, ChatServiceProtocol {
             return .failure(error)
         }
 
-        let message = ChatMessage(
+        let message = ChatMocksChatMessage(
             id: UUID().uuidString,
             roomId: roomId,
             senderId: mockAuthService.currentUser?.id ?? "local-user",
@@ -293,7 +294,7 @@ final class MockChatService: ObservableObject, ChatServiceProtocol {
         if var messages = messagesCache[roomId],
            let index = messages.firstIndex(where: { $0.id == messageId }) {
             let old = messages[index]
-            messages[index] = ChatMessage(
+            messages[index] = ChatMocksChatMessage(
                 id: old.id, roomId: old.roomId, senderId: old.senderId, sender: old.sender,
                 content: old.content, messageType: old.messageType, mediaUrl: old.mediaUrl,
                 mediaMimeType: old.mediaMimeType, mediaDuration: old.mediaDuration,
@@ -341,7 +342,7 @@ final class MockChatService: ObservableObject, ChatServiceProtocol {
         chatRooms = rooms
     }
 
-    func setMockMessages(_ messages: [ChatMessage], forRoom roomId: String) {
+    func setMockMessages(_ messages: [ChatMocksChatMessage], forRoom roomId: String) {
         messagesCache[roomId] = messages
         if currentRoomId == roomId {
             currentMessages = messages
@@ -349,12 +350,12 @@ final class MockChatService: ObservableObject, ChatServiceProtocol {
     }
 
     /// Overload that sets messages for the current room
-    func setMockMessages(_ messages: [ChatMessage]) {
+    func setMockMessages(_ messages: [ChatMocksChatMessage]) {
         guard let roomId = currentRoomId else { return }
         setMockMessages(messages, forRoom: roomId)
     }
 
-    func addMockMessage(_ message: ChatMessage) {
+    func addMockMessage(_ message: ChatMocksChatMessage) {
         if messagesCache[message.roomId] == nil {
             messagesCache[message.roomId] = []
         }
@@ -366,7 +367,7 @@ final class MockChatService: ObservableObject, ChatServiceProtocol {
 
     func simulateIncomingMessage(_ content: String, from sender: MessageSender = .bot) {
         guard let roomId = currentRoomId else { return }
-        let message = ChatMessage(
+        let message = ChatMocksChatMessage(
             id: UUID().uuidString,
             roomId: roomId,
             senderId: sender == .user ? (mockAuthService.currentUser?.id ?? "user") : "bot",
@@ -397,11 +398,11 @@ final class MockChatService: ObservableObject, ChatServiceProtocol {
     }
 }
 
-// MARK: - MockAPIClient
+    // MARK: - Mock Chat API Client
 
 /// Mock implementation of APIClientProtocol for Chat tests
 @MainActor
-final class MockAPIClient: APIClientProtocol {
+final class MockChatAPIClient: APIClientProtocol {
 
     // MARK: - Call Tracking
 
@@ -422,7 +423,7 @@ final class MockAPIClient: APIClientProtocol {
     var shouldFail = false
     var errorToThrow: Error = NetworkError.custom(message: "Mock error")
     var mockChatRooms: [ChatRoom] = []
-    var mockMessages: [ChatMessage] = []
+    var mockMessages: [ChatMocksChatMessage] = []
     var mockFriendRecommendations: [APIFriendRecommendation] = []
 
     // MARK: - APIClientProtocol
@@ -484,19 +485,19 @@ final class MockAPIClient: APIClientProtocol {
         return mockChatRooms
     }
 
-    func getChatMessages(roomId: String, page: Int, limit: Int) async throws -> [ChatMessage] {
+    func getChatMessages(roomId: String, page: Int, limit: Int) async throws -> [ChatMocksChatMessage] {
         getCallCount += 1
         return mockMessages
     }
 
-    func getChatMessagesSince(roomId: String, since: Date) async throws -> [ChatMessage] {
+    func getChatMessagesSince(roomId: String, since: Date) async throws -> [ChatMocksChatMessage] {
         getCallCount += 1
         return mockMessages.filter { $0.createdAt > since }
     }
 
-    func sendMessage(roomId: String, content: String, contentType: MessageType, mediaUrl: String?, mediaMimeType: String?) async throws -> ChatMessage {
+    func sendMessage(roomId: String, content: String, contentType: MessageType, mediaUrl: String?, mediaMimeType: String?) async throws -> ChatMocksChatMessage {
         postCallCount += 1
-        return ChatMessage(
+        return ChatMocksChatMessage(
             id: UUID().uuidString, roomId: roomId, senderId: "user",
             sender: .user, content: content, messageType: contentType,
             mediaUrl: mediaUrl, mediaMimeType: mediaMimeType,
@@ -551,7 +552,7 @@ final class MockAPIClient: APIClientProtocol {
     }
 
     func setMockChatRooms(_ rooms: [ChatRoom]) { mockChatRooms = rooms }
-    func setMockMessages(_ messages: [ChatMessage]) { mockMessages = messages }
+    func setMockMessages(_ messages: [ChatMocksChatMessage]) { mockMessages = messages }
     func setMockFriendRecommendations(_ recommendations: [APIFriendRecommendation]) {
         mockFriendRecommendations = recommendations
     }
@@ -859,8 +860,8 @@ extension MockChatService {
         content: String = "Hello",
         sender: MessageSender = .user,
         messageType: MessageType = .text
-    ) -> ChatMessage {
-        ChatMessage(
+    ) -> ChatMocksChatMessage {
+        ChatMocksChatMessage(
             id: id,
             roomId: roomId,
             senderId: sender == .user ? "current-user" : "other-user",
@@ -882,9 +883,9 @@ extension MockChatService {
     }
 
     /// Creates multiple mock messages for pagination testing
-    static func makeMockMessages(count: Int, roomId: String = "room-1") -> [ChatMessage] {
+    static func makeMockMessages(count: Int, roomId: String = "room-1") -> [ChatMocksChatMessage] {
         (0..<count).map { index in
-            ChatMessage(
+            ChatMocksChatMessage(
                 id: "msg-\(index)",
                 roomId: roomId,
                 senderId: index % 2 == 0 ? "user-1" : "user-2",

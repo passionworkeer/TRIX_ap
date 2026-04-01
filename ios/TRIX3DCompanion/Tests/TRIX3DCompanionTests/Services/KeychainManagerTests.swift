@@ -189,13 +189,27 @@ final class KeychainManagerTests: XCTestCase {
 
         // Then
         XCTAssertNotNil(deviceId1)
-        XCTAssertTrue(UUID(uuidString: deviceId1) != nil, "Should be valid UUID")
+        XCTAssertTrue(
+            isValidGeneratedDeviceId(deviceId1),
+            "Should use the current secure device ID format"
+        )
+        XCTAssertEqual(sut.getDeviceId(), deviceId1)
 
         // Given - 第二次调用应该返回相同的 ID
         let deviceId2 = sut.getOrCreateDeviceId()
 
         // Then
         XCTAssertEqual(deviceId1, deviceId2)
+    }
+
+    private func isValidGeneratedDeviceId(_ value: String) -> Bool {
+        guard value.hasPrefix("trix_") else { return false }
+
+        let rawIdentifier = String(value.dropFirst("trix_".count))
+        let hexCharacterSet = CharacterSet(charactersIn: "0123456789abcdef")
+
+        return rawIdentifier.count == 64 &&
+            rawIdentifier.rangeOfCharacter(from: hexCharacterSet.inverted) == nil
     }
 
     // MARK: - Biometric Settings Tests
@@ -225,10 +239,10 @@ final class KeychainManagerTests: XCTestCase {
     func testSaveSession() throws {
         // Given
         let session = UserSession(
+            id: "\(testTokenPrefix)session-id",
+            userId: "\(testTokenPrefix)user123",
             accessToken: "\(testTokenPrefix)access",
             refreshToken: "\(testTokenPrefix)refresh",
-            sessionToken: "\(testTokenPrefix)session",
-            userId: "\(testTokenPrefix)user123",
             expiresAt: Date().addingTimeInterval(3600)
         )
 
@@ -238,7 +252,6 @@ final class KeychainManagerTests: XCTestCase {
         // Then
         XCTAssertEqual(sut.getAccessToken(), session.accessToken)
         XCTAssertEqual(sut.getRefreshToken(), session.refreshToken)
-        XCTAssertEqual(sut.getSessionToken(), session.sessionToken)
         XCTAssertEqual(sut.getUserId(), session.userId)
     }
 
@@ -255,10 +268,10 @@ final class KeychainManagerTests: XCTestCase {
 
         // Given - 创建完整会话
         let session = UserSession(
+            id: "\(testTokenPrefix)session-id",
+            userId: "\(testTokenPrefix)user123",
             accessToken: "\(testTokenPrefix)access",
             refreshToken: "\(testTokenPrefix)refresh",
-            sessionToken: "\(testTokenPrefix)session",
-            userId: "\(testTokenPrefix)user123",
             expiresAt: Date().addingTimeInterval(3600)
         )
         try sut.saveSession(session)
@@ -274,10 +287,10 @@ final class KeychainManagerTests: XCTestCase {
     func testClearSession() throws {
         // Given - 创建完整会话
         let session = UserSession(
+            id: "\(testTokenPrefix)session-id",
+            userId: "\(testTokenPrefix)user123",
             accessToken: "\(testTokenPrefix)access",
             refreshToken: "\(testTokenPrefix)refresh",
-            sessionToken: "\(testTokenPrefix)session",
-            userId: "\(testTokenPrefix)user123",
             expiresAt: Date().addingTimeInterval(3600)
         )
         try sut.saveSession(session)

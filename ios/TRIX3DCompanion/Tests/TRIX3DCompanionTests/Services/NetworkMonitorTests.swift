@@ -11,6 +11,7 @@ import Combine
 @testable import TRIX3DCompanion
 
 /// Comprehensive unit tests for NetworkMonitor
+@MainActor
 final class NetworkMonitorTests: XCTestCase {
 
     // MARK: - Properties
@@ -22,6 +23,8 @@ final class NetworkMonitorTests: XCTestCase {
 
     override func setUpWithError() throws {
         networkMonitor = NetworkMonitor.shared
+        networkMonitor.stopMonitoring()
+        networkMonitor.currentStatus = .disconnected
         cancellables = Set<AnyCancellable>()
     }
 
@@ -148,8 +151,13 @@ final class NetworkMonitorTests: XCTestCase {
             }
             .store(in: &cancellables)
 
-        // Act - Trigger status change by starting monitoring
-        networkMonitor.startMonitoring()
+        // Act
+        networkMonitor.currentStatus = NetworkStatus(
+            isConnected: true,
+            connectionType: .wifi,
+            quality: .excellent,
+            timestamp: Date()
+        )
 
         // Assert
         wait(for: [expectation], timeout: 2.0)
@@ -167,7 +175,12 @@ final class NetworkMonitorTests: XCTestCase {
             .store(in: &cancellables)
 
         // Act
-        networkMonitor.startMonitoring()
+        networkMonitor.currentStatus = NetworkStatus(
+            isConnected: true,
+            connectionType: .cellular,
+            quality: .good,
+            timestamp: Date()
+        )
 
         // Assert
         wait(for: [expectation], timeout: 2.0)
@@ -185,7 +198,12 @@ final class NetworkMonitorTests: XCTestCase {
             .store(in: &cancellables)
 
         // Act
-        networkMonitor.startMonitoring()
+        networkMonitor.currentStatus = NetworkStatus(
+            isConnected: true,
+            connectionType: .wifi,
+            quality: .excellent,
+            timestamp: Date()
+        )
 
         // Assert
         wait(for: [expectation], timeout: 2.0)
@@ -249,11 +267,11 @@ final class NetworkMonitorTests: XCTestCase {
 
     func test_ConnectionType_displayName() {
         // Assert
-        XCTAssertEqual(ConnectionType.none.displayName, "No Connection")
-        XCTAssertEqual(ConnectionType.wifi.displayName, "Wi-Fi")
-        XCTAssertEqual(ConnectionType.cellular.displayName, "Cellular")
-        XCTAssertEqual(ConnectionType.ethernet.displayName, "Ethernet")
-        XCTAssertEqual(ConnectionType.other.displayName, "Other")
+        XCTAssertEqual(ConnectionType.none.displayName, localizedNetworkString("network.connection.none"))
+        XCTAssertEqual(ConnectionType.wifi.displayName, localizedNetworkString("network.connection.wifi"))
+        XCTAssertEqual(ConnectionType.cellular.displayName, localizedNetworkString("network.connection.cellular"))
+        XCTAssertEqual(ConnectionType.ethernet.displayName, localizedNetworkString("network.connection.ethernet"))
+        XCTAssertEqual(ConnectionType.other.displayName, localizedNetworkString("network.connection.other"))
     }
 
     func test_ConnectionType_isConnected() {
@@ -289,11 +307,11 @@ final class NetworkMonitorTests: XCTestCase {
 
     func test_ConnectionQuality_displayName() {
         // Assert
-        XCTAssertEqual(ConnectionQuality.excellent.displayName, "Excellent")
-        XCTAssertEqual(ConnectionQuality.good.displayName, "Good")
-        XCTAssertEqual(ConnectionQuality.fair.displayName, "Fair")
-        XCTAssertEqual(ConnectionQuality.poor.displayName, "Poor")
-        XCTAssertEqual(ConnectionQuality.unknown.displayName, "Unknown")
+        XCTAssertEqual(ConnectionQuality.excellent.displayName, localizedNetworkString("network.quality.excellent"))
+        XCTAssertEqual(ConnectionQuality.good.displayName, localizedNetworkString("network.quality.good"))
+        XCTAssertEqual(ConnectionQuality.fair.displayName, localizedNetworkString("network.quality.fair"))
+        XCTAssertEqual(ConnectionQuality.poor.displayName, localizedNetworkString("network.quality.poor"))
+        XCTAssertEqual(ConnectionQuality.unknown.displayName, localizedNetworkString("network.quality.unknown"))
     }
 
     func test_ConnectionQuality_color() {
@@ -353,7 +371,7 @@ final class NetworkMonitorTests: XCTestCase {
 
     // MARK: - AsyncStream Tests
 
-    func test_statusStream_emitsStatus() {
+    func test_statusStream_emitsStatus() async {
         // Arrange
         let expectation = XCTestExpectation(description: "statusStream should emit status")
         var receivedStatuses: [NetworkStatus] = []
@@ -368,11 +386,17 @@ final class NetworkMonitorTests: XCTestCase {
         }
 
         // Act - Trigger status change
-        networkMonitor.startMonitoring()
-        try? Task.sleep(nanoseconds: 100_000_000)
+        await Task.yield()
+        networkMonitor.currentStatus = NetworkStatus(
+            isConnected: true,
+            connectionType: .wifi,
+            quality: .excellent,
+            timestamp: Date()
+        )
+        try? await Task.sleep(nanoseconds: 100_000_000)
 
         // Assert
-        wait(for: [expectation], timeout: 2.0)
+        await fulfillment(of: [expectation], timeout: 2.0)
         XCTAssertGreaterThan(receivedStatuses.count, 0, "Should receive at least one status")
     }
 
@@ -396,6 +420,10 @@ final class NetworkMonitorTests: XCTestCase {
         // Assert
         wait(for: [expectation], timeout: 2.0)
         XCTAssertGreaterThan(receivedStates.count, 0, "Should receive connection state")
+    }
+
+    private func localizedNetworkString(_ key: String) -> String {
+        NSLocalizedString(key, bundle: Bundle(for: NetworkMonitor.self), comment: "")
     }
 
     // MARK: - WaitForConnection Tests
@@ -598,8 +626,19 @@ extension NetworkMonitorTests {
             }
             .store(in: &cancellables)
 
-        // Act - Start monitoring to trigger status updates
-        networkMonitor.startMonitoring()
+        // Act
+        networkMonitor.currentStatus = NetworkStatus(
+            isConnected: true,
+            connectionType: .wifi,
+            quality: .excellent,
+            timestamp: Date()
+        )
+        networkMonitor.currentStatus = NetworkStatus(
+            isConnected: true,
+            connectionType: .cellular,
+            quality: .good,
+            timestamp: Date()
+        )
 
         // Assert
         wait(for: [expectation], timeout: 3.0)

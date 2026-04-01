@@ -20,60 +20,52 @@
 import XCTest
 import AuthenticationServices
 import Combine
+import Supabase
 @testable import TRIX3DCompanion
 
 // MARK: - Mock OAuth Manager Delegate
 
-@MainActor
 final class MockOAuthManagerDelegate: OAuthManagerDelegate {
     var didSignInUserCalled = false
     var didFailSignInCalled = false
     var didLinkAccountCalled = false
     var didUnlinkAccountCalled = false
 
-    var receivedUser: User?
+    var receivedUser: AppUser?
     var receivedError: Error?
     var receivedLinkedAccount: OAuthAccount?
     var receivedUnlinkedAccountID: String?
 
-    nonisolated func oauthManager(
+    func oauthManager(
         _ manager: OAuthManagerProtocol,
-        didSignInUser user: User
+        didSignInUser user: AppUser
     ) {
-        Task { @MainActor in
-            didSignInUserCalled = true
-            receivedUser = user
-        }
+        didSignInUserCalled = true
+        receivedUser = user
     }
 
-    nonisolated func oauthManager(
+    func oauthManager(
         _ manager: OAuthManagerProtocol,
         didFailSignIn error: Error
     ) {
-        Task { @MainActor in
-            didFailSignInCalled = true
-            receivedError = error
-        }
+        didFailSignInCalled = true
+        receivedError = error
     }
 
-    nonisolated func oauthManager(
+    func oauthManager(
         _ manager: OAuthManagerProtocol,
         didLinkAccount account: OAuthAccount
     ) {
-        Task { @MainActor in
-            didLinkAccountCalled = true
-            receivedLinkedAccount = account
-        }
+        didLinkAccountCalled = true
+        receivedLinkedAccount = account
     }
 
-    nonisolated func oauthManager(
+    func oauthManager(
         _ manager: OAuthManagerProtocol,
         didUnlinkAccount accountID: String
     ) {
-        Task { @MainActor in
-            didUnlinkAccountCalled = true
-            receivedUnlinkedAccountID = accountID
-        }
+        didUnlinkAccountCalled = true
+        receivedUnlinkedAccountID = accountID
     }
 
     func reset() {
@@ -93,14 +85,15 @@ final class MockOAuthManagerDelegate: OAuthManagerDelegate {
 @MainActor
 final class MockAuthServiceForOAuth: AuthServiceProtocol {
     var isLoggedIn = false
-    var currentUser: User?
+    var currentUser: AppUser?
     var isLoading = false
     var shouldFailLogin = false
     var shouldFailLogout = false
     var shouldFailRegister = false
     var shouldFailRefresh = false
+    var supabase: SupabaseClient? { nil }
 
-    func login(email: String, password: String) async -> AuthResult<User> {
+    func login(email: String, password: String) async -> AuthResult<AppUser> {
         if shouldFailLogin {
             return .failure(.invalidCredentials)
         }
@@ -109,7 +102,7 @@ final class MockAuthServiceForOAuth: AuthServiceProtocol {
         return .success(currentUser!)
     }
 
-    func register(username: String, email: String, password: String) async -> AuthResult<User> {
+    func register(username: String, email: String, password: String) async -> AuthResult<AppUser> {
         if shouldFailRegister {
             return .failure(.emailAlreadyExists)
         }
@@ -134,14 +127,14 @@ final class MockAuthServiceForOAuth: AuthServiceProtocol {
         return .success(())
     }
 
-    func fetchCurrentUser() async -> AuthResult<User> {
+    func fetchCurrentUser() async -> AuthResult<AppUser> {
         if let user = currentUser {
             return .success(user)
         }
         return .failure(.invalidCredentials)
     }
 
-    func updateProfile(_ updates: User) async -> AuthResult<User> {
+    func updateProfile(_ updates: AppUser) async -> AuthResult<AppUser> {
         return .success(updates)
     }
 
@@ -149,7 +142,7 @@ final class MockAuthServiceForOAuth: AuthServiceProtocol {
         return .success(())
     }
 
-    func updateCurrentUser(_ user: User?) {
+    func updateCurrentUser(_ user: AppUser?) {
         currentUser = user
     }
 
@@ -161,8 +154,10 @@ final class MockAuthServiceForOAuth: AuthServiceProtocol {
         // No-op for mock
     }
 
-    private func createMockUser() -> User {
-        User(
+    func resetEmailConfirmationSuccess() {}
+
+    private func createMockUser() -> AppUser {
+        AppUser(
             id: "mock_user_id",
             username: "mock_user",
             email: "mock@example.com",
@@ -193,7 +188,7 @@ final class MockAuthServiceForOAuth: AuthServiceProtocol {
 final class MockAPIClientForOAuth: APIClientProtocol {
     var shouldFailRequests = false
     var mockError: NetworkError?
-    var mockUser: User?
+    var mockUser: AppUser?
     var mockLinkedAccounts: [OAuthAccount] = []
 
     func get<T>(_ endpoint: APIEndpoint) async throws -> T where T: Decodable {
@@ -266,8 +261,8 @@ final class MockAPIClientForOAuth: APIClientProtocol {
         throw NetworkError.custom(message: "Not implemented")
     }
 
-    private func createMockUser() -> User {
-        User(
+    private func createMockUser() -> AppUser {
+        AppUser(
             id: "mock_user_id",
             username: "mock_user",
             email: "mock@example.com",
@@ -995,8 +990,8 @@ extension OAuthManagerTests {
         await Task.yield()
     }
 
-    private func createMockUser() -> User {
-        User(
+    private func createMockUser() -> AppUser {
+        AppUser(
             id: "mock_user_id_123",
             username: "mock_user",
             email: "mock@example.com",

@@ -14,13 +14,15 @@ import XCTest
 import Combine
 @testable import TRIX3DCompanion
 
+typealias ClawbotHistoryTestChatMessage = TRIX3DCompanion.ChatMessage
+
 // MARK: - Mock API Client for ClawbotHistoryService
 
 @MainActor
 final class MockAPIClientForClawbotHistory: ObservableObject, APIClientProtocol {
     var shouldFailRequests = false
     var mockError: NetworkError?
-    var mockMessages: [ChatMessage] = []
+    var mockMessages: [ClawbotHistoryTestChatMessage] = []
     var lastRequestedRoomId: String?
     var lastRequestedLimit: Int?
     var lastRequestedOffset: Int?
@@ -84,7 +86,7 @@ final class MockAPIClientForClawbotHistory: ObservableObject, APIClientProtocol 
 final class MockOfflineCacheServiceForClawbotHistory: OfflineCacheServiceProtocol {
     var shouldFailCache = false
     var shouldFailRemove = false
-    var mockCachedMessages: [ChatMessage]?
+    var mockCachedMessages: [ClawbotHistoryTestChatMessage]?
     var mockCacheError: CacheError?
     var lastCachedKey: String?
     var lastCachedType: CacheType?
@@ -98,7 +100,7 @@ final class MockOfflineCacheServiceForClawbotHistory: OfflineCacheServiceProtoco
         lastCachedKey = key
         lastCachedType = type
 
-        if let messages = data as? [ChatMessage] {
+        if let messages = data as? [ClawbotHistoryTestChatMessage] {
             mockCachedMessages = messages
         }
     }
@@ -446,9 +448,9 @@ extension ClawbotHistoryServiceTests {
 
 extension ClawbotHistoryServiceTests {
 
-    private func createMockMessages() -> [ChatMessage] {
+    private func createMockMessages() -> [ClawbotHistoryTestChatMessage] {
         [
-            ChatMessage(
+            ClawbotHistoryTestChatMessage(
                 id: "msg_1",
                 roomId: "test_room_1",
                 senderId: "user_1",
@@ -467,7 +469,7 @@ extension ClawbotHistoryServiceTests {
                 isRead: true,
                 createdAt: Date()
             ),
-            ChatMessage(
+            ClawbotHistoryTestChatMessage(
                 id: "msg_2",
                 roomId: "test_room_1",
                 senderId: "bot_1",
@@ -486,7 +488,7 @@ extension ClawbotHistoryServiceTests {
                 isRead: true,
                 createdAt: Date()
             ),
-            ChatMessage(
+            ClawbotHistoryTestChatMessage(
                 id: "msg_3",
                 roomId: "test_room_1",
                 senderId: "user_1",

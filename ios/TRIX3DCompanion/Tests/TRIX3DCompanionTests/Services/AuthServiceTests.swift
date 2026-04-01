@@ -14,6 +14,7 @@
 
 import XCTest
 import Combine
+import Supabase
 @testable import TRIX3DCompanion
 
 // MARK: - Auth API Protocol
@@ -21,10 +22,10 @@ import Combine
 /// Protocol for authentication API methods
 /// This allows us to create mock implementations for testing
 protocol AuthAPIProtocol {
-    func login(email: String, password: String) async throws -> AuthResponse
+    func login(email: String, password: String) async throws -> TRIX3DCompanion.AuthResponse
     func register(username: String, email: String, password: String) async throws -> RegisterResponse
     func logout() async throws
-    func getCurrentUser() async throws -> User
+    func getCurrentUser() async throws -> AppUser
     func post<T>(_ endpoint: APIEndpoint, body: Encodable) async throws -> T where T: Decodable
 }
 
@@ -34,9 +35,9 @@ protocol AuthAPIProtocol {
 final class MockAuthAPIClient: AuthAPIProtocol {
     var shouldFailRequests = false
     var mockError: NetworkError?
-    var mockAuthResponse: AuthResponse?
+    var mockAuthResponse: TRIX3DCompanion.AuthResponse?
     var mockRegisterResponse: RegisterResponse?
-    var mockUser: User?
+    var mockUser: AppUser?
     var lastLoginEmail: String?
     var lastLoginPassword: String?
     var lastRegisterUsername: String?
@@ -44,7 +45,7 @@ final class MockAuthAPIClient: AuthAPIProtocol {
     var lastRegisterPassword: String?
     var logoutCalled = false
 
-    func login(email: String, password: String) async throws -> AuthResponse {
+    func login(email: String, password: String) async throws -> TRIX3DCompanion.AuthResponse {
         lastLoginEmail = email
         lastLoginPassword = password
 
@@ -102,7 +103,7 @@ final class MockAuthAPIClient: AuthAPIProtocol {
         }
     }
 
-    func getCurrentUser() async throws -> User {
+    func getCurrentUser() async throws -> AppUser {
         if shouldFailRequests {
             throw mockError ?? NetworkError.unauthorized
         }
@@ -119,7 +120,7 @@ final class MockAuthAPIClient: AuthAPIProtocol {
             throw mockError ?? NetworkError.custom(message: "Request failed")
         }
 
-        if T.self == AuthResponse.self, let authResponse = mockAuthResponse {
+        if T.self == TRIX3DCompanion.AuthResponse.self, let authResponse = mockAuthResponse {
             return authResponse as! T
         }
 
@@ -217,10 +218,12 @@ final class TestableAuthService: AuthServiceProtocol {
 
     // MARK: - Published Properties
 
-    @Published private(set) var currentUser: User?
+    @Published private(set) var currentUser: AppUser?
     @Published private(set) var isLoggedIn: Bool = false
     @Published private(set) var isLoading: Bool = false
     @Published private(set) var lastError: AuthError?
+
+    var supabase: SupabaseClient? { nil }
 
     // MARK: - Dependencies
 
@@ -246,7 +249,7 @@ final class TestableAuthService: AuthServiceProtocol {
 
     // MARK: - Internal Methods
 
-    func updateCurrentUser(_ user: User?) {
+    func updateCurrentUser(_ user: AppUser?) {
         currentUser = user
     }
 
@@ -254,7 +257,9 @@ final class TestableAuthService: AuthServiceProtocol {
         isLoggedIn = loggedIn
     }
 
-    func updateProfile(_ updates: User) async -> AuthResult<User> {
+    func resetEmailConfirmationSuccess() {}
+
+    func updateProfile(_ updates: AppUser) async -> AuthResult<AppUser> {
         currentUser = updates
         return .success(updates)
     }
@@ -266,7 +271,7 @@ final class TestableAuthService: AuthServiceProtocol {
 
     // MARK: - Public Methods
 
-    func login(email: String, password: String) async -> AuthResult<User> {
+    func login(email: String, password: String) async -> AuthResult<AppUser> {
         // Validate input
         guard isValidEmail(email) else {
             let error = AuthError.validationError(message: "Invalid email format")
@@ -310,7 +315,7 @@ final class TestableAuthService: AuthServiceProtocol {
         }
     }
 
-    func register(username: String, email: String, password: String) async -> AuthResult<User> {
+    func register(username: String, email: String, password: String) async -> AuthResult<AppUser> {
         // Validate input
         guard isValidEmail(email) else {
             let error = AuthError.validationError(message: "Invalid email format")
@@ -451,7 +456,7 @@ final class TestableAuthService: AuthServiceProtocol {
         return result
     }
 
-    func fetchCurrentUser() async -> AuthResult<User> {
+    func fetchCurrentUser() async -> AuthResult<AppUser> {
         guard isLoggedIn else {
             return .failure(.invalidCredentials)
         }
@@ -509,7 +514,7 @@ final class TestableAuthService: AuthServiceProtocol {
         do {
             // Create refresh request
             let refreshRequest = RefreshTokenRequest(refreshToken: refreshToken)
-            let response: AuthResponse = try await authAPI.post(
+            let response: TRIX3DCompanion.AuthResponse = try await authAPI.post(
                 .authRefresh,
                 body: refreshRequest
             )
@@ -1048,7 +1053,7 @@ extension AuthServiceTests {
         try? sut.saveSession(makeExpiringSession())
 
         // Mock a new auth response for refresh
-        let newAuthResponse = AuthResponse(
+        let newAuthResponse = TRIX3DCompanion.AuthResponse(
             accessToken: "new_access_token",
             tokenType: "bearer",
             expiresIn: 3600,
@@ -1249,7 +1254,7 @@ extension AuthServiceTests {
 
     func testIsPremiumPropertyFalseForZeroPoints() async {
         // Given - user with zero points
-        let userWithNoPoints = User(
+        let userWithNoPoints = AppUser(
             id: "test_user_id",
             username: "test",
             email: "test@example.com",
@@ -1274,7 +1279,7 @@ extension AuthServiceTests {
             updatedAt: Date()
         )
         mockAuthAPI.mockUser = userWithNoPoints
-        mockAuthAPI.mockAuthResponse = AuthResponse(
+        mockAuthAPI.mockAuthResponse = TRIX3DCompanion.AuthResponse(
             accessToken: "test_access_token",
             tokenType: "bearer",
             expiresIn: 3600,
@@ -1310,8 +1315,8 @@ extension AuthServiceTests {
 
 extension AuthServiceTests {
 
-    private func createMockUser() -> User {
-        User(
+    private func createMockUser() -> AppUser {
+        AppUser(
             id: "test_user_id",
             username: "test_user",
             email: "test@example.com",
@@ -1347,8 +1352,8 @@ extension AuthServiceTests {
         )
     }
 
-    private func createMockAuthResponse() -> AuthResponse {
-        AuthResponse(
+    private func createMockAuthResponse() -> TRIX3DCompanion.AuthResponse {
+        TRIX3DCompanion.AuthResponse(
             accessToken: "test_access_token",
             tokenType: "bearer",
             expiresIn: 3600,

@@ -18,7 +18,7 @@ typealias AppStoreProduct = TRIX3DCompanion.StoreProduct
 // MARK: - Mock StoreKitServiceProtocol
 
 @MainActor
-final class MockStoreKitService: StoreKitServiceProtocol, ObservableObject {
+final class StoreKitServiceTestsMockStoreKitService: StoreKitServiceProtocol, ObservableObject {
 
     @Published var availableProducts: [AppStoreProduct] = []
     @Published var isLoadingProducts: Bool = false
@@ -194,12 +194,12 @@ final class MockStoreKitService: StoreKitServiceProtocol, ObservableObject {
 @MainActor
 final class StoreKitServiceTests: XCTestCase {
 
-    var sut: MockStoreKitService!
+    var sut: StoreKitServiceTestsMockStoreKitService!
     var cancellables: Set<AnyCancellable>!
 
     override func setUp() {
         super.setUp()
-        sut = MockStoreKitService()
+        sut = StoreKitServiceTestsMockStoreKitService()
         cancellables = Set<AnyCancellable>()
     }
 

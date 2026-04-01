@@ -10,36 +10,29 @@ import Combine
 @testable import TRIX3DCompanion
 
 /// Comprehensive unit tests for OfflineCacheService
+@MainActor
 final class OfflineCacheServiceTests: XCTestCase {
 
     // MARK: - Properties
 
     var cacheService: OfflineCacheService!
-    var mockDatabaseManager: MockDatabaseManager!
-    var mockFileManager: MockFileManager!
     var cancellables: Set<AnyCancellable>!
 
     // MARK: - Test Lifecycle
 
     override func setUpWithError() throws {
-        mockDatabaseManager = MockDatabaseManager()
-        mockFileManager = MockFileManager()
-
-        cacheService = OfflineCacheService(
-            databaseManager: mockDatabaseManager
-        )
+        cacheService = OfflineCacheService(databaseManager: .shared)
 
         cancellables = Set<AnyCancellable>()
     }
 
-    override func tearDownWithError() throws {
+    override func tearDown() async throws {
         // Clean up test cache
         try? await cacheService.clearAll()
 
         cacheService = nil
-        mockDatabaseManager = nil
-        mockFileManager = nil
         cancellables = nil
+        try await super.tearDown()
     }
 
     // MARK: - Cache Operations Tests
@@ -137,7 +130,7 @@ final class OfflineCacheServiceTests: XCTestCase {
         }
     }
 
-    func test_retrieve_wrongType_throws() async {
+    func test_retrieve_wrongType_throws() async throws {
         // Arrange - Cache one type
         let testData = TestModel(id: "1", name: "Test", value: 1)
         try await cacheService.cache(testData, forKey: "type-key", type: .messages)
@@ -174,7 +167,7 @@ final class OfflineCacheServiceTests: XCTestCase {
         }
     }
 
-    func test_remove_nonExistent_doesNotThrow() async {
+    func test_remove_nonExistent_doesNotThrow() async throws {
         // Act & Assert - Should not throw
         try await cacheService.remove(key: "never-existed", type: .messages)
         XCTAssertTrue(true, "Removing non-existent item should not throw")
@@ -314,8 +307,44 @@ final class OfflineCacheServiceTests: XCTestCase {
     func test_cacheMessages_retrievesMessages() async throws {
         // Arrange
         let messages = [
-            ChatMessage(id: "1", roomId: "room-1", friendId: nil, senderId: nil, text: "Hi", timestamp: Date()),
-            ChatMessage(id: "2", roomId: "room-1", friendId: nil, senderId: nil, text: "Hello", timestamp: Date())
+            ChatMessage(
+                id: "1",
+                roomId: "room-1",
+                senderId: "user-1",
+                sender: .user,
+                content: "Hi",
+                messageType: .text,
+                mediaUrl: nil,
+                mediaMimeType: nil,
+                mediaDuration: nil,
+                mediaSize: nil,
+                mediaMetadata: nil,
+                voiceUrl: nil,
+                voiceDuration: nil,
+                voiceTranscript: nil,
+                voiceMimeType: nil,
+                isRead: false,
+                createdAt: Date()
+            ),
+            ChatMessage(
+                id: "2",
+                roomId: "room-1",
+                senderId: "user-2",
+                sender: .user,
+                content: "Hello",
+                messageType: .text,
+                mediaUrl: nil,
+                mediaMimeType: nil,
+                mediaDuration: nil,
+                mediaSize: nil,
+                mediaMetadata: nil,
+                voiceUrl: nil,
+                voiceDuration: nil,
+                voiceTranscript: nil,
+                voiceMimeType: nil,
+                isRead: false,
+                createdAt: Date()
+            )
         ]
 
         // Act
@@ -332,12 +361,14 @@ final class OfflineCacheServiceTests: XCTestCase {
             StudySession(
                 id: "session-1",
                 userId: "user-1",
-                startTime: Date().addingTimeInterval(-3600),
-                endTime: Date().addingTimeInterval(-1800),
                 duration: 1800,
+                startedAt: Date().addingTimeInterval(-3600),
+                endedAt: Date().addingTimeInterval(-1800),
+                earnedPoints: nil,
+                isCompleted: true,
                 subject: "Math",
                 notes: "Study session 1",
-                isSynced: false
+                createdAt: Date()
             )
         ]
 
@@ -355,9 +386,23 @@ final class OfflineCacheServiceTests: XCTestCase {
             id: "user-1",
             username: "testuser",
             email: "test@example.com",
-            displayName: "Test User",
             avatarUrl: nil,
+            avatarConfig: nil,
+            fullName: nil,
+            displayName: "Test User",
+            bio: nil,
+            website: nil,
             points: 1000,
+            isStudying: false,
+            companionId: nil,
+            totalStudyTime: 0,
+            lastActiveAt: Date(),
+            currentStreak: 0,
+            daysActive: 0,
+            interactionCount: 0,
+            showOnlineStatus: true,
+            school: nil,
+            grade: nil,
             createdAt: Date(),
             updatedAt: Date()
         )
@@ -405,7 +450,7 @@ final class OfflineCacheServiceTests: XCTestCase {
         try await cacheService.cache(testData, forKey: "size-test", type: .messages)
 
         // Assert
-        wait(for: [expectation], timeout: 2.0)
+        await fulfillment(of: [expectation], timeout: 2.0)
     }
 
     func test_isCleaning_updatesDuringCleanup() async {
@@ -425,7 +470,7 @@ final class OfflineCacheServiceTests: XCTestCase {
         try? await cacheService.cleanExpired()
 
         // Assert
-        wait(for: [expectation], timeout: 2.0)
+        await fulfillment(of: [expectation], timeout: 2.0)
     }
 
     func test_lastCleanupDate_setAfterCleanup() async {
@@ -438,7 +483,10 @@ final class OfflineCacheServiceTests: XCTestCase {
 
         // Assert
         let afterCleanup = cacheService.lastCleanupDate
-        XCTAssertTrue(afterCleanup > beforeCleanup || afterCleanup != nil, "Cleanup date should be updated")
+        XCTAssertNotNil(afterCleanup, "Cleanup date should be updated")
+        if let beforeCleanup, let afterCleanup {
+            XCTAssertGreaterThanOrEqual(afterCleanup, beforeCleanup)
+        }
     }
 
     // MARK: - Cache Policy Tests
@@ -573,13 +621,13 @@ final class OfflineCacheServiceTests: XCTestCase {
         let testData = TestModel(id: "1", name: "Concurrent", value: 1)
 
         // Act - Multiple concurrent operations
-        async let cache1 = cacheService.cache(testData, forKey: "key1", type: .messages)
-        async let cache2 = cacheService.cache(testData, forKey: "key2", type: .messages)
-        async let cache3 = cacheService.cache(testData, forKey: "key3", type: .messages)
+        async let cache1: Void = cacheService.cache(testData, forKey: "key1", type: .messages)
+        async let cache2: Void = cacheService.cache(testData, forKey: "key2", type: .messages)
+        async let cache3: Void = cacheService.cache(testData, forKey: "key3", type: .messages)
 
-        await cache1
-        await cache2
-        await cache3
+        try await cache1
+        try await cache2
+        try await cache3
 
         // Assert - All should succeed
         XCTAssertTrue(true, "Concurrent operations should succeed")
@@ -636,7 +684,11 @@ class MockFileManager: FileManager {
         directories.insert(url.path)
     }
 
-    override func contentsOfDirectory(at url: URL, includingPropertiesForKeys keys: [URLResourceKey]?) throws -> [URL] {
+    override func contentsOfDirectory(
+        at url: URL,
+        includingPropertiesForKeys keys: [URLResourceKey]?,
+        options mask: FileManager.DirectoryEnumerationOptions = []
+    ) throws -> [URL] {
         let files = storedFiles.keys.filter { $0.hasPrefix(url.path) }
             .map { URL(fileURLWithPath: $0) }
         return files
@@ -666,50 +718,4 @@ struct TestModel: Codable, Equatable {
         self.value = value
         self.description = description
     }
-}
-
-// MARK: - ChatMessage Mock
-
-struct ChatMessage: Codable {
-    let id: String
-    let roomId: String
-    let friendId: String?
-    let senderId: String?
-    let text: String
-    let timestamp: Date
-
-    init(id: String, roomId: String, friendId: String?, senderId: String?, text: String, timestamp: Date) {
-        self.id = id
-        self.roomId = roomId
-        self.friendId = friendId
-        self.senderId = senderId
-        self.text = text
-        self.timestamp = timestamp
-    }
-}
-
-// MARK: - StudySession Mock
-
-struct StudySession: Codable {
-    let id: String
-    let userId: String
-    let startTime: Date
-    let endTime: Date
-    let duration: TimeInterval
-    let subject: String
-    let notes: String?
-    let isSynced: Bool
-}
-
-// MARK: - User Mock
-
-struct User: Codable {
-    let id: String
-    let username: String
-    let email: String
-    let displayName: String?
-    let avatarUrl: String?
-    let points: Int
-    let createdAt: Date
-    let updatedAt: Date
 }

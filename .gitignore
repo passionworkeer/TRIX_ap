@@ -133,6 +133,8 @@ scripts/
 .codex-*.out.log
 .codex-*.err.log
 .codex-web-preview.log
+.codex-ios-build/
+.codex-ios-build-verification/
 tmp-*.log
 .tmp/
 

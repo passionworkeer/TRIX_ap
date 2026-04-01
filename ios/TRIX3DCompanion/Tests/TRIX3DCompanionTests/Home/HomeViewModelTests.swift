@@ -15,6 +15,7 @@
 //
 
 import XCTest
+import UIKit
 @testable import TRIX3DCompanion
 
 // MARK: - Home View Model Tests

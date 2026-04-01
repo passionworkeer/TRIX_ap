@@ -2,69 +2,35 @@
 //  PaymentServiceTests.swift
 //  TRIX3DCompanionTests
 //
-//  Comprehensive unit tests for PaymentService
+//  Focused unit tests for PaymentService against the current API surface
 //
 
 import XCTest
 import Combine
+import StoreKit
 @testable import TRIX3DCompanion
 
-// MARK: - Order Extension for Testing
+typealias PaymentTestsSubscriptionStatus = TRIX3DCompanion.SubscriptionStatus
+typealias PaymentTestsStoreKitError = TRIX3DCompanion.StoreKitError
 
-extension Order {
-    init(
-        id: String,
-        userId: String,
-        productId: String,
-        productType: ProductType,
-        amount: Double,
-        currency: String,
-        status: PaymentStatus,
-        paymentMethod: PaymentMethod,
-        transactionId: String? = nil,
-        points: Int? = nil,
-        createdAt: Date,
-        updatedAt: Date
-    ) {
-        self.id = id
-        self.userId = userId
-        self.productId = productId
-        self.productType = productType
-        self.amount = amount
-        self.currency = currency
-        self.status = status
-        self.paymentMethod = paymentMethod
-        self.transactionId = transactionId
-        self.points = points
-        self.createdAt = createdAt
-        self.updatedAt = updatedAt
-    }
-}
-
-/// Comprehensive unit tests for PaymentService
+@MainActor
 final class PaymentServiceTests: XCTestCase {
 
-    // MARK: - Properties
-
-    var paymentService: PaymentService!
-    var mockStoreKitService: MockStoreKitService!
-    var mockPointsService: MockPointsService!
-    var mockAPIClient: MockAPIClient!
-    var cancellables: Set<AnyCancellable>!
-
-    // MARK: - Test Lifecycle
+    private var paymentService: PaymentService!
+    private var mockStoreKitService: PaymentServiceTestsMockStoreKitService!
+    private var mockPointsService: PaymentServiceTestsMockPointsService!
+    private var mockAPIClient: PaymentServiceTestsMockAPIClient!
+    private var cancellables: Set<AnyCancellable>!
 
     override func setUpWithError() throws {
-        mockStoreKitService = MockStoreKitService()
-        mockPointsService = MockPointsService()
-        mockAPIClient = MockAPIClient()
-
+        mockStoreKitService = PaymentServiceTestsMockStoreKitService()
+        mockPointsService = PaymentServiceTestsMockPointsService()
+        mockAPIClient = PaymentServiceTestsMockAPIClient()
         paymentService = PaymentService(
             storeKitService: mockStoreKitService,
             pointsService: mockPointsService,
             apiClient: mockAPIClient
         )
-
         cancellables = Set<AnyCancellable>()
     }
 
@@ -76,750 +42,545 @@ final class PaymentServiceTests: XCTestCase {
         cancellables = nil
     }
 
-    // MARK: - Purchase Points Tests
+    func test_purchasePoints_pendingReturnsPendingOrder() async {
+        mockStoreKitService.setMockPurchasePending()
 
-    func test_purchasePoints_success() async throws {
-        // Arrange
-        let productId = "com.trix.points.100"
-        let points = 100
-        let mockTransaction = MockTransaction(
-            id: UUID(),
-            productId: productId,
-            state: .purchased
+        let result = await paymentService.purchasePoints(
+            productId: StoreProductConfiguration.points100,
+            points: 100
         )
-        mockStoreKitService.mockPurchaseResult = .success(mockTransaction)
-        mockAPIClient.shouldSucceed = true
 
-        // Act
-        let result = await paymentService.purchasePoints(productId: productId, points: points)
-
-        // Assert
         switch result {
-        case .success(let order):
-            XCTAssertEqual(order.productId, productId)
-            XCTAssertEqual(order.status, .completed)
-            XCTAssertEqual(order.points, points)
-        case .failed(let error):
-            XCTFail("Should succeed but got error: \(error)")
+        case .pending(let order):
+            XCTAssertEqual(order.productId, StoreProductConfiguration.points100)
+            XCTAssertEqual(order.status, .pending)
+            XCTAssertEqual(order.points, 100)
         default:
-            XCTFail("Should return success")
+            XCTFail("Expected pending order")
         }
     }
 
-    func test_purchasePoints_pending() async throws {
-        // Arrange
-        let productId = "com.trix.points.300"
-        let points = 300
-        mockStoreKitService.mockPurchaseResult = .pending(transaction: MockTransaction(
-            id: UUID(),
-            productId: productId,
-            state: .purchasing
-        ))
+    func test_purchasePoints_cancelledReturnsCancelled() async {
+        mockStoreKitService.setMockPurchaseCancelled()
 
-        // Act
-        let result = await paymentService.purchasePoints(productId: productId, points: points)
+        let result = await paymentService.purchasePoints(
+            productId: StoreProductConfiguration.points300,
+            points: 330
+        )
 
-        // Assert
+        switch result {
+        case .cancelled:
+            break
+        default:
+            XCTFail("Expected cancelled result")
+        }
+    }
+
+    func test_purchasePoints_failedWrapsStoreKitError() async {
+        mockStoreKitService.setMockPurchaseFailed(.productNotFound)
+
+        let result = await paymentService.purchasePoints(
+            productId: StoreProductConfiguration.points500,
+            points: 580
+        )
+
+        switch result {
+        case .failed(let error):
+            XCTAssertEqual(error, .paymentFailed(underlying: StoreKitError.productNotFound))
+        default:
+            XCTFail("Expected failed result")
+        }
+    }
+
+    func test_subscribe_pendingReturnsPendingOrder() async {
+        mockStoreKitService.setMockPurchasePending()
+
+        let result = await paymentService.subscribe(productId: StoreProductConfiguration.monthlySubscription)
+
         switch result {
         case .pending(let order):
-            XCTAssertEqual(order.productId, productId)
+            XCTAssertEqual(order.productId, StoreProductConfiguration.monthlySubscription)
+            XCTAssertEqual(order.productType, .subscription)
             XCTAssertEqual(order.status, .pending)
         default:
-            XCTFail("Should return pending")
+            XCTFail("Expected pending subscription order")
         }
     }
 
-    func test_purchasePoints_failed() async throws {
-        // Arrange
-        let productId = "com.trix.points.500"
-        let points = 500
-        mockStoreKitService.mockPurchaseResult = .failed(error: .productNotFound)
+    func test_subscribe_cancelledReturnsCancelled() async {
+        mockStoreKitService.setMockPurchaseCancelled()
 
-        // Act
-        let result = await paymentService.purchasePoints(productId: productId, points: points)
+        let result = await paymentService.subscribe(productId: StoreProductConfiguration.yearlySubscription)
 
-        // Assert
-        switch result {
-        case .failed(let error):
-            XCTAssertNotNil(error, "Should have error")
-        case .cancelled:
-            XCTFail("Should return failed, not cancelled")
-        default:
-            XCTFail("Should return failed")
-        }
-    }
-
-    func test_purchasePoints_cancelled() async throws {
-        // Arrange
-        let productId = "com.trix.points.1000"
-        let points = 1000
-        mockStoreKitService.mockPurchaseResult = .cancelled
-
-        // Act
-        let result = await paymentService.purchasePoints(productId: productId, points: points)
-
-        // Assert
         switch result {
         case .cancelled:
-            XCTAssertTrue(true, "Should be cancelled")
+            break
         default:
-            XCTFail("Should return cancelled")
+            XCTFail("Expected cancelled result")
         }
     }
 
-    func test_purchasePoints_verificationFailed() async throws {
-        // Arrange
-        let productId = "com.trix.points.100"
-        let points = 100
-        let mockTransaction = MockTransaction(
-            id: UUID(),
-            productId: productId,
-            state: .purchased
-        )
-        mockStoreKitService.mockPurchaseResult = .success(mockTransaction)
-        mockAPIClient.shouldSucceed = false
-        mockAPIClient.mockError = NetworkError.unauthorized
-
-        // Act
-        let result = await paymentService.purchasePoints(productId: productId, points: points)
-
-        // Assert
-        switch result {
-        case .failed(let error):
-            XCTAssertEqual(error, .verificationFailed, "Should return verification failed")
-        default:
-            XCTFail("Should return failed with verification error")
-        }
-    }
-
-    // MARK: - Subscribe Tests
-
-    func test_subscribe_success() async throws {
-        // Arrange
-        let productId = "com.trix.subscription.monthly"
-        let mockTransaction = MockTransaction(
-            id: UUID(),
-            productId: productId,
-            state: .purchased
-        )
-        mockStoreKitService.mockPurchaseResult = .success(mockTransaction)
-        mockAPIClient.shouldSucceed = true
-
-        // Act
-        let result = await paymentService.subscribe(productId: productId)
-
-        // Assert
-        switch result {
-        case .success(let order):
-            XCTAssertEqual(order.productId, productId)
-            XCTAssertEqual(order.status, .completed)
-            XCTAssertEqual(order.productType, .subscription)
-        default:
-            XCTFail("Should return success")
-        }
-    }
-
-    func test_subscribe_pending() async throws {
-        // Arrange
-        let productId = "com.trix.subscription.yearly"
-        mockStoreKitService.mockPurchaseResult = .pending(transaction: MockTransaction(
-            id: UUID(),
-            productId: productId,
-            state: .purchasing
-        ))
-
-        // Act
-        let result = await paymentService.subscribe(productId: productId)
-
-        // Assert
-        switch result {
-        case .pending(let order):
-            XCTAssertEqual(order.productId, productId)
-            XCTAssertEqual(order.productType, .subscription)
-        default:
-            XCTFail("Should return pending")
-        }
-    }
-
-    func test_subscribe_failed() async throws {
-        // Arrange
-        let productId = "com.trix.subscription.monthly"
-        mockStoreKitService.mockPurchaseResult = .failed(error: .verificationFailed)
-
-        // Act
-        let result = await paymentService.subscribe(productId: productId)
-
-        // Assert
-        switch result {
-        case .failed(let error):
-            XCTAssertNotNil(error, "Should have error")
-        default:
-            XCTFail("Should return failed")
-        }
-    }
-
-    func test_subscribe_cancelled() async throws {
-        // Arrange
-        let productId = "com.trix.subscription.yearly"
-        mockStoreKitService.mockPurchaseResult = .cancelled
-
-        // Act
-        let result = await paymentService.subscribe(productId: productId)
-
-        // Assert
-        switch result {
-        case .cancelled:
-            XCTAssertTrue(true, "Should be cancelled")
-        default:
-            XCTFail("Should return cancelled")
-        }
-    }
-
-    // MARK: - Verify Receipt Tests
-
-    func test_verifyReceipt_success() async throws {
-        // Arrange
-        let transactionId = "test-transaction-123"
-        let productId = "com.trix.points.100"
-        mockAPIClient.shouldSucceed = true
-
-        // Act
-        let result = await paymentService.verifyReceipt(
-            transactionId: transactionId,
-            productId: productId,
-            receiptData: nil
-        )
-
-        // Assert
-        switch result {
-        case .success(let order):
-            XCTAssertEqual(order.productId, productId)
-            XCTAssertEqual(order.transactionId, transactionId)
-        case .failure(let error):
-            XCTFail("Should succeed but got error: \(error)")
-        }
-    }
-
-    func test_verifyReceipt_invalidProduct() async throws {
-        // Arrange
-        let transactionId = "test-transaction-456"
-        let productId = "invalid.product.id"
-        mockAPIClient.shouldSucceed = true
-
-        // Act
-        let result = await paymentService.verifyReceipt(
-            transactionId: transactionId,
-            productId: productId,
-            receiptData: nil
-        )
-
-        // Assert
-        switch result {
-        case .failure(let error):
-            XCTAssertEqual(error, .invalidProduct, "Should return invalid product error")
-        default:
-            XCTFail("Should return failure for invalid product")
-        }
-    }
-
-    func test_verifyReceipt_networkError() async throws {
-        // Arrange
-        let transactionId = "test-transaction-789"
-        let productId = "com.trix.points.100"
-        mockAPIClient.shouldSucceed = false
-        mockAPIClient.mockError = NetworkError.noConnection
-
-        // Act
-        let result = await paymentService.verifyReceipt(
-            transactionId: transactionId,
-            productId: productId,
-            receiptData: nil
-        )
-
-        // Assert
-        switch result {
-        case .failure(let error):
-            XCTAssertEqual(error, .networkError, "Should return network error")
-        default:
-            XCTFail("Should return failure for network error")
-        }
-    }
-
-    // MARK: - Get Order Tests
-
-    func test_getOrder_fromCache() async {
-        // Arrange
-        let orderId = "test-order-123"
-        let mockOrder = Order(
-            id: orderId,
-            userId: "user-1",
-            productId: "com.trix.points.100",
-            productType: .points,
-            amount: 6.0,
-            currency: "CNY",
+    func test_verifyReceipt_successCachesOrderAndRefreshesPoints() async {
+        let response = makeVerificationResponse(
+            orderId: "order-success",
             status: .completed,
-            paymentMethod: .applePay,
-            transactionId: "txn-123",
-            points: 100,
-            createdAt: Date(),
-            updatedAt: Date()
+            pointsAdded: 100
+        )
+        mockAPIClient.verifyReceiptResponse = response
+
+        let result = await paymentService.verifyReceipt(
+            transactionId: "txn-success",
+            productId: StoreProductConfiguration.points100,
+            receiptData: nil
         )
 
-        // Manually cache the order (since we can't access private method)
-        // In real test, would purchase to cache
-
-        // Act - Fetch non-existent order
-        let result = await paymentService.getOrder(orderId: orderId)
-
-        // Assert - Will be nil since not cached and API fails
-        // This tests the flow without actual caching
-        XCTAssertNil(result, "Non-existent order should return nil")
-    }
-
-    func test_getOrder_fromServer() async {
-        // Arrange
-        let orderId = "server-order-456"
-        // Note: In real scenario, would set up mock API response
-
-        // Act
-        let result = await paymentService.getOrder(orderId: orderId)
-
-        // Assert - Will be nil without proper mock setup
-        // This tests the API call flow
-        XCTAssertNil(result, "Order without mock should return nil")
-    }
-
-    // MARK: - Get Order History Tests
-
-    func test_getOrderHistory_defaultLimit() async {
-        // Act
-        let history = await paymentService.getOrderHistory()
-
-        // Assert
-        XCTAssertNotNil(history, "History should not be nil")
-        XCTAssertTrue(history.isEmpty, "Empty history should return empty array")
-    }
-
-    func test_getOrderHistory_customLimit() async {
-        // Arrange
-        let limit = 10
-
-        // Act
-        let history = await paymentService.getOrderHistory(limit: limit)
-
-        // Assert
-        XCTAssertTrue(history.count <= limit, "History should respect limit")
-    }
-
-    func test_getOrderHistory_withOffset() async {
-        // Arrange
-        let offset = 5
-
-        // Act
-        let history = await paymentService.getOrderHistory(limit: 10, offset: offset)
-
-        // Assert
-        XCTAssertNotNil(history, "History with offset should not be nil")
-    }
-
-    // MARK: - Cancel Order Tests
-
-    func test_cancelOrder_success() async throws {
-        // Arrange
-        let orderId = "pending-order-123"
-        // Note: Would need to create and cache a pending order
-
-        // Act - Try to cancel non-existent order
-        let result = await paymentService.cancelOrder(orderId: orderId)
-
-        // Assert - Should fail for non-existent order
         switch result {
+        case .success(let order):
+            XCTAssertEqual(order.id, "order-success")
+            XCTAssertEqual(order.productId, StoreProductConfiguration.points100)
+            XCTAssertEqual(order.status, .completed)
+            XCTAssertEqual(mockPointsService.refreshPointsCallCount, 1)
+
+            let cachedOrder = await paymentService.getAppOrder(orderId: order.id)
+            XCTAssertEqual(cachedOrder?.id, order.id)
         case .failure(let error):
-            XCTAssertEqual(error, .orderNotFound, "Should return order not found")
-        default:
-            XCTFail("Should return failure for non-existent order")
+            XCTFail("Expected success, got \(error)")
         }
     }
 
-    func test_cancelOrder_alreadyCompleted() async throws {
-        // Arrange - Attempting to cancel completed order would fail
+    func test_verifyReceipt_invalidProductFailsBeforeNetwork() async {
+        let result = await paymentService.verifyReceipt(
+            transactionId: "txn-invalid",
+            productId: "invalid.product.id",
+            receiptData: nil
+        )
 
-        // This tests would require proper order caching setup
-        // For now, test the error case
-
-        // Act
-        let result = await paymentService.cancelOrder(orderId: "non-existent")
-
-        // Assert
         switch result {
         case .failure(let error):
-            XCTAssertNotNil(error, "Should have error")
+            XCTAssertEqual(error, .invalidProduct)
+            XCTAssertEqual(mockAPIClient.verifyReceiptCallCount, 0)
         default:
-            XCTFail("Should return failure")
+            XCTFail("Expected invalid product failure")
         }
     }
 
-    // MARK: - Published Properties Tests
-
-    func test_isProcessing_updatesDuringPurchase() async throws {
-        // Arrange
-        let expectation = XCTestExpectation(description: "isProcessing should update")
-        var processingStates: [Bool] = []
-
-        paymentService.$isProcessing
-            .sink { isProcessing in
-                processingStates.append(isProcessing)
-                if processingStates.count >= 2 {
-                    expectation.fulfill()
-                }
-            }
-            .store(in: &cancellables)
-
-        mockStoreKitService.mockPurchaseResult = .cancelled
-
-        // Act
-        _ = await paymentService.purchasePoints(productId: "test", points: 100)
-
-        // Assert
-        wait(for: [expectation], timeout: 2.0)
-        XCTAssertTrue(processingStates.contains(true), "Should have processing state true")
-        XCTAssertTrue(processingStates.contains(false), "Should have processing state false")
-    }
-
-    func test_lastError_setOnFailure() async throws {
-        // Arrange
-        mockStoreKitService.mockPurchaseResult = .failed(error: .productNotFound)
-        let expectation = XCTestExpectation(description: "lastError should be set")
-
+    func test_verifyReceipt_networkErrorSetsLastError() async {
+        let expectation = expectation(description: "lastError publishes networkError")
         paymentService.$lastError
             .dropFirst()
             .sink { error in
-                if error != nil {
+                if error == .networkError {
                     expectation.fulfill()
                 }
             }
             .store(in: &cancellables)
 
-        // Act
-        _ = await paymentService.purchasePoints(productId: "test", points: 100)
+        mockAPIClient.verifyReceiptError = .noConnection
 
-        // Assert
-        wait(for: [expectation], timeout: 2.0)
-        XCTAssertNotNil(paymentService.lastError, "Should have last error set")
+        let result = await paymentService.verifyReceipt(
+            transactionId: "txn-network",
+            productId: StoreProductConfiguration.points100,
+            receiptData: nil
+        )
+
+        switch result {
+        case .failure(let error):
+            XCTAssertEqual(error, .networkError)
+        default:
+            XCTFail("Expected network error")
+        }
+
+        await fulfillment(of: [expectation], timeout: 2.0)
+        XCTAssertEqual(paymentService.lastError, .networkError)
     }
 
-    // MARK: - Clear Error Tests
+    func test_getAppOrderHistoryReturnsCachedOrders() async {
+        mockAPIClient.verifyReceiptResponse = makeVerificationResponse(
+            orderId: "order-1",
+            status: .completed,
+            pointsAdded: 100
+        )
+        _ = await paymentService.verifyReceipt(
+            transactionId: "txn-1",
+            productId: StoreProductConfiguration.points100,
+            receiptData: nil
+        )
 
-    func test_clearError_removesLastError() async {
-        // Arrange - Set an error
-        mockStoreKitService.mockPurchaseResult = .failed(error: .productNotFound)
-        _ = await paymentService.purchasePoints(productId: "test", points: 100)
-        XCTAssertNotNil(paymentService.lastError, "Should have error after failed purchase")
+        mockAPIClient.verifyReceiptResponse = makeVerificationResponse(
+            orderId: "order-2",
+            status: .completed,
+            pointsAdded: 330
+        )
+        _ = await paymentService.verifyReceipt(
+            transactionId: "txn-2",
+            productId: StoreProductConfiguration.points300,
+            receiptData: nil
+        )
 
-        // Act
+        let history = await paymentService.getAppOrderHistory(limit: 10, offset: 0)
+        XCTAssertEqual(history.count, 2)
+        XCTAssertEqual(Set(history.map(\.id)), Set(["order-1", "order-2"]))
+    }
+
+    func test_cancelAppOrder_successRemovesPendingOrder() async {
+        mockAPIClient.verifyReceiptResponse = makeVerificationResponse(
+            orderId: "order-pending",
+            status: .pending,
+            pointsAdded: 100
+        )
+
+        let verifyResult = await paymentService.verifyReceipt(
+            transactionId: "txn-pending",
+            productId: StoreProductConfiguration.points100,
+            receiptData: nil
+        )
+
+        guard case .success(let order) = verifyResult else {
+            return XCTFail("Expected pending order to be cached")
+        }
+
+        let cancelResult = await paymentService.cancelAppOrder(orderId: order.id)
+
+        switch cancelResult {
+        case .success:
+            XCTAssertEqual(mockAPIClient.cancelledOrderIds, [order.id])
+            let history = await paymentService.getAppOrderHistory(limit: 10, offset: 0)
+            XCTAssertTrue(history.isEmpty)
+        case .failure(let error):
+            XCTFail("Expected successful cancellation, got \(error)")
+        }
+    }
+
+    func test_cancelAppOrder_missingOrderReturnsNotFound() async {
+        let result = await paymentService.cancelAppOrder(orderId: "missing-order")
+
+        switch result {
+        case .failure(let error):
+            XCTAssertEqual(error, .orderNotFound)
+        default:
+            XCTFail("Expected orderNotFound failure")
+        }
+    }
+
+    func test_getSubscriptionMapsResponse() async {
+        mockAPIClient.subscriptionResponse = SubscriptionStatusResponse(
+            isActive: true,
+            tier: "pro",
+            productId: StoreProductConfiguration.monthlySubscription,
+            expiresAt: Date().addingTimeInterval(3600),
+            willAutoRenew: true,
+            startedAt: Date().addingTimeInterval(-3600),
+            updatedAt: Date()
+        )
+
+        let subscription = await paymentService.getSubscription()
+
+        XCTAssertTrue(subscription.isActive)
+        XCTAssertEqual(subscription.productId, StoreProductConfiguration.monthlySubscription)
+        XCTAssertEqual(subscription.tier, "pro")
+    }
+
+    func test_restorePurchasesCachesOrdersAndRefreshesPoints() async {
+        mockAPIClient.restorePurchasesResponse = RestorePurchasesResponse(
+            restoredOrders: [
+                makeOrderDetailsResponse(
+                    id: "restored-1",
+                    productId: StoreProductConfiguration.points500,
+                    status: .completed,
+                    points: 580
+                )
+            ],
+            totalRestored: 1,
+            message: nil
+        )
+
+        let result = await paymentService.restorePurchases()
+
+        switch result {
+        case .success(let orders):
+            XCTAssertEqual(orders.count, 1)
+            XCTAssertEqual(orders.first?.id, "restored-1")
+            XCTAssertEqual(mockPointsService.refreshPointsCallCount, 1)
+        case .failure(let error):
+            XCTFail("Expected restore success, got \(error)")
+        }
+    }
+
+    func test_isProcessingPublishesDuringPurchase() async {
+        let expectation = expectation(description: "isProcessing toggles")
+        var observedStates: [Bool] = []
+
+        paymentService.$isProcessing
+            .dropFirst()
+            .prefix(2)
+            .sink { isProcessing in
+                observedStates.append(isProcessing)
+                if observedStates.count == 2 {
+                    expectation.fulfill()
+                }
+            }
+            .store(in: &cancellables)
+
+        mockStoreKitService.setMockPurchaseCancelled()
+        _ = await paymentService.purchasePoints(
+            productId: StoreProductConfiguration.points100,
+            points: 100
+        )
+
+        await fulfillment(of: [expectation], timeout: 2.0)
+        XCTAssertTrue(observedStates.contains(true))
+        XCTAssertTrue(observedStates.contains(false))
+    }
+
+    func test_clearErrorRemovesLastError() async {
+        mockAPIClient.verifyReceiptError = .noConnection
+        _ = await paymentService.verifyReceipt(
+            transactionId: "txn-clear",
+            productId: StoreProductConfiguration.points100,
+            receiptData: nil
+        )
+        XCTAssertEqual(paymentService.lastError, .networkError)
+
         paymentService.clearError()
 
-        // Assert
-        XCTAssertNil(paymentService.lastError, "Error should be cleared")
+        XCTAssertNil(paymentService.lastError)
     }
 
-    // MARK: - StoreKit Error Mapping Tests
-
-    func test_userCancelled_mapsToUserCancelled() async throws {
-        // Arrange
-        mockStoreKitService.mockPurchaseResult = .cancelled
-        mockStoreKitService.mockError = .userCancelled
-
-        // Act
-        _ = await paymentService.purchasePoints(productId: "test", points: 100)
-        try await Task.sleep(nanoseconds: 100_000_000)
-
-        // Assert - lastError should be userCancelled
-        XCTAssertEqual(paymentService.lastError, .userCancelled, "Should map to userCancelled")
+    private func makeVerificationResponse(
+        orderId: String,
+        status: PaymentStatus,
+        pointsAdded: Int?
+    ) -> ReceiptVerificationResponse {
+        ReceiptVerificationResponse(
+            orderId: orderId,
+            status: status,
+            pointsAdded: pointsAdded,
+            totalPoints: 1000 + (pointsAdded ?? 0),
+            subscriptionStatus: nil,
+            verified: true,
+            message: nil
+        )
     }
 
-    func test_productNotFound_mapsToInvalidProduct() async throws {
-        // Arrange
-        mockStoreKitService.mockPurchaseResult = .failed(error: .productNotFound)
-        mockStoreKitService.mockError = .productNotFound
-
-        // Act
-        _ = await paymentService.purchasePoints(productId: "test", points: 100)
-        try await Task.sleep(nanoseconds: 100_000_000)
-
-        // Assert
-        XCTAssertEqual(paymentService.lastError, .invalidProduct, "Should map to invalidProduct")
-    }
-
-    func test_verificationFailed_mapsToVerificationFailed() async throws {
-        // Arrange
-        mockStoreKitService.mockPurchaseResult = .failed(error: .verificationFailed)
-        mockStoreKitService.mockError = .verificationFailed
-
-        // Act
-        _ = await paymentService.purchasePoints(productId: "test", points: 100)
-        try await Task.sleep(nanoseconds: 100_000_000)
-
-        // Assert
-        XCTAssertEqual(paymentService.lastError, .verificationFailed, "Should map to verificationFailed")
-    }
-
-    // MARK: - Error Tests
-
-    func test_PaymentError_descriptions() {
-        // Arrange & Assert
-        let userCancelled = PaymentError.userCancelled
-        XCTAssertNotNil(userCancelled.localizedDescription, "userCancelled should have description")
-
-        let invalidProduct = PaymentError.invalidProduct
-        XCTAssertNotNil(invalidProduct.localizedDescription, "invalidProduct should have description")
-
-        let verificationFailed = PaymentError.verificationFailed
-        XCTAssertNotNil(verificationFailed.localizedDescription, "verificationFailed should have description")
-
-        let networkError = PaymentError.networkError
-        XCTAssertNotNil(networkError.localizedDescription, "networkError should have description")
-
-        let orderNotFound = PaymentError.orderNotFound
-        XCTAssertNotNil(orderNotFound.localizedDescription, "orderNotFound should have description")
-    }
-
-    // MARK: - PaymentResult Enum Tests
-
-    func test_PaymentResult_allCases() {
-        // Test all payment result cases
-        let mockOrder = Order(
-            id: "test",
-            userId: "user",
-            productId: "test",
-            productType: .points,
-            amount: 0,
+    private func makeOrderDetailsResponse(
+        id: String,
+        productId: String,
+        status: PaymentStatus,
+        points: Int?
+    ) -> OrderDetailsResponse {
+        OrderDetailsResponse(
+            id: id,
+            userId: "user-1",
+            productId: productId,
+            amount: 6.0,
             currency: "CNY",
-            status: .pending,
-            paymentMethod: .applePay,
-            transactionId: nil,
-            points: nil,
+            status: status,
+            transactionId: "txn-\(id)",
+            points: points,
             createdAt: Date(),
             updatedAt: Date()
         )
-
-        let success: PaymentResult = .success(order: mockOrder)
-        let pending: PaymentResult = .pending(order: mockOrder)
-        let failed: PaymentResult = .failed(error: .networkError)
-        let cancelled: PaymentResult = .cancelled
-
-        // Assert - All cases should be creatable
-        switch success {
-        case .success: break
-        default: XCTFail("Should be success case")
-        }
-
-        switch pending {
-        case .pending: break
-        default: XCTFail("Should be pending case")
-        }
-
-        switch failed {
-        case .failed: break
-        default: XCTFail("Should be failed case")
-        }
-
-        switch cancelled {
-        case .cancelled: break
-        default: XCTFail("Should be cancelled case")
-        }
     }
 }
 
-// MARK: - Mock Classes
+private final class PaymentServiceTestsMockAPIClient: APIClientProtocol {
+    var verifyReceiptResponse: ReceiptVerificationResponse?
+    var verifyReceiptError: NetworkError?
+    var ordersListResponse = OrdersListResponse(orders: [], total: 0, page: 1, limit: 50)
+    var orderDetailsResponses: [String: OrderDetailsResponse] = [:]
+    var subscriptionResponse = SubscriptionStatusResponse(
+        isActive: false,
+        tier: nil,
+        productId: nil,
+        expiresAt: nil,
+        willAutoRenew: false,
+        startedAt: nil,
+        updatedAt: nil
+    )
+    var restorePurchasesResponse = RestorePurchasesResponse(
+        restoredOrders: [],
+        totalRestored: 0,
+        message: nil
+    )
 
-class MockStoreKitService: StoreKitServiceProtocol {
-    var mockPurchaseResult: StoreKitPurchaseResult = .cancelled
-    var mockError: StoreKitError?
+    var verifyReceiptCallCount = 0
+    var cancelledOrderIds: [String] = []
 
-    func purchase(product productId: String) async -> StoreKitPurchaseResult {
-        // Update mock error if result is failed
-        if case .failed(let error) = mockPurchaseResult, let mockError = mockError {
-            return .failed(error: mockError)
+    func get<T: Codable>(_ endpoint: APIEndpoint) async throws -> T {
+        throw NetworkError.custom(message: "Not implemented in PaymentServiceTestsMockAPIClient")
+    }
+
+    func get<T: Decodable>(_ endpoint: APIEndpoint, parameters: [String : Any]) async throws -> T {
+        throw NetworkError.custom(message: "Not implemented in PaymentServiceTestsMockAPIClient")
+    }
+
+    func post<T: Codable>(_ endpoint: APIEndpoint, body: Encodable) async throws -> T {
+        throw NetworkError.custom(message: "Not implemented in PaymentServiceTestsMockAPIClient")
+    }
+
+    func put<T: Codable>(_ endpoint: APIEndpoint, body: Encodable) async throws -> T {
+        throw NetworkError.custom(message: "Not implemented in PaymentServiceTestsMockAPIClient")
+    }
+
+    func delete<T: Codable>(_ endpoint: APIEndpoint) async throws -> T {
+        throw NetworkError.custom(message: "Not implemented in PaymentServiceTestsMockAPIClient")
+    }
+
+    func upload<T: Codable>(_ endpoint: APIEndpoint, data: Data, fileName: String) async throws -> T {
+        throw NetworkError.custom(message: "Not implemented in PaymentServiceTestsMockAPIClient")
+    }
+
+    func download(from url: String) async throws -> Data {
+        throw NetworkError.custom(message: "Not implemented in PaymentServiceTestsMockAPIClient")
+    }
+
+    func verifyReceipt(_ request: ReceiptVerificationRequest) async throws -> ReceiptVerificationResponse {
+        verifyReceiptCallCount += 1
+        if let verifyReceiptError {
+            throw verifyReceiptError
         }
+        guard let verifyReceiptResponse else {
+            throw NetworkError.custom(message: "Missing mock verifyReceiptResponse")
+        }
+        return verifyReceiptResponse
+    }
+
+    func getOrders(page: Int, limit: Int) async throws -> OrdersListResponse {
+        ordersListResponse
+    }
+
+    func getOrder(orderId: String) async throws -> OrderDetailsResponse {
+        if let response = orderDetailsResponses[orderId] {
+            return response
+        }
+        throw NetworkError.notFound
+    }
+
+    func cancelOrder(orderId: String) async throws {
+        cancelledOrderIds.append(orderId)
+    }
+
+    func getSubscription() async throws -> SubscriptionStatusResponse {
+        subscriptionResponse
+    }
+
+    func restorePurchases() async throws -> RestorePurchasesResponse {
+        restorePurchasesResponse
+    }
+}
+
+@MainActor
+private final class PaymentServiceTestsMockStoreKitService: StoreKitServiceProtocol {
+    @Published var availableProducts: [StoreProduct] = []
+    @Published var isLoadingProducts: Bool = false
+    @Published var subscriptionStatus: PaymentTestsSubscriptionStatus?
+    @Published var isPurchasing: Bool = false
+    @Published var lastError: PaymentTestsStoreKitError?
+
+    var mockPurchaseResult: PurchaseResult = .cancelled
+    var mockTransactionInfo: TransactionInfo?
+
+    func loadProducts(productIds: [String]) async -> Result<Void, PaymentTestsStoreKitError> {
+        .success(())
+    }
+
+    func purchase(product productId: String) async -> PurchaseResult {
+        isPurchasing = true
+        defer { isPurchasing = false }
         return mockPurchaseResult
     }
 
-    var products: [StoreProduct] = []
-    var isLoading: Bool = false
-    var lastError: StoreKitError?
+    func restorePurchases() async -> Result<[TransactionInfo], PaymentTestsStoreKitError> {
+        .success([])
+    }
+
+    func checkSubscriptionStatus() async -> PaymentTestsSubscriptionStatus? {
+        subscriptionStatus
+    }
+
+    func getTransactionHistory() async -> [TransactionInfo] {
+        []
+    }
+
+    func getReceiptData() async -> String? {
+        nil
+    }
+
+    func getLatestTransactionId(for productId: String) async -> String? {
+        nil
+    }
+
+    func getTransactionInfo(transactionId: String) async -> TransactionInfo? {
+        mockTransactionInfo
+    }
+
+    func prepareVerificationPayload(transaction: Transaction, productId: String) -> [String : Any]? {
+        nil
+    }
+
+    func clearError() {
+        lastError = nil
+    }
+
+    func setMockPurchasePending() {
+        mockPurchaseResult = .pending
+    }
+
+    func setMockPurchaseCancelled() {
+        mockPurchaseResult = .cancelled
+    }
+
+    func setMockPurchaseFailed(_ error: PaymentTestsStoreKitError) {
+        mockPurchaseResult = .failed(error: error)
+        lastError = error
+    }
 }
 
-class MockPointsService: PointsServiceProtocol {
-    func refreshPoints() async -> PointsResult {
-        return .success(balance: PointsBalance(
-            totalPoints: 1000,
-            availablePoints: 1000,
-            pendingPoints: 0,
-            level: 1,
-            todayEarned: 50,
-            weekEarned: 200,
-            totalTransactions: 10,
-            updatedAt: Date()
-        ))
+@MainActor
+private final class PaymentServiceTestsMockPointsService: PointsServiceProtocol {
+    @Published var balance: PointsBalance? = PointsBalance(
+        totalPoints: 1000,
+        availablePoints: 1000,
+        pendingPoints: 0,
+        level: 1,
+        todayEarned: 0,
+        weekEarned: 0,
+        totalTransactions: 0,
+        updatedAt: Date()
+    )
+    @Published var transactions: [PointsTransactionDetail] = []
+    @Published var isLoading: Bool = false
+    @Published var isSyncing: Bool = false
+    @Published var lastError: PointsError?
+
+    var refreshPointsCallCount = 0
+
+    func refreshPoints() async -> Result<PointsBalance, PointsError> {
+        refreshPointsCallCount += 1
+        return .success(balance!)
     }
 
     func getBalance() async -> PointsBalance? {
-        return PointsBalance(
-            totalPoints: 1000,
-            availablePoints: 1000,
-            pendingPoints: 0,
-            level: 1,
-            todayEarned: 50,
-            weekEarned: 200,
-            totalTransactions: 10,
-            updatedAt: Date()
-        )
+        balance
     }
 
-    func loadHistory(filter: PointsHistoryFilter?) async -> PointsResult {
-        return .success(transactions: [])
+    func loadHistory(filter: PointsHistoryFilter?) async -> Result<[PointsTransactionDetail], PointsError> {
+        .success([])
     }
 
-    func addPoints(_ points: Int, description: String, metadata: [String: String]?) async -> PointsResult {
-        return .success(balance: PointsBalance(
-            totalPoints: 1000 + points,
-            availablePoints: 1000 + points,
-            pendingPoints: 0,
-            level: 1,
-            todayEarned: 50,
-            weekEarned: 200,
-            totalTransactions: 10,
-            updatedAt: Date()
-        ))
+    func addPoints(_ points: Int, description: String, metadata: [String : String]?) async -> PointsResult {
+        .success(balance: balance!)
     }
 
-    func deductPoints(_ points: Int, description: String, metadata: [String: String]?) async -> PointsResult {
-        return .success(balance: PointsBalance(
-            totalPoints: 1000 - points,
-            availablePoints: 1000 - points,
-            pendingPoints: 0,
-            level: 1,
-            todayEarned: 50,
-            weekEarned: 200,
-            totalTransactions: 10,
-            updatedAt: Date()
-        ))
+    func deductPoints(_ points: Int, description: String, metadata: [String : String]?) async -> PointsResult {
+        .success(balance: balance!)
     }
 
     func syncWithServer() async -> Result<Void, PointsError> {
-        return .success(())
-    }
-}
-
-class MockAPIClient: APIClient {
-    var shouldSucceed = true
-    var mockError: NetworkError?
-
-    override func post<T: Codable>(_ endpoint: APIEndpoint, parameters: Parameters? = nil, body: Encodable? = nil, headers: HTTPHeaders? = nil) async throws -> T {
-        if !shouldSucceed {
-            if let error = mockError {
-                throw error
-            }
-            throw NetworkError.unknown(NSError(domain: "Mock", code: -1))
-        }
-
-        // Return mock response
-        if T.self == PointsPurchaseResponse.self {
-            let response = PointsPurchaseResponse(
-                orderId: "mock-order-123",
-                transactionId: "mock-txn-123",
-                status: "completed",
-                points: 100,
-                balanceAfter: 1100,
-                createdAt: Date()
-            )
-            return response as! T
-        }
-
-        throw NetworkError.unknown(NSError(domain: "Mock", code: -1))
+        .success(())
     }
 
-    override func get<T: Codable>(_ endpoint: APIEndpoint) async throws -> T {
-        if !shouldSucceed {
-            if let error = mockError {
-                throw error
-            }
-            throw NetworkError.unknown(NSError(domain: "Mock", code: -1))
-        }
-
-        throw NetworkError.unknown(NSError(domain: "Mock", code: -1))
+    func clearError() {
+        lastError = nil
     }
-}
-
-// MARK: - Mock Transaction
-
-struct MockTransaction {
-    let id: UUID
-    let productId: String
-    let state: TransactionState
-
-    enum TransactionState {
-        case purchasing
-        case purchased
-        case failed
-        case refunded
-    }
-}
-
-// MARK: - StoreKitPurchaseResult
-
-enum StoreKitPurchaseResult {
-    case success(transaction: MockTransaction)
-    case pending(transaction: MockTransaction)
-    case failed(error: StoreKitError)
-    case cancelled
-}
-
-// MARK: - PointsPurchaseResponse
-
-struct PointsPurchaseResponse: Codable {
-    let orderId: String
-    let transactionId: String
-    let status: String
-    let points: Int
-    let balanceAfter: Int
-    let createdAt: Date
-}
-
-// MARK: - StoreProductConfiguration
-
-enum StoreProductConfiguration {
-    static let points100 = "com.trix.points.100"
-    static let points300 = "com.trix.points.300"
-    static let points500 = "com.trix.points.500"
-    static let points1000 = "com.trix.points.1000"
-    static let monthlySubscription = "com.trix.subscription.monthly"
-    static let yearlySubscription = "com.trix.subscription.yearly"
-
-    static func productType(for productId: String) -> ProductType? {
-        if productId.contains("points") {
-            return .points
-        } else if productId.contains("subscription") {
-            return .subscription
-        }
-        return nil
-    }
-
-    static func pointsForProduct(_ productId: String) -> Int? {
-        switch productId {
-        case points100: return 100
-        case points300: return 300
-        case points500: return 500
-        case points1000: return 1000
-        default: return nil
-        }
-    }
-}
-
-// MARK: - ProductType
-
-enum ProductType {
-    case points
-    case subscription
 }

@@ -7,29 +7,73 @@
 
 import XCTest
 import Combine
+import Supabase
 @testable import TRIX3DCompanion
 
+typealias DataSyncUser = TRIX3DCompanion.User
+
+private func makeDataSyncUser(
+    id: String,
+    username: String? = "local-user",
+    email: String? = "local@example.com",
+    displayName: String? = "Local User",
+    points: Int? = 0,
+    updatedAt: Date = Date(timeIntervalSince1970: 0)
+) -> DataSyncUser {
+    DataSyncUser(
+        id: id,
+        username: username,
+        email: email,
+        phone: nil,
+        role: nil,
+        avatarUrl: nil,
+        avatarConfig: nil,
+        fullName: nil,
+        displayName: displayName,
+        bio: nil,
+        website: nil,
+        points: points,
+        isStudying: nil,
+        companionId: nil,
+        totalStudyTime: nil,
+        lastActiveAt: nil,
+        lastSignInAt: nil,
+        currentStreak: nil,
+        daysActive: nil,
+        interactionCount: nil,
+        showOnlineStatus: nil,
+        school: nil,
+        grade: nil,
+        confirmationSentAt: nil,
+        confirmedAt: nil,
+        emailConfirmedAt: nil,
+        createdAt: Date(timeIntervalSince1970: 0),
+        updatedAt: updatedAt
+    )
+}
+
 /// Comprehensive unit tests for DataSyncService
+@MainActor
 final class DataSyncServiceTests: XCTestCase {
 
     // MARK: - Properties
 
     var syncService: DataSyncService!
-    var mockNetworkMonitor: MockNetworkMonitor!
-    var mockOfflineCache: MockOfflineCacheService!
-    var mockDatabaseManager: MockDatabaseManager!
-    var mockAPIClient: MockAPIClient!
-    var mockAuthService: MockAuthService!
+    var mockNetworkMonitor: MockNetworkMonitorForDataSync!
+    var mockOfflineCache: MockOfflineCacheServiceForDataSync!
+    var mockDatabaseManager: MockDatabaseManagerForDataSync!
+    var mockAPIClient: MockAPIClientForDataSync!
+    var mockAuthService: MockAuthServiceForDataSync!
     var cancellables: Set<AnyCancellable>!
 
     // MARK: - Test Lifecycle
 
     override func setUpWithError() throws {
-        mockNetworkMonitor = MockNetworkMonitor()
-        mockOfflineCache = MockOfflineCacheService()
-        mockDatabaseManager = MockDatabaseManager()
-        mockAPIClient = MockAPIClient()
-        mockAuthService = MockAuthService()
+        mockNetworkMonitor = MockNetworkMonitorForDataSync()
+        mockOfflineCache = MockOfflineCacheServiceForDataSync()
+        mockDatabaseManager = MockDatabaseManagerForDataSync()
+        mockAPIClient = MockAPIClientForDataSync()
+        mockAuthService = MockAuthServiceForDataSync()
 
         syncService = DataSyncService(
             networkMonitor: mockNetworkMonitor,
@@ -72,7 +116,7 @@ final class DataSyncServiceTests: XCTestCase {
         mockNetworkMonitor.mockIsConnected = true
         mockAuthService.mockIsLoggedIn = true
         mockDatabaseManager.mockUnsyncedSessions = [
-            StudySession(
+            DataSyncStudySession(
                 id: "session-1",
                 userId: "user-1",
                 startTime: Date().addingTimeInterval(-3600),
@@ -96,14 +140,12 @@ final class DataSyncServiceTests: XCTestCase {
         // Arrange
         mockNetworkMonitor.mockIsConnected = true
         mockAuthService.mockIsLoggedIn = true
-        mockAPIClient.mockCurrentUser = User(
+        mockAPIClient.mockCurrentUser = makeDataSyncUser(
             id: "user-1",
             username: "testuser",
             email: "test@example.com",
             displayName: "Test User",
-            avatarUrl: nil,
             points: 1000,
-            createdAt: Date(),
             updatedAt: Date()
         )
 
@@ -134,7 +176,7 @@ final class DataSyncServiceTests: XCTestCase {
         mockNetworkMonitor.mockIsConnected = true
         mockAuthService.mockIsLoggedIn = true
         mockDatabaseManager.mockUnsyncedSessions = [
-            StudySession(
+            DataSyncStudySession(
                 id: "session-1",
                 userId: "user-1",
                 startTime: Date().addingTimeInterval(-3600),
@@ -145,14 +187,12 @@ final class DataSyncServiceTests: XCTestCase {
                 isSynced: false
             )
         ]
-        mockAPIClient.mockCurrentUser = User(
+        mockAPIClient.mockCurrentUser = makeDataSyncUser(
             id: "user-1",
             username: "testuser",
             email: "test@example.com",
             displayName: "Test User",
-            avatarUrl: nil,
             points: 1000,
-            createdAt: Date(),
             updatedAt: Date()
         )
 
@@ -169,8 +209,16 @@ final class DataSyncServiceTests: XCTestCase {
         // Arrange
         mockNetworkMonitor.mockIsConnected = true
         mockAuthService.mockIsLoggedIn = true
+        mockAPIClient.mockCurrentUser = makeDataSyncUser(
+            id: "user-1",
+            username: "partial-user",
+            email: "partial@example.com",
+            displayName: "Partial User",
+            points: 100,
+            updatedAt: Date()
+        )
         mockDatabaseManager.mockUnsyncedSessions = [
-            StudySession(
+            DataSyncStudySession(
                 id: "session-1",
                 userId: "user-1",
                 startTime: Date().addingTimeInterval(-3600),
@@ -180,7 +228,7 @@ final class DataSyncServiceTests: XCTestCase {
                 notes: nil,
                 isSynced: false
             ),
-            StudySession(
+            DataSyncStudySession(
                 id: "session-2",
                 userId: "user-1",
                 startTime: Date().addingTimeInterval(-7200),
@@ -213,7 +261,10 @@ final class DataSyncServiceTests: XCTestCase {
             try await syncService.sync(type: .messages, priority: .normal)
             XCTFail("Should throw network unavailable error")
         } catch let error as SyncError {
-            XCTAssertEqual(error, .networkUnavailable, "Should return network unavailable")
+            if case .networkUnavailable = error {
+                return
+            }
+            XCTFail("Should return network unavailable, got \(error)")
         } catch {
             XCTFail("Wrong error type: \(error)")
         }
@@ -229,7 +280,10 @@ final class DataSyncServiceTests: XCTestCase {
             try await syncService.sync(type: .messages, priority: .normal)
             XCTFail("Should throw authentication required error")
         } catch let error as SyncError {
-            XCTAssertEqual(error, .authenticationRequired, "Should return authentication required")
+            if case .authenticationRequired = error {
+                return
+            }
+            XCTFail("Should return authentication required, got \(error)")
         } catch {
             XCTFail("Wrong error type: \(error)")
         }
@@ -246,7 +300,10 @@ final class DataSyncServiceTests: XCTestCase {
             try await syncService.sync(type: .studySessions, priority: .normal)
             XCTFail("Should throw timeout error")
         } catch let error as SyncError {
-            XCTAssertEqual(error, .timeout, "Should return timeout")
+            if case .timeout = error {
+                return
+            }
+            XCTFail("Should return timeout, got \(error)")
         } catch {
             XCTFail("Wrong error type: \(error)")
         }
@@ -280,22 +337,25 @@ final class DataSyncServiceTests: XCTestCase {
 
     // MARK: - Cancel Tests
 
-    func test_cancelSync_stopsOngoingSync() {
+    func test_cancelSync_stopsOngoingSync() async {
         // Arrange
         mockNetworkMonitor.mockIsConnected = true
         mockAuthService.mockIsLoggedIn = true
+        let service = syncService!
 
         // Start a sync task
-        Task {
-            try? await syncService.sync(type: .messages, priority: .normal)
+        let task = Task {
+            try? await service.sync(type: .messages, priority: .normal)
         }
+        await Task.yield()
 
         // Act
-        syncService.cancelSync()
+        service.cancelSync()
+        _ = await task.value
 
         // Assert
-        XCTAssertFalse(syncService.isSyncing, "Should stop syncing")
-        XCTAssertEqual(syncService.currentStatus, .idle, "Status should be idle")
+        XCTAssertFalse(service.isSyncing, "Should stop syncing")
+        XCTAssertEqual(service.currentStatus, .idle, "Status should be idle")
     }
 
     // MARK: - Strategy Tests
@@ -371,7 +431,7 @@ final class DataSyncServiceTests: XCTestCase {
     func test_getPendingSyncCount_returnsCount() async {
         // Arrange
         mockDatabaseManager.mockUnsyncedSessions = [
-            StudySession(
+            DataSyncStudySession(
                 id: "session-1",
                 userId: "user-1",
                 startTime: Date(),
@@ -381,7 +441,7 @@ final class DataSyncServiceTests: XCTestCase {
                 notes: nil,
                 isSynced: false
             ),
-            StudySession(
+            DataSyncStudySession(
                 id: "session-2",
                 userId: "user-1",
                 startTime: Date(),
@@ -434,7 +494,7 @@ final class DataSyncServiceTests: XCTestCase {
         try? await syncService.sync(type: .messages, priority: .normal)
 
         // Assert
-        wait(for: [expectation], timeout: 2.0)
+        await fulfillment(of: [expectation], timeout: 2.0)
         XCTAssertTrue(statuses.contains(.syncing), "Should have syncing status")
     }
 
@@ -459,7 +519,7 @@ final class DataSyncServiceTests: XCTestCase {
         try? await syncService.sync(type: .messages, priority: .normal)
 
         // Assert
-        wait(for: [expectation], timeout: 2.0)
+        await fulfillment(of: [expectation], timeout: 2.0)
         XCTAssertTrue(syncingStates.contains(true), "Should have syncing state true")
         XCTAssertTrue(syncingStates.contains(false), "Should have syncing state false")
     }
@@ -483,7 +543,7 @@ final class DataSyncServiceTests: XCTestCase {
         try? await syncService.syncAll(priority: .normal)
 
         // Assert
-        wait(for: [expectation], timeout: 2.0)
+        await fulfillment(of: [expectation], timeout: 2.0)
     }
 
     func test_lastError_setOnFailure() async {
@@ -504,7 +564,7 @@ final class DataSyncServiceTests: XCTestCase {
         try? await syncService.sync(type: .messages, priority: .normal)
 
         // Assert
-        wait(for: [expectation], timeout: 2.0)
+        await fulfillment(of: [expectation], timeout: 2.0)
         XCTAssertNotNil(syncService.lastError, "Should have last error set")
     }
 
@@ -578,7 +638,7 @@ final class DataSyncServiceTests: XCTestCase {
         mockAuthService.mockIsLoggedIn = true
         syncService.setStrategy(.immediate)
         mockDatabaseManager.mockUnsyncedSessions = [
-            StudySession(
+            DataSyncStudySession(
                 id: "session-1",
                 userId: "user-1",
                 startTime: Date(),
@@ -716,75 +776,296 @@ final class DataSyncServiceTests: XCTestCase {
 
 // MARK: - Mock Classes
 
-class MockNetworkMonitor: NetworkMonitor {
-    var mockIsConnected = true
-    var statusContinuation: AsyncStream<NetworkStatus>.Continuation?
+@MainActor
+final class MockNetworkMonitorForDataSync: NetworkMonitorProtocol {
+    private let statusSubject: CurrentValueSubject<NetworkStatus, Never>
 
-    override var currentStatus: NetworkStatus {
-        NetworkStatus(
-            isConnected: mockIsConnected,
+    var mockIsConnected: Bool = true {
+        didSet { updateStatus() }
+    }
+
+    var mockConnectionType: ConnectionType = .wifi {
+        didSet { updateStatus() }
+    }
+
+    var mockQuality: ConnectionQuality = .excellent {
+        didSet { updateStatus() }
+    }
+
+    var currentStatus: NetworkStatus {
+        statusSubject.value
+    }
+
+    var statusPublisher: AnyPublisher<NetworkStatus, Never> {
+        statusSubject.eraseToAnyPublisher()
+    }
+
+    var connectionTypePublisher: AnyPublisher<ConnectionType, Never> {
+        statusSubject
+            .map(\.connectionType)
+            .removeDuplicates()
+            .eraseToAnyPublisher()
+    }
+
+    var isConnectedPublisher: AnyPublisher<Bool, Never> {
+        statusSubject
+            .map(\.isConnected)
+            .removeDuplicates()
+            .eraseToAnyPublisher()
+    }
+
+    init() {
+        statusSubject = CurrentValueSubject(NetworkStatus(
+            isConnected: true,
             connectionType: .wifi,
             quality: .excellent,
             timestamp: Date()
-        )
+        ))
+    }
+
+    func startMonitoring() {}
+
+    func stopMonitoring() {}
+
+    func getCurrentStatus() async -> NetworkStatus {
+        currentStatus
     }
 
     func simulateStatusChange(_ status: NetworkStatus) {
-        // Trigger status update
-        Task { @MainActor in
-            self.updateStatus(from: NWPath())
-        }
+        mockIsConnected = status.isConnected
+        mockConnectionType = status.connectionType
+        mockQuality = status.quality
+        statusSubject.send(status)
     }
 
-    private func updateStatus(from path: NWPath) {
-        // Simplified update for testing
+    private func updateStatus() {
+        statusSubject.send(NetworkStatus(
+            isConnected: mockIsConnected,
+            connectionType: mockIsConnected ? mockConnectionType : .none,
+            quality: mockIsConnected ? mockQuality : .unknown,
+            timestamp: Date()
+        ))
     }
 }
 
-class MockOfflineCacheService: OfflineCacheService {
-    override func cacheUserProfile(_ user: User) async throws {
-        // No-op for testing
-    }
+@MainActor
+final class MockOfflineCacheServiceForDataSync: OfflineCacheServiceProtocol {
+    var totalCacheSize: Int64 = 0
+    var shouldFailCache = false
+    var shouldFailRetrieve = false
+    var shouldFailClear = false
+    var shouldFailClearAll = false
+    var shouldFailStatistics = false
+    var shouldFailCleanExpired = false
+    var shouldFailGetSize = false
+    var mockError: Error = CacheError.storageError(underlying: NSError(domain: "Test", code: 500))
+
+    func cache<T: Codable>(_ data: T, forKey key: String, type: CacheType) async throws {}
+    func retrieve<T: Codable>(key: String, type: CacheType) async throws -> T { throw mockError }
+    func remove(key: String, type: CacheType) async throws {}
+    func clear(type: CacheType) async throws {}
+    func clearAll() async throws {}
+    func getStatistics(type: CacheType) async throws -> CacheStatistics { CacheStatistics(totalEntries: 0, totalSizeBytes: 0, expiredEntries: 0, type: type) }
+    func cleanExpired() async throws {}
+    func getCurrentSize(type: CacheType) async throws -> Int64 { 0 }
+    func cacheUserProfile(_ user: DataSyncUser) async throws {}
 }
 
-class MockDatabaseManager: DatabaseManager {
-    var mockUnsyncedSessions: [StudySession] = []
+final class MockDatabaseManagerForDataSync: DatabaseManagerProtocol {
+    var mockUnsyncedSessions: [DataSyncStudySession] = []
     var shouldFailSync = false
     var shouldTimeout = false
 
-    override func getUnsyncedStudySessions() throws -> [StudySession] {
+    func getUnsyncedStudySessions() throws -> [StudySession] {
         if shouldTimeout {
             throw DatabaseError.queryFailed("Timeout")
         }
-        return mockUnsyncedSessions
+        return mockUnsyncedSessions.map { $0.asStudySession }
     }
 
-    override func markStudySessionSynced(_ sessionId: String) throws {
+    func getPendingMessages() throws -> [TRIX3DCompanion.ChatMessage] {
+        []
+    }
+
+    func markMessageSynced(_ messageId: String) throws {}
+
+    func markStudySessionSynced(_ sessionId: String) throws {
         if shouldFailSync {
-            throw DatabaseError.updateFailed("Sync failed")
+            throw DatabaseError.insertFailed("Sync failed")
         }
         mockUnsyncedSessions.removeAll { $0.id == sessionId }
     }
+
+    func getPendingPointTransactions() throws -> [PointsTransaction] {
+        []
+    }
+
+    func updateUserPoints(userId: String, points: Int) throws {}
+
+    func getPointTransaction(_ transactionId: String) throws -> PointsTransaction? {
+        nil
+    }
+
+    func insertPointTransaction(_ transaction: PointsTransaction) throws {}
+
+    func markPointTransactionSynced(_ transactionId: String) throws {}
 }
 
-class MockAPIClient: APIClient {
-    var mockCurrentUser: User?
+final class MockAPIClientForDataSync: APIClientProtocol {
+    var mockCurrentUser: DataSyncUser?
+    var mockStudySessionResponse: StudySession?
+    var mockPointsResponse = PointsResponse(
+        totalPoints: 1000,
+        level: 3,
+        todayEarned: 50,
+        weekEarned: 200,
+        totalTransactions: 5
+    )
+    var mockPointsHistory: [PointsTransaction] = []
 
-    override func getCurrentUser() async throws -> User {
-        guard let user = mockCurrentUser else {
-            throw NetworkError.unknown(NSError(domain: "Mock", code: -1))
+    func get<T: Codable>(_ endpoint: APIEndpoint) async throws -> T {
+        if T.self == DataSyncUser.self, let user = mockCurrentUser as? T {
+            return user
         }
-        return user
+
+        if T.self == PointsResponse.self, let response = mockPointsResponse as? T {
+            return response
+        }
+
+        if T.self == [PointsTransaction].self, let history = mockPointsHistory as? T {
+            return history
+        }
+
+        throw NetworkError.unknown(NSError(domain: "Mock", code: -1))
+    }
+
+    func get<T: Decodable>(_ endpoint: APIEndpoint, parameters: [String: Any]) async throws -> T {
+        if T.self == DataSyncUser.self, let user = mockCurrentUser as? T {
+            return user
+        }
+
+        throw NetworkError.unknown(NSError(domain: "Mock", code: -1))
+    }
+
+    func post<T: Codable>(_ endpoint: APIEndpoint, body: Encodable) async throws -> T {
+        if T.self == StudySession.self {
+            if let response = mockStudySessionResponse as? T {
+                return response
+            }
+
+            let fallback = StudySession(
+                id: UUID().uuidString,
+                userId: mockCurrentUser?.id ?? "user-1",
+                duration: 0,
+                startedAt: Date(),
+                endedAt: nil,
+                earnedPoints: nil,
+                isCompleted: false,
+                subject: nil,
+                notes: nil,
+                createdAt: Date()
+            )
+            return fallback as! T
+        }
+
+        if T.self == DataSyncUser.self, let user = mockCurrentUser as? T {
+            return user
+        }
+
+        if T.self == PointsResponse.self, let response = mockPointsResponse as? T {
+            return response
+        }
+
+        throw NetworkError.unknown(NSError(domain: "Mock", code: -1))
+    }
+
+    func put<T: Codable>(_ endpoint: APIEndpoint, body: Encodable) async throws -> T {
+        if T.self == DataSyncUser.self, let user = mockCurrentUser as? T {
+            return user
+        }
+
+        throw NetworkError.unknown(NSError(domain: "Mock", code: -1))
+    }
+
+    func delete<T: Codable>(_ endpoint: APIEndpoint) async throws -> T {
+        throw NetworkError.unknown(NSError(domain: "Mock", code: -1))
+    }
+
+    func upload<T: Codable>(_ endpoint: APIEndpoint, data: Data, fileName: String) async throws -> T {
+        throw NetworkError.unknown(NSError(domain: "Mock", code: -1))
+    }
+
+    func download(from url: String) async throws -> Data {
+        throw NetworkError.unknown(NSError(domain: "Mock", code: -1))
+    }
+
+    func getPoints() async throws -> PointsResponse {
+        mockPointsResponse
+    }
+
+    func getPointsHistory(page: Int, limit: Int) async throws -> [PointsTransaction] {
+        Array(mockPointsHistory.dropFirst((page - 1) * limit).prefix(limit))
     }
 }
 
-class MockAuthService: AuthService {
+@MainActor
+final class MockAuthServiceForDataSync: AuthServiceProtocol {
     var mockIsLoggedIn = true
+    var currentUser: DataSyncUser? = makeDataSyncUser(id: "user-1")
+    var isLoading: Bool = false
+    var supabase: SupabaseClient? { nil }
+
+    var isLoggedIn: Bool { mockIsLoggedIn }
+
+    func login(email: String, password: String) async -> Result<DataSyncUser, TRIX3DCompanion.AuthError> {
+        .failure(.invalidCredentials)
+    }
+
+    func register(username: String, email: String, password: String) async -> Result<DataSyncUser, TRIX3DCompanion.AuthError> {
+        .failure(.invalidCredentials)
+    }
+
+    func logout() async -> Result<Void, TRIX3DCompanion.AuthError> {
+        mockIsLoggedIn = false
+        return .success(())
+    }
+
+    func refreshTokenIfNeeded() async -> Result<Void, TRIX3DCompanion.AuthError> {
+        .success(())
+    }
+
+    func fetchCurrentUser() async -> Result<DataSyncUser, TRIX3DCompanion.AuthError> {
+        guard let currentUser else {
+            return .failure(.invalidCredentials)
+        }
+        return .success(currentUser)
+    }
+
+    func updateProfile(_ updates: DataSyncUser) async -> Result<DataSyncUser, TRIX3DCompanion.AuthError> {
+        currentUser = updates
+        return .success(updates)
+    }
+
+    func deleteAccount() async -> Result<Void, TRIX3DCompanion.AuthError> {
+        .success(())
+    }
+
+    func updateCurrentUser(_ user: DataSyncUser?) {
+        currentUser = user
+    }
+
+    func updateLoginStatus(_ loggedIn: Bool) {
+        mockIsLoggedIn = loggedIn
+    }
+
+    func resetEmailConfirmationSuccess() {}
+
+    func clearError() {}
 }
 
 // MARK: - StudySession Mock
 
-struct StudySession: Codable {
+struct DataSyncStudySession: Codable {
     let id: String
     let userId: String
     let startTime: Date
@@ -793,38 +1074,19 @@ struct StudySession: Codable {
     let subject: String
     let notes: String?
     let isSynced: Bool
-}
 
-// MARK: - NWPath Mock
-
-struct NWPath {
-    var status: NWPath.Status = .satisfied
-
-    enum Status {
-        case satisfied
-        case unsatisfied
-        case requiresConnection
+    var asStudySession: StudySession {
+        StudySession(
+            id: id,
+            userId: userId,
+            duration: Int(duration),
+            startedAt: startTime,
+            endedAt: endTime,
+            earnedPoints: nil,
+            isCompleted: isSynced,
+            subject: subject,
+            notes: notes,
+            createdAt: endTime
+        )
     }
-
-    func usesInterfaceType(_ type: NWInterfaceType) -> Bool {
-        return false
-    }
-}
-
-enum NWInterfaceType {
-    case wifi
-    case cellular
-    case wiredEthernet
-    case other
-}
-
-// MARK: - ChatMessage Mock
-
-struct ChatMessage: Codable {
-    let id: String
-    let roomId: String
-    let senderId: String?
-    let text: String
-    let timestamp: Date
-    // Add other necessary properties
 }

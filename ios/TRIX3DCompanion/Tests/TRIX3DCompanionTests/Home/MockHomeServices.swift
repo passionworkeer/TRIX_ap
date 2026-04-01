@@ -211,7 +211,7 @@ enum NotificationError: Error, LocalizedError {
 
 @MainActor
 final class MockStudyService {
-    var currentSession: StudySession?
+    var currentSession: TRIX3DCompanion.StudySession?
     var todayStudyMinutes: Int = 0
     var weekStudyMinutes: Int = 0
     var streakDays: Int = 0
@@ -239,11 +239,11 @@ final class MockStudyService {
         )
     }
 
-    func startStudySession() async throws -> StudySession {
+    func startStudySession() async throws -> TRIX3DCompanion.StudySession {
         startSessionCalled = true
         isStudying = true
 
-        let session = StudySession(
+        let session = TRIX3DCompanion.StudySession(
             id: UUID().uuidString,
             userId: "test_user",
             duration: 0,
@@ -260,11 +260,11 @@ final class MockStudyService {
         return session
     }
 
-    func endStudySession() async throws -> StudySession {
+    func endStudySession() async throws -> TRIX3DCompanion.StudySession {
         endSessionCalled = true
         isStudying = false
 
-        guard var session = currentSession else {
+        guard let session = currentSession else {
             throw StudyError.noActiveSession
         }
 

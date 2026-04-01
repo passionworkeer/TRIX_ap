@@ -985,7 +985,7 @@ final class StudyService: ObservableObject, StudyServiceProtocol {
 
 extension StudyService {
 
-    /// Get formatted time string (HH:MM:SS)
+    /// Get formatted time string as MM:SS or HH:MM:SS when the session exceeds one hour
     var formattedFocusTime: String {
         let hours = Int(currentFocusTime) / 3600
         let minutes = Int(currentFocusTime) / 60 % 60

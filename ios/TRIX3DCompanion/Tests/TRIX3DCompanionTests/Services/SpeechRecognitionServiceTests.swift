@@ -69,7 +69,14 @@ final class SpeechRecognitionServiceTests: XCTestCase {
 
     // MARK: - Authorization Tests
 
-    func testCheckAuthorization_ReturnsBool() async {
+    func testCheckAuthorization_ReturnsBool() async throws {
+        if SpeechRecognitionService.authorizationStatus == .notDetermined {
+            throw XCTSkip(
+                "Speech authorization is not preconfigured in this environment. " +
+                "Skipping to avoid triggering an interactive system permission prompt during automated runs."
+            )
+        }
+
         // When
         let result = await sut.checkAuthorization()
 

@@ -16,6 +16,16 @@ func smokeEnvironmentValue(for key: String) -> String? {
     return trimmed.isEmpty ? nil : trimmed
 }
 
+func explicitSmokeToggleValue(for key: String) -> String? {
+    let environment = ProcessInfo.processInfo.environment
+    guard let value = environment[key] ?? environment["SIMCTL_CHILD_\(key)"] else {
+        return nil
+    }
+
+    let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+    return trimmed.isEmpty ? nil : trimmed
+}
+
 struct LiveBackendTestConfig: Decodable {
     let email: String?
     let password: String?
@@ -117,8 +127,9 @@ class LiveBackendSmokeTestCase: XCTestCase {
     }
 
     private func isLiveBackendSmokeEnabled() -> Bool {
-        if let value = smokeEnvironmentValue(for: "TRIX_RUN_LIVE_SMOKE")?
-            .trimmingCharacters(in: .whitespacesAndNewlines)
+        // Opt-in must be explicit. Ignore /tmp sentinel files to avoid
+        // accidentally running live backend smoke tests during local regressions.
+        if let value = explicitSmokeToggleValue(for: "TRIX_RUN_LIVE_SMOKE")?
             .lowercased() {
             return ["1", "true", "yes", "on"].contains(value)
         }

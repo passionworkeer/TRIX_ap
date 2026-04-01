@@ -9,6 +9,9 @@ import XCTest
 import SQLite
 @testable import TRIX3DCompanion
 
+typealias DatabaseManagerTestsChatMessage = TRIX3DCompanion.ChatMessage
+typealias DatabaseManagerTestsStudySession = TRIX3DCompanion.StudySession
+
 /// Unit tests for DatabaseManager
 final class DatabaseManagerTests: XCTestCase {
 
@@ -83,9 +86,9 @@ final class DatabaseManagerTests: XCTestCase {
         let date2 = Date().addingTimeInterval(-50)
         let date3 = Date()
 
-        try databaseManager.insertMessage(createTestMessage(id: "msg-1", roomId: "room-1", timestamp: date1))
-        try databaseManager.insertMessage(createTestMessage(id: "msg-2", roomId: "room-1", timestamp: date2))
-        try databaseManager.insertMessage(createTestMessage(id: "msg-3", roomId: "room-1", timestamp: date3))
+        try databaseManager.insertMessage(createTestMessage(id: "msg-1", roomId: "room-1", createdAt: date1))
+        try databaseManager.insertMessage(createTestMessage(id: "msg-2", roomId: "room-1", createdAt: date2))
+        try databaseManager.insertMessage(createTestMessage(id: "msg-3", roomId: "room-1", createdAt: date3))
 
         // Act
         let messages = try databaseManager.getMessages(roomId: "room-1")
@@ -113,14 +116,14 @@ final class DatabaseManagerTests: XCTestCase {
         let baseDate = Date()
         let olderDate = baseDate.addingTimeInterval(-1000)
 
-        try databaseManager.insertMessage(createTestMessage(id: "msg-old", roomId: "room-1", timestamp: olderDate))
-        try databaseManager.insertMessage(createTestMessage(id: "msg-new", roomId: "room-1", timestamp: baseDate))
+        try databaseManager.insertMessage(createTestMessage(id: "msg-old", roomId: "room-1", createdAt: olderDate))
+        try databaseManager.insertMessage(createTestMessage(id: "msg-new", roomId: "room-1", createdAt: baseDate))
 
         // Act
         let messages = try databaseManager.getMessages(roomId: "room-1", before: baseDate.addingTimeInterval(-1))
 
         // Assert
-        XCTAssertTrue(messages.allSatisfy { $0.timestamp < baseDate }, "All messages should be before the date")
+        XCTAssertTrue(messages.allSatisfy { $0.createdAt < baseDate }, "All messages should be before the date")
         XCTAssertEqual(messages.count, 1, "Should have 1 older message")
     }
 
@@ -325,7 +328,7 @@ final class DatabaseManagerTests: XCTestCase {
 
     func test_savePointsTransaction_success() throws {
         // Arrange
-        let transaction = createTestTransaction(id: "txn-1", pointsChange: 100, type: .studyReward)
+        let transaction = createTestTransaction(id: "txn-1", pointsChange: 100, type: .studyComplete)
 
         // Act
         try databaseManager.savePointsTransaction(transaction)
@@ -341,7 +344,7 @@ final class DatabaseManagerTests: XCTestCase {
         let transaction = createTestTransaction(
             id: "txn-encrypted-save",
             pointsChange: 88,
-            type: .studyReward
+            type: .studyComplete
         )
 
         // Act
@@ -360,8 +363,8 @@ final class DatabaseManagerTests: XCTestCase {
     func test_savePointsTransactions_batch_success() throws {
         // Arrange
         let transactions = [
-            createTestTransaction(id: "txn-1", pointsChange: 100, type: .studyReward),
-            createTestTransaction(id: "txn-2", pointsChange: -50, type: .redemption),
+            createTestTransaction(id: "txn-1", pointsChange: 100, type: .studyComplete),
+            createTestTransaction(id: "txn-2", pointsChange: -50, type: .redeem),
             createTestTransaction(id: "txn-3", pointsChange: 200, type: .adminAdjust)
         ]
 
@@ -376,7 +379,7 @@ final class DatabaseManagerTests: XCTestCase {
     func test_getPointsHistory_withLimit_returnsCorrectCount() throws {
         // Arrange
         for i in 1...10 {
-            try databaseManager.savePointsTransaction(createTestTransaction(id: "txn-\(i)", pointsChange: i * 10, type: .studyReward))
+            try databaseManager.savePointsTransaction(createTestTransaction(id: "txn-\(i)", pointsChange: i * 10, type: .studyComplete))
         }
 
         // Act
@@ -388,8 +391,8 @@ final class DatabaseManagerTests: XCTestCase {
 
     func test_getPointsHistory_returnsInDescendingOrder() throws {
         // Arrange
-        let txn1 = createTestTransaction(id: "txn-1", pointsChange: 100, type: .studyReward, createdAt: Date().addingTimeInterval(-100))
-        let txn2 = createTestTransaction(id: "txn-2", pointsChange: 200, type: .studyReward, createdAt: Date())
+        let txn1 = createTestTransaction(id: "txn-1", pointsChange: 100, type: .studyComplete, createdAt: Date().addingTimeInterval(-100))
+        let txn2 = createTestTransaction(id: "txn-2", pointsChange: 200, type: .studyComplete, createdAt: Date())
 
         try databaseManager.savePointsTransaction(txn1)
         try databaseManager.savePointsTransaction(txn2)
@@ -407,7 +410,7 @@ final class DatabaseManagerTests: XCTestCase {
         let transaction = createTestTransaction(
             id: "txn-encrypted",
             pointsChange: 88,
-            type: .studyReward
+            type: .studyComplete
         )
 
         // Act
@@ -452,7 +455,7 @@ final class DatabaseManagerTests: XCTestCase {
         try databaseManager.insertMessage(createTestMessage(id: "msg-1", roomId: "room-1"))
         try databaseManager.saveChatRoom(createTestRoom(id: "room-1", name: "Test"))
         try databaseManager.saveStudySession(createTestSession(id: "session-1", userId: "user-1", duration: 60))
-        try databaseManager.savePointsTransaction(createTestTransaction(id: "txn-1", pointsChange: 100, type: .studyReward))
+        try databaseManager.savePointsTransaction(createTestTransaction(id: "txn-1", pointsChange: 100, type: .studyComplete))
 
         // Act
         try databaseManager.clearAllData()
@@ -514,22 +517,26 @@ final class DatabaseManagerTests: XCTestCase {
         id: String,
         roomId: String,
         isRead: Bool = false,
-        timestamp: Date = Date()
-    ) -> ChatMessage {
-        return ChatMessage(
+        createdAt: Date = Date()
+    ) -> DatabaseManagerTestsChatMessage {
+        return DatabaseManagerTestsChatMessage(
             id: id,
             roomId: roomId,
-            friendId: nil,
-            sender: .user,
             senderId: "user-1",
-            text: "Test message",
-            timestamp: timestamp,
+            sender: .user,
+            content: "Test message",
             messageType: .text,
-            mediaUri: nil,
-            mediaType: nil,
+            mediaUrl: nil,
+            mediaMimeType: nil,
+            mediaDuration: nil,
             mediaSize: nil,
             mediaMetadata: nil,
-            isRead: isRead
+            voiceUrl: nil,
+            voiceDuration: nil,
+            voiceTranscript: nil,
+            voiceMimeType: nil,
+            isRead: isRead,
+            createdAt: createdAt
         )
     }
 
@@ -542,7 +549,7 @@ final class DatabaseManagerTests: XCTestCase {
             id: id,
             name: name,
             type: .ai,
-            participants: nil,
+            participants: [],
             lastMessage: nil,
             unreadCount: 0,
             createdAt: Date(),
@@ -555,17 +562,17 @@ final class DatabaseManagerTests: XCTestCase {
         userId: String,
         duration: Int,
         isCompleted: Bool = true
-    ) -> StudySession {
-        return StudySession(
+    ) -> DatabaseManagerTestsStudySession {
+        return DatabaseManagerTestsStudySession(
             id: id,
             userId: userId,
-            subject: "Test Subject",
             duration: duration,
             startedAt: Date(),
             endedAt: Date(),
-            notes: "Test notes",
             earnedPoints: duration,
             isCompleted: isCompleted,
+            subject: "Test Subject",
+            notes: "Test notes",
             createdAt: Date()
         )
     }

@@ -171,7 +171,7 @@ final class StoreViewModelTests: XCTestCase {
     // MARK: - Properties
 
     var sut: StoreViewModel!
-    var mockStoreKitService: MockStoreKitService!
+    var mockStoreKitService: StoreKitServiceTestsMockStoreKitService!
     var mockPointsService: MockPointsServiceForStore!
     var cancellables: Set<AnyCancellable>!
 
@@ -180,7 +180,7 @@ final class StoreViewModelTests: XCTestCase {
     override func setUp() {
         super.setUp()
 
-        mockStoreKitService = MockStoreKitService()
+        mockStoreKitService = StoreKitServiceTestsMockStoreKitService()
         mockPointsService = MockPointsServiceForStore()
 
         // Initialize with mock dependencies - skip automatic loadProducts

@@ -18,6 +18,9 @@ import XCTest
 import SQLite
 @testable import TRIX3DCompanion
 
+typealias DatabaseIntegrationChatMessage = TRIX3DCompanion.ChatMessage
+typealias DatabaseIntegrationStudySession = TRIX3DCompanion.StudySession
+
 // MARK: - Mock Database Connection for Integration Testing
 
 /// Mock database connection for integration testing with transaction support
@@ -249,7 +252,7 @@ final class MockDatabaseConnection {
 
     // MARK: - Data Operations
 
-    func insertMessage(_ message: ChatMessage) throws {
+    func insertMessage(_ message: DatabaseIntegrationChatMessage) throws {
         try performWrite {
             try db?.run(messagesTable.insert(or: .replace,
                 messageId <- message.id,
@@ -267,7 +270,7 @@ final class MockDatabaseConnection {
         }
     }
 
-    func getMessages(roomId: String, limit: Int? = nil) throws -> [ChatMessage] {
+    func getMessages(roomId: String, limit: Int? = nil) throws -> [DatabaseIntegrationChatMessage] {
         return try performRead {
             var query = messagesTable.filter(messageRoomId == roomId)
                 .order(messageCreatedAt.desc)
@@ -279,7 +282,7 @@ final class MockDatabaseConnection {
             guard let db = db else { return [] }
 
             return try db.prepare(query).map { row in
-                ChatMessage(
+                DatabaseIntegrationChatMessage(
                     id: row[messageId],
                     roomId: row[messageRoomId],
                     senderId: row[messageSenderId],
@@ -360,7 +363,7 @@ final class MockDatabaseConnection {
         }
     }
 
-    func insertStudySession(_ session: StudySession) throws {
+    func insertStudySession(_ session: DatabaseIntegrationStudySession) throws {
         try performWrite {
             try db?.run(studySessionsTable.insert(or: .replace,
                 sessionId <- session.id,
@@ -377,13 +380,13 @@ final class MockDatabaseConnection {
         }
     }
 
-    func getUnsyncedSessions() throws -> [StudySession] {
+    func getUnsyncedSessions() throws -> [DatabaseIntegrationStudySession] {
         return try performRead {
             let query = studySessionsTable.filter(sessionSynced == false)
             guard let db = db else { return [] }
 
             return try db.prepare(query).map { row in
-                StudySession(
+                DatabaseIntegrationStudySession(
                     id: row[sessionId],
                     userId: row[sessionUserId],
                     duration: row[sessionDuration],
@@ -1125,8 +1128,8 @@ final class DatabaseIntegrationTests: XCTestCase {
 
     // MARK: - Helper Methods
 
-    private func createMockMessage(id: String, roomId: String) -> ChatMessage {
-        ChatMessage(
+    private func createMockMessage(id: String, roomId: String) -> DatabaseIntegrationChatMessage {
+        DatabaseIntegrationChatMessage(
             id: id,
             roomId: roomId,
             senderId: "test_user_\(id)",
@@ -1160,8 +1163,8 @@ final class DatabaseIntegrationTests: XCTestCase {
         )
     }
 
-    private func createMockStudySession(id: String) -> StudySession {
-        StudySession(
+    private func createMockStudySession(id: String) -> DatabaseIntegrationStudySession {
+        DatabaseIntegrationStudySession(
             id: id,
             userId: "test_user",
             duration: 60,
