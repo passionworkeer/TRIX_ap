@@ -828,14 +828,12 @@ final class DatabaseManager: DatabaseManagerProtocol {
     func savePointsTransaction(_ transaction: PointsTransaction) throws {
         guard let db = db else { throw DatabaseError.notConnected }
 
-        // Encrypt description field (may contain sensitive info)
-        let encryptedDescription = encryptField(transaction.description)
-
+        // description is plaintext — no encryption needed (server stores plaintext, not PII)
         let insert = pointsHistoryTable.insert(or: .replace,
             transactionId <- transaction.id,
             transactionPointsChange <- transaction.pointsChange,
             transactionType <- transaction.type.rawValue,
-            transactionDescription <- encryptedDescription,
+            transactionDescription <- transaction.description,
             transactionBalanceAfter <- transaction.balanceAfter,
             transactionCreatedAt <- transaction.createdAt
         )
@@ -926,11 +924,14 @@ final class DatabaseManager: DatabaseManagerProtocol {
 
         var transactions: [PointsTransaction] = []
         for row in try db.prepare(query) {
+            let rawDescription = row[transactionDescription]
+            let decryptedDescription = isEncrypted(rawDescription) ? decryptField(rawDescription) : rawDescription
+
             let transaction = PointsTransaction(
                 id: row[transactionId],
                 pointsChange: row[transactionPointsChange],
                 type: TransactionType(rawValue: row[transactionType]) ?? .adminAdjust,
-                description: row[transactionDescription],
+                description: decryptedDescription,
                 balanceAfter: row[transactionBalanceAfter],
                 createdAt: row[transactionCreatedAt]
             )
@@ -980,11 +981,13 @@ final class DatabaseManager: DatabaseManagerProtocol {
             .limit(1)
 
         guard let row = try db.pluck(query) else { return nil }
+        let rawDescription = row[transactionDescription]
+        let decryptedDescription = isEncrypted(rawDescription) ? decryptField(rawDescription) : rawDescription
         return PointsTransaction(
             id: row[self.transactionId],
             pointsChange: row[transactionPointsChange],
             type: TransactionType(rawValue: row[transactionType]) ?? .adminAdjust,
-            description: row[transactionDescription],
+            description: decryptedDescription,
             balanceAfter: row[transactionBalanceAfter],
             createdAt: row[transactionCreatedAt]
         )

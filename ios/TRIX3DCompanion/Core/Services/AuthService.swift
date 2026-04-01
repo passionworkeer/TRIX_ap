@@ -641,22 +641,12 @@ final class AuthService: ObservableObject, AuthServiceProtocol {
         case .networkError:
             // Network error — skip, don't kick self
             break
-        case .notFound:
-            guard let userId = keychainManager.getUserId() else {
-                SecureLogger.shared.warning("[安全事件] 会话缺失且无用户信息，强制登出")
-                await MainActor.run {
-                    self.handleForcedLogout()
-                }
-                return
-            }
-
-            do {
-                _ = try await SessionService.shared.upsertSession(userId: userId)
-                SecureLogger.shared.info("[AuthService] recreated missing DB session for user \(userId)")
-            } catch {
-                SecureLogger.shared.warning("[AuthService] failed to recreate missing DB session: \(error.localizedDescription)")
-            }
-        case .mismatch, .expired, .revoked:
+        case .notFound, .mismatch, .expired, .revoked:
+            // .notFound: session was replaced by another device's login — do NOT attempt
+            //   upsertSession here (that would let the old device steal back the session).
+            //   Treat it identically to .mismatch/.expired/.revoked: force logout.
+            // .mismatch: session belongs to a different device_id — already handled.
+            // .expired / .revoked: terminal invalid states.
             SecureLogger.shared.warning("[安全事件] 会话失效（\(validity)），强制登出")
             await MainActor.run {
                 self.handleForcedLogout()

@@ -549,7 +549,7 @@ struct ChatListView: View {
                 .foregroundStyle(.secondary)
 
             Button {
-                isShowingTrixBotChat = true
+                openTrixBotRoute()
             } label: {
                 Text(clawbotChannel.isPaired ? L("chat.trixbot.action.start") : L("chat.trixbot.action.pair"))
                     .frame(maxWidth: .infinity)

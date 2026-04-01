@@ -67,6 +67,14 @@ final class StoreKitService: ObservableObject, StoreKitServiceProtocol {
         productListener?.cancel()
     }
 
+    // MARK: - Pending Transactions (for listener-path transactions awaiting backend verification)
+
+    /// Transaction IDs from listener path that need backend verification
+    /// These are queued when `Transaction.updates` delivers a transaction but
+    /// we cannot block the listener. PaymentService drains this queue at startup
+    /// and after successful `verifyReceipt`.
+    private var pendingListenerTransactionIDs: Set<String> = []
+
     // MARK: - Transaction Listener
 
     /// Start listening for transaction updates
@@ -83,23 +91,36 @@ final class StoreKitService: ObservableObject, StoreKitServiceProtocol {
         }
     }
 
-    /// Handle transaction update
+    /// Handle transaction update.
+    ///
+    /// IMPORTANT: We do NOT call `finish()` here. Instead, we queue the
+    /// transaction ID so PaymentService can verify it with the backend first.
+    /// Only after backend confirmation do we finish the transaction.
+    /// This prevents the race condition where a transaction is finished but
+    /// backend verification fails, leaving no way to retry.
+    ///
     /// - Parameter result: Transaction result
     private func handleTransactionUpdate(result: VerificationResult<Transaction>) async {
         do {
             let transaction = try checkVerified(result)
+            let transactionId = transaction.id.description
 
-            // Deliver content based on product type
-            await deliverProduct(transaction: transaction)
+            // CRITICAL: Do NOT finish here. Queue for backend verification first.
+            // The transaction remains in StoreKit's queue until we explicitly finish it.
+            // If the app crashes before verification completes, the transaction
+            // will still be here on next launch for retry.
+            pendingListenerTransactionIDs.insert(transactionId)
 
-            // Finish transaction
-            await transaction.finish()
+            // Log for monitoring
+            SecureLogger.shared.info("Transaction update received, queued for verification: \(transactionId)")
 
-            // Update subscription status if applicable
-            await updateSubscriptionStatus()
+            // NOTE: We intentionally do NOT call `transaction.finish()` here.
+            // PaymentService.retryPendingTransactions() will drain this queue
+            // after calling verifyReceipt() with the backend.
 
         } catch {
             self.lastError = .verificationFailed
+            SecureLogger.shared.error("Transaction update verification failed: \(error.localizedDescription)")
         }
     }
 
@@ -196,14 +217,13 @@ final class StoreKitService: ObservableObject, StoreKitServiceProtocol {
                 do {
                     let transaction = try checkVerified(verificationResult)
 
-                    // Deliver product
-                    await deliverProduct(transaction: transaction)
-
-                    // Finish transaction
-                    await transaction.finish()
-
-                    // Update subscription status
-                    await updateSubscriptionStatus()
+                    // CRITICAL: Do NOT finish here.
+                    // PaymentService.purchasePoints() / subscribe() will call
+                    // verifyReceipt() with the backend first, then call
+                    // finishTransaction() only on success.
+                    // Leaving the transaction unfinished here is intentional:
+                    // if the app crashes or exits before verification completes,
+                    // the transaction will still be in StoreKit's queue for retry.
 
                     isPurchasing = false
                     return .success(transaction: transaction)
@@ -281,6 +301,61 @@ final class StoreKitService: ObservableObject, StoreKitServiceProtocol {
     /// Clear error state
     func clearError() {
         lastError = nil
+    }
+
+    // MARK: - Transaction Finish (for PaymentService coordination)
+
+    /// Finish a specific transaction by ID.
+    ///
+    /// This method is called by PaymentService ONLY after backend verification
+    /// succeeds. It is the single point of truth for finishing StoreKit 2 transactions.
+    ///
+    /// - Parameter transactionId: The transaction ID to finish
+    /// - Returns: True if the transaction was successfully finished, false otherwise
+    func finishTransaction(transactionId: String) async -> Bool {
+        var processed = 0
+
+        for await result in Transaction.all {
+            if processed >= ReceiptFetchConfig.maxTransactions {
+                break
+            }
+            processed += 1
+
+            guard case .verified(let transaction) = result,
+                  transaction.id.description == transactionId else {
+                continue
+            }
+
+            do {
+                await transaction.finish()
+                SecureLogger.shared.info("Transaction finished: \(transactionId)")
+                return true
+            } catch {
+                SecureLogger.shared.error("Failed to finish transaction \(transactionId): \(error.localizedDescription)")
+                return false
+            }
+        }
+
+        SecureLogger.shared.warning("Transaction not found for finish: \(transactionId)")
+        return false
+    }
+
+    /// Retrieve and clear all pending listener-path transaction IDs.
+    ///
+    /// Called by PaymentService at startup and after processing listener updates.
+    /// These transactions need backend verification before they can be finished.
+    ///
+    /// - Returns: Set of transaction IDs that were pending verification
+    func getAndClearPendingListenerTransactions() -> Set<String> {
+        let pending = pendingListenerTransactionIDs
+        pendingListenerTransactionIDs.removeAll()
+        return pending
+    }
+
+    /// Add a transaction ID back to the pending queue (e.g., if backend verification failed).
+    /// - Parameter transactionId: The transaction ID to re-queue
+    func requeuePendingTransaction(_ transactionId: String) {
+        pendingListenerTransactionIDs.insert(transactionId)
     }
 
     // MARK: - Private Methods

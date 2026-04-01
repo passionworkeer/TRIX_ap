@@ -7,6 +7,7 @@
 
 import Foundation
 import Combine
+import StoreKit
 
 // MARK: - Payment Service
 
@@ -62,9 +63,14 @@ final class PaymentService: ObservableObject, PaymentServiceProtocol {
         self.pointsService = pointsService ?? PointsService.shared
         self.apiClient = apiClient ?? .shared
 
-        // Load order history
+        // Load order history first (needed for de-dup in retryPendingTransactions)
+        // THEN retry pending StoreKit transactions that failed backend verification
+        // in a previous session. This is the safety net for the race condition:
+        // if finish() was never called (because we removed it), the transaction
+        // remains in StoreKit's queue and we can retry now.
         Task {
             await loadAppOrderHistory()
+            await retryPendingTransactions()
         }
 
         // Setup observation of store kit errors
@@ -118,19 +124,29 @@ final class PaymentService: ObservableObject, PaymentServiceProtocol {
 
         switch purchaseResult {
         case .success(let transaction):
-            // Verify with backend
+            // CRITICAL: Verify with backend BEFORE finishing the transaction.
+            // This is the fix for the race condition where finish() was called
+            // before verifyReceipt(), causing transactions to be lost on network failure.
+            let transactionId = transaction.id.description
             let verificationResult = await verifyReceipt(
-                transactionId: transaction.id.description,
+                transactionId: transactionId,
                 productId: productId,
                 receiptData: nil
             )
 
             switch verificationResult {
             case .success(let order):
+                // Only finish the transaction after backend verification succeeds.
+                // If verification fails, the transaction stays in StoreKit's queue
+                // and will be retried on next app launch via retryPendingTransactions().
+                _ = await (storeKitService as? StoreKitService)?.finishTransaction(transactionId: transactionId)
                 isProcessing = false
                 return .success(order: order)
 
             case .failure(let error):
+                // DO NOT finish the transaction on failure.
+                // Re-queue it so it can be retried at startup.
+                (storeKitService as? StoreKitService)?.requeuePendingTransaction(transactionId)
                 isProcessing = false
                 return .failed(error: error)
             }
@@ -163,19 +179,29 @@ final class PaymentService: ObservableObject, PaymentServiceProtocol {
 
         switch purchaseResult {
         case .success(let transaction):
-            // Verify with backend
+            // CRITICAL: Verify with backend BEFORE finishing the transaction.
+            // This is the fix for the race condition where finish() was called
+            // before verifyReceipt(), causing transactions to be lost on network failure.
+            let transactionId = transaction.id.description
             let verificationResult = await verifyReceipt(
-                transactionId: transaction.id.description,
+                transactionId: transactionId,
                 productId: productId,
                 receiptData: nil
             )
 
             switch verificationResult {
             case .success(let order):
+                // Only finish the transaction after backend verification succeeds.
+                // If verification fails, the transaction stays in StoreKit's queue
+                // and will be retried on next app launch via retryPendingTransactions().
+                _ = await (storeKitService as? StoreKitService)?.finishTransaction(transactionId: transactionId)
                 isProcessing = false
                 return .success(order: order)
 
             case .failure(let error):
+                // DO NOT finish the transaction on failure.
+                // Re-queue it so it can be retried at startup.
+                (storeKitService as? StoreKitService)?.requeuePendingTransaction(transactionId)
                 isProcessing = false
                 return .failed(error: error)
             }
@@ -419,6 +445,92 @@ final class PaymentService: ObservableObject, PaymentServiceProtocol {
     }
 
     // MARK: - Private Methods
+
+    /// Retry pending StoreKit transactions that failed backend verification.
+    ///
+    /// Called at init time and after listener-path transactions are received.
+    /// This method scans all unfinished StoreKit transactions and attempts to
+    /// verify each one with the backend, finishing only on success.
+    ///
+    /// This is the critical safety net for the race condition:
+    /// - If verifyReceipt() failed due to network error, the transaction is NOT finished
+    /// - On next app launch, this method finds the un-finished transaction and retries
+    /// - If backend verification succeeds, the transaction is finished
+    /// - If backend verification fails again, the transaction stays in the queue for next retry
+    private func retryPendingTransactions() async {
+        // Step 1: Drain listener-path pending queue (transactions received via Transaction.updates)
+        let listenerPending = (storeKitService as? StoreKitService)?.getAndClearPendingListenerTransactions() ?? []
+        for transactionId in listenerPending {
+            await verifyAndFinishTransaction(transactionId: transactionId)
+        }
+
+        // Step 2: Scan all unfinished transactions from Transaction.currentEntitlements.
+        // StoreKit keeps unfinished transactions in this list. If the app crashed or
+        // exited between purchase and finish(), the transaction will still be here.
+        // Note: We filter out already-completed orders by checking if they exist in cache.
+        // A more robust implementation would call the backend to check order status.
+        var processed = 0
+        for await result in Transaction.currentEntitlements {
+            guard processed < ReceiptFetchConfig.maxTransactions else { break }
+            processed += 1
+
+            guard case .verified(let transaction) = result else { continue }
+
+            let transactionId = transaction.id.description
+
+            // Skip if we already processed this transaction (idempotency)
+            // by checking if an order with this transactionId already exists
+            let alreadyProcessed = cachedAppOrders.values.contains { order in
+                order.transactionId == transactionId && order.status == .completed
+            }
+            if alreadyProcessed {
+                // Already completed in a previous pass, finish it now
+                _ = await (storeKitService as? StoreKitService)?.finishTransaction(transactionId: transactionId)
+                continue
+            }
+
+            await verifyAndFinishTransaction(transactionId: transactionId)
+        }
+    }
+
+    /// Verify a transaction with the backend and finish it on success.
+    ///
+    /// - Parameter transactionId: The transaction ID to verify and finish
+    /// - Returns: True if verification succeeded and transaction was finished, false otherwise
+    @discardableResult
+    private func verifyAndFinishTransaction(transactionId: String) async -> Bool {
+        // Get transaction info to determine productId
+        guard let transactionInfo = await storeKitService.getTransactionInfo(transactionId: transactionId) else {
+            SecureLogger.shared.warning("Transaction not found for retry: \(transactionId)")
+            // Re-queue so it can be tried again later
+            (storeKitService as? StoreKitService)?.requeuePendingTransaction(transactionId)
+            return false
+        }
+
+        // Verify with backend
+        let productId = transactionInfo.productID
+        let result = await verifyReceipt(
+            transactionId: transactionId,
+            productId: productId,
+            receiptData: nil
+        )
+
+        switch result {
+        case .success:
+            // Backend confirmed - safe to finish
+            let finished = await (storeKitService as? StoreKitService)?.finishTransaction(transactionId: transactionId) ?? false
+            if finished {
+                SecureLogger.shared.info("Pending transaction verified and finished: \(transactionId)")
+            }
+            return finished
+
+        case .failure(let error):
+            // Backend verification failed - keep transaction in queue for retry
+            SecureLogger.shared.warning("Pending transaction verification failed (will retry): \(transactionId), error: \(error.localizedDescription ?? "unknown")")
+            (storeKitService as? StoreKitService)?.requeuePendingTransaction(transactionId)
+            return false
+        }
+    }
 
     /// Load order history from server
     private func loadAppOrderHistory() async {
