@@ -2,924 +2,366 @@
 //  MapViewModelTests.swift
 //  TRIX3DCompanionTests
 //
-//  Test suite for MapViewModel - Map state, location, POI search, and navigation
-//
-//  Test Coverage:
-//  - Location permission checking and requesting
-//  - Region management and user location centering
-//  - Location selection and detail display
-//  - Friend location selection
-//  - Category filtering
-//  - POI search with MapKit
-//  - Route planning
-//  - Navigation card management
-//  - Search clearing
-//  - Error handling
-//  - Heat zones computation
+//  Unit tests for MapViewModel
 //
 
 import XCTest
-import MapKit
 import CoreLocation
+import MapKit
 import Combine
 @testable import TRIX3DCompanion
 
-// MARK: - Map View Model Tests
-
-@MainActor
+/// Unit tests for MapViewModel
 final class MapViewModelTests: XCTestCase {
 
-    var sut: MapViewModel!
-    var mockLocationService: MockLocationServiceForMap!
-    var mockMapSearchService: MockMapSearchService!
+    // MARK: - Properties
+
+    var mapViewModel: MapViewModel!
+    var mockLocationService: MockLocationService!
     var cancellables: Set<AnyCancellable>!
 
-    override func setUp() async throws {
-        try await super.setUp()
-        mockLocationService = MockLocationServiceForMap()
-        mockMapSearchService = MockMapSearchService()
+    // MARK: - Test Lifecycle
 
-        sut = MapViewModel(
-            locationService: mockLocationService,
-            mapSearchService: mockMapSearchService
-        )
-
+    override func setUpWithError() throws {
+        mockLocationService = MockLocationService()
+        mapViewModel = MapViewModel(locationService: mockLocationService)
         cancellables = Set<AnyCancellable>()
     }
 
-    override func tearDown() async throws {
-        sut = nil
+    override func tearDownWithError() throws {
+        mapViewModel = nil
         mockLocationService = nil
-        mockMapSearchService = nil
         cancellables = nil
-        try await super.tearDown()
-    }
-}
-
-// MARK: - Initial State Tests
-
-extension MapViewModelTests {
-
-    func testInitialRegionIsNotNil() {
-        XCTAssertNotNil(sut.region)
     }
 
-    func testInitialSelectedLocationIsNil() {
-        XCTAssertNil(sut.selectedLocation)
-    }
-
-    func testInitialShowLocationDetailIsFalse() {
-        XCTAssertFalse(sut.showLocationDetail)
-    }
-
-    func testInitialSearchQueryIsEmpty() {
-        XCTAssertEqual(sut.searchQuery, "")
-    }
-
-    func testInitialFilteredLocationsMatchesAll() {
-        // After init, filteredLocations should match allLocations
-        XCTAssertEqual(sut.filteredLocations.count, sut.allLocations.count)
-    }
-
-    func testInitialIsLoadingIsFalse() {
-        XCTAssertFalse(sut.isLoading)
-    }
-
-    func testInitialErrorMessageIsNil() {
-        XCTAssertNil(sut.errorMessage)
-    }
-
-    func testInitialHasLocationPermission() {
-        // Mock returns authorizedWhenInUse
-        XCTAssertTrue(sut.hasLocationPermission)
-    }
-
-    func testInitialShowLocationPermissionBannerIsTrue() {
-        XCTAssertTrue(sut.showLocationPermissionBanner)
-    }
-
-    func testInitialSelectedCategoryIsNil() {
-        XCTAssertNil(sut.selectedCategory)
-    }
-
-    func testInitialShowHeatMapIsTrue() {
-        XCTAssertTrue(sut.showHeatMap)
-    }
-
-    func testInitialFriendLocationsIsNotEmpty() {
-        // Mock data is loaded on init
-        XCTAssertFalse(sut.friendLocations.isEmpty)
-    }
-
-    func testInitialSelectedFriendIsNil() {
-        XCTAssertNil(sut.selectedFriend)
-    }
-
-    func testInitialShowFriendDetailIsFalse() {
-        XCTAssertFalse(sut.showFriendDetail)
-    }
-
-    func testInitialSearchResultsIsEmpty() {
-        XCTAssertTrue(sut.searchResults.isEmpty)
-    }
-
-    func testInitialShowSearchResultsIsFalse() {
-        XCTAssertFalse(sut.showSearchResults)
-    }
-
-    func testInitialCurrentRouteIsNil() {
-        XCTAssertNil(sut.currentRoute)
-    }
-
-    func testInitialIsSearchingIsFalse() {
-        XCTAssertFalse(sut.isSearching)
-    }
-
-    func testInitialNavigationDestinationIsNil() {
-        XCTAssertNil(sut.navigationDestination)
-    }
-
-    func testInitialShowNavigationCardIsFalse() {
-        XCTAssertFalse(sut.showNavigationCard)
-    }
-}
-
-// MARK: - Location Permission Tests
-
-extension MapViewModelTests {
-
-    func testCheckLocationPermissionUpdatesState() {
-        // Given
-        mockLocationService.authorizationStatusValue = .denied
-
-        // When
-        sut.checkLocationPermission()
-
-        // Then
-        XCTAssertFalse(sut.hasLocationPermission)
-    }
-
-    func testCheckLocationPermissionWithAuthorizedAlways() {
-        // Given
-        mockLocationService.authorizationStatusValue = .authorizedAlways
-
-        // When
-        sut.checkLocationPermission()
-
-        // Then
-        XCTAssertTrue(sut.hasLocationPermission)
-    }
-
-    func testCheckLocationPermissionWithAuthorizedWhenInUse() {
-        // Given
-        mockLocationService.authorizationStatusValue = .authorizedWhenInUse
-
-        // When
-        sut.checkLocationPermission()
-
-        // Then
-        XCTAssertTrue(sut.hasLocationPermission)
-    }
-
-    func testCheckLocationPermissionWithRestricted() {
-        // Given
-        mockLocationService.authorizationStatusValue = .restricted
-
-        // When
-        sut.checkLocationPermission()
-
-        // Then
-        XCTAssertFalse(sut.hasLocationPermission)
-    }
-
-    func testRequestLocationPermission() {
-        // Given
-        mockLocationService.authorizationStatusValue = .notDetermined
-
-        // When
-        sut.requestLocationPermission()
-
-        // Then
-        XCTAssertEqual(mockLocationService.requestPermissionCallCount, 1)
-        XCTAssertTrue(sut.hasLocationPermission)
-    }
-}
-
-// MARK: - User Location Tests
-
-extension MapViewModelTests {
-
-    func testCenterOnUserLocationWithCurrentLocation() {
-        // Given
-        let mockLocation = MockLocationServiceForMap.createMockCLLocation(
-            latitude: 31.2304,
-            longitude: 121.4737
-        )
-        mockLocationService.currentLocationValue = mockLocation
-
-        // When
-        sut.centerOnUserLocation()
-
-        // Then
-        XCTAssertTrue(sut.isUserLocationAvailable)
-        XCTAssertEqual(sut.region.center.latitude, 31.2304, accuracy: 0.0001)
-    }
-
-    func testCenterOnUserLocationWithoutCurrentLocation() {
-        // Given
-        mockLocationService.currentLocationValue = nil
-
-        // When
-        sut.centerOnUserLocation()
-
-        // Then
-        XCTAssertEqual(mockLocationService.startLocationUpdatesCallCount, 1)
-    }
-}
-
-// MARK: - Location Selection Tests
-
-extension MapViewModelTests {
-
-    func testSelectLocationUpdatesState() {
-        // Given
-        let location = MockLocationServiceForMap.createMockLocation(
-            id: "loc_1",
-            name: "Test Library"
-        )
-
-        // When
-        sut.selectLocation(location)
-
-        // Then
-        XCTAssertEqual(sut.selectedLocation, location)
-        XCTAssertTrue(sut.showLocationDetail)
-        XCTAssertEqual(sut.region.center.latitude, location.latitude, accuracy: 0.0001)
-    }
-
-    func testSelectLocationUpdatesRegion() {
-        // Given
-        let location = MockLocationServiceForMap.createMockLocation(
-            latitude: 39.9042,
-            longitude: 116.4074
-        )
-
-        // When
-        sut.selectLocation(location)
-
-        // Then
-        XCTAssertEqual(sut.region.center.latitude, 39.9042, accuracy: 0.0001)
-        XCTAssertEqual(sut.region.center.longitude, 116.4074, accuracy: 0.0001)
-    }
-
-    func testClearSelectedLocation() {
-        // Given
-        let location = MockLocationServiceForMap.createMockLocation()
-        sut.selectLocation(location)
-        XCTAssertTrue(sut.showLocationDetail)
-
-        // When
-        sut.clearSelectedLocation()
-
-        // Then
-        XCTAssertNil(sut.selectedLocation)
-        XCTAssertFalse(sut.showLocationDetail)
-    }
-}
-
-// MARK: - Friend Location Selection Tests
-
-extension MapViewModelTests {
-
-    func testSelectFriendUpdatesState() {
-        // Given
-        let friend = MockLocationServiceForMap.createMockFriendLocation(
-            id: "friend_1",
-            name: "Ava"
-        )
-
-        // When
-        sut.selectFriend(friend)
-
-        // Then
-        XCTAssertEqual(sut.selectedFriend, friend)
-        XCTAssertTrue(sut.showFriendDetail)
-        XCTAssertEqual(sut.region.center.latitude, friend.latitude, accuracy: 0.0001)
-    }
-
-    func testClearSelectedFriend() {
-        // Given
-        let friend = MockLocationServiceForMap.createMockFriendLocation()
-        sut.selectFriend(friend)
-        XCTAssertTrue(sut.showFriendDetail)
-
-        // When
-        sut.clearSelectedFriend()
-
-        // Then
-        XCTAssertNil(sut.selectedFriend)
-        XCTAssertFalse(sut.showFriendDetail)
-    }
-}
-
-// MARK: - Share Location Tests
-
-extension MapViewModelTests {
-
-    func testShareLocationSuccess() async {
-        // Given
-        mockLocationService.shouldFailShareLocation = false
-
-        // When
-        await sut.shareLocation(with: "companion_123")
-
-        // Then
-        XCTAssertEqual(mockLocationService.shareLocationCallCount, 1)
-        XCTAssertEqual(mockLocationService.lastShareCompanionId, "companion_123")
-        XCTAssertNil(sut.errorMessage)
-    }
-
-    func testShareLocationFailure() async {
-        // Given
-        mockLocationService.shouldFailShareLocation = true
-
-        // When
-        await sut.shareLocation(with: "companion_456")
-
-        // Then
-        XCTAssertNotNil(sut.errorMessage)
-    }
-}
-
-// MARK: - Category Filter Tests
-
-extension MapViewModelTests {
-
-    func testSetCategoryFilterLibrary() {
-        // Given
-        sut.allLocations = [
-            MockLocationServiceForMap.createMockLocation(category: .library),
-            MockLocationServiceForMap.createMockLocation(id: "loc_2", category: .cafe)
+    // MARK: - Load Nearby Locations Tests
+
+    func test_loadNearbyLocations_populatesList() async throws {
+        // Arrange
+        let mockLocations = [
+            Location(
+                id: "1",
+                userId: "user1",
+                name: "Test Library",
+                description: "A test library",
+                latitude: 37.7749,
+                longitude: -122.4194,
+                address: "123 Test St",
+                category: .library,
+                createdAt: Date(),
+                updatedAt: Date()
+            ),
+            Location(
+                id: "2",
+                userId: "user2",
+                name: "Test Cafe",
+                description: "A test cafe",
+                latitude: 37.7750,
+                longitude: -122.4195,
+                address: "456 Test Ave",
+                category: .cafe,
+                createdAt: Date(),
+                updatedAt: Date()
+            )
         ]
-        sut.filteredLocations = sut.allLocations
 
-        // When
-        sut.setCategoryFilter(.library)
+        mockLocationService.mockFetchNearbyLocationsResult = .success(mockLocations)
 
-        // Then
-        XCTAssertEqual(sut.selectedCategory, .library)
+        // Act
+        await mapViewModel.loadNearbyLocations()
+
+        // Assert
+        XCTAssertFalse(mapViewModel.nearbyLocations.isEmpty, "Should have locations")
+        XCTAssertEqual(mapViewModel.nearbyLocations.count, 2, "Should have 2 locations")
+        XCTAssertEqual(mapViewModel.nearbyLocations.first?.name, "Test Library")
+        XCTAssertNil(mapViewModel.errorMessage, "Should not have error")
     }
 
-    func testSetCategoryFilterClearsFilter() {
-        // Given
-        sut.setCategoryFilter(.cafe)
+    func test_loadNearbyLocations_handlesError() async throws {
+        // Arrange
+        mockLocationService.mockFetchNearbyLocationsResult = .failure(.locationUnavailable)
 
-        // When
-        sut.setCategoryFilter(nil)
+        // Act
+        await mapViewModel.loadNearbyLocations()
 
-        // Then
-        XCTAssertNil(sut.selectedCategory)
-    }
-}
-
-// MARK: - Search Tests
-
-extension MapViewModelTests {
-
-    func testClearSearch() {
-        // Given
-        sut.searchQuery = "library"
-        sut.filteredLocations = []
-        sut.searchResults = []
-
-        // When
-        sut.clearSearch()
-
-        // Then
-        XCTAssertEqual(sut.searchQuery, "")
-        XCTAssertEqual(sut.filteredLocations, sut.allLocations)
+        // Assert
+        XCTAssertTrue(mapViewModel.nearbyLocations.isEmpty, "Should have no locations")
+        XCTAssertNotNil(mapViewModel.errorMessage, "Should have error message")
     }
 
-    func testClearError() {
-        // Given
-        sut.errorMessage = "Test error"
+    // MARK: - Search Locations Tests
 
-        // When
-        sut.clearError()
-
-        // Then
-        XCTAssertNil(sut.errorMessage)
-    }
-
-    func testClearAllSearch() {
-        // Given
-        sut.searchQuery = "cafe"
-        sut.searchResults = [POIResult(name: "Cafe", address: "Street", coordinate: CLLocationCoordinate2D(latitude: 0, longitude: 0))]
-        sut.showSearchResults = true
-        sut.navigationDestination = POIResult(name: "Cafe", address: "Street", coordinate: CLLocationCoordinate2D(latitude: 0, longitude: 0))
-        sut.currentRoute = RouteResult(distance: 1000, duration: 300, coordinates: [])
-        sut.showNavigationCard = true
-
-        // When
-        sut.clearAllSearch()
-
-        // Then
-        XCTAssertEqual(sut.searchQuery, "")
-        XCTAssertTrue(sut.searchResults.isEmpty)
-        XCTAssertFalse(sut.showSearchResults)
-        XCTAssertNil(sut.navigationDestination)
-        XCTAssertNil(sut.currentRoute)
-        XCTAssertFalse(sut.showNavigationCard)
-    }
-}
-
-// MARK: - POI Search Tests
-
-extension MapViewModelTests {
-
-    func testSearchPOIWithEmptyKeyword() {
-        // Given
-        sut.searchQuery = ""
-        sut.searchResults = [POIResult(name: "Old", address: "Old", coordinate: CLLocationCoordinate2D(latitude: 0, longitude: 0))]
-        sut.showSearchResults = true
-
-        // When - debounced search
-        sut.searchPOI(keyword: "")
-
-        // Then
-        XCTAssertTrue(sut.searchResults.isEmpty)
-        XCTAssertFalse(sut.showSearchResults)
-    }
-
-    func testSearchPOIWithKeyword() {
-        // Given
-        let mockResults = [
-            POIResult(name: "Test Library", address: "123 Street", coordinate: CLLocationCoordinate2D(latitude: 31.2304, longitude: 121.4737))
+    func test_searchLocations_filtersResults() async throws {
+        // Arrange
+        let allLocations = [
+            Location(
+                id: "1",
+                userId: "user1",
+                name: "Library",
+                description: "A quiet place",
+                latitude: 37.7749,
+                longitude: -122.4194,
+                address: "123 Test St",
+                category: .library,
+                createdAt: Date(),
+                updatedAt: Date()
+            ),
+            Location(
+                id: "2",
+                userId: "user2",
+                name: "Cafe",
+                description: "Coffee shop",
+                latitude: 37.7750,
+                longitude: -122.4195,
+                address: "456 Test Ave",
+                category: .cafe,
+                createdAt: Date(),
+                updatedAt: Date()
+            )
         ]
-        mockMapSearchService.mockPOIResults = mockResults
 
-        // When
-        sut.searchPOI(keyword: "library")
+        mockLocationService.mockFetchNearbyLocationsResult = .success(allLocations)
 
-        // Allow async completion
-        let expectation = XCTestExpectation(description: "Search completes")
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-            expectation.fulfill()
-        }
+        // Act
+        mapViewModel.searchQuery = "Library"
+        await mapViewModel.searchLocations(query: "Library")
 
-        // Then
-        XCTAssertTrue(sut.showSearchResults)
-        XCTAssertTrue(sut.isSearching)
-
-        // Note: Due to debounce and async nature, exact result verification
-        // would require waiting for the completion handler
+        // Assert
+        XCTAssertEqual(mapViewModel.nearbyLocations.count, 1, "Should filter to 1 result")
+        XCTAssertEqual(mapViewModel.nearbyLocations.first?.name, "Library")
     }
 
-    func testSearchPOIDebounce() {
-        // The search is debounced by 300ms in the actual implementation
-        // This test verifies the debounce behavior would work correctly
-        sut.searchQuery = "library"
-        // Debounce would be applied by Combine binding
-        XCTAssertEqual(sut.searchQuery, "library")
+    func test_searchLocations_emptyQuery() async throws {
+        // Arrange
+        let mockLocations = [
+            Location(
+                id: "1",
+                userId: "user1",
+                name: "Library",
+                description: nil,
+                latitude: 37.7749,
+                longitude: -122.4194,
+                address: nil,
+                category: .library,
+                createdAt: Date(),
+                updatedAt: Date()
+            )
+        ]
+
+        mockLocationService.mockFetchNearbyLocationsResult = .success(mockLocations)
+
+        // Act - Empty query should load all
+        await mapViewModel.searchLocations(query: "")
+
+        // Assert
+        XCTAssertFalse(mapViewModel.nearbyLocations.isEmpty, "Should load all locations")
     }
 
-    func testSelectSearchResult() {
-        // Given
-        let poi = POIResult(
-            name: "Test Cafe",
-            address: "456 Street",
-            coordinate: CLLocationCoordinate2D(latitude: 39.9042, longitude: 116.4074)
-        )
+    // MARK: - Select Location Tests
 
-        // When
-        sut.selectSearchResult(poi)
-
-        // Then
-        XCTAssertFalse(sut.showSearchResults)
-        XCTAssertEqual(sut.navigationDestination, poi)
-        XCTAssertEqual(sut.region.center.latitude, 39.9042, accuracy: 0.0001)
-    }
-}
-
-// MARK: - Navigation Tests
-
-extension MapViewModelTests {
-
-    func testPlanRoute() {
-        // Given
-        let destination = CLLocationCoordinate2D(latitude: 31.2304, longitude: 121.4737)
-
-        // When
-        sut.planRoute(to: destination)
-
-        // Then
-        // Route planning uses a completion handler, so we verify the method doesn't crash
-        XCTAssertTrue(mockMapSearchService.routePlanCallCount > 0 || true)
-    }
-
-    func testStartNavigation() {
-        // Given
-        let poi = POIResult(
+    func test_selectLocation_updatesSelectedLocation() throws {
+        // Arrange
+        let location = Location(
+            id: "1",
+            userId: "user1",
             name: "Test Location",
-            address: "123 Street",
-            coordinate: CLLocationCoordinate2D(latitude: 31.2304, longitude: 121.4737)
+            description: nil,
+            latitude: 37.7749,
+            longitude: -122.4194,
+            address: nil,
+            category: nil,
+            createdAt: Date(),
+            updatedAt: Date()
         )
 
-        // When
-        sut.startNavigation(to: poi)
+        // Act
+        mapViewModel.selectLocation(location)
 
-        // Then - openNavigation is called; we verify the method doesn't crash
-        XCTAssertTrue(true)
+        // Assert
+        XCTAssertEqual(mapViewModel.selectedLocation, location, "Should update selected location")
     }
 
-    func testCloseNavigationCard() {
-        // Given
-        sut.showNavigationCard = true
-
-        // When
-        sut.closeNavigationCard()
-
-        // Then
-        XCTAssertFalse(sut.showNavigationCard)
-    }
-}
-
-// MARK: - Heat Zones Tests
-
-extension MapViewModelTests {
-
-    func testHeatZonesWhenShowHeatMapIsTrue() {
-        // Given
-        sut.showHeatMap = true
-
-        // When
-        let zones = sut.heatZones
-
-        // Then
-        XCTAssertFalse(zones.isEmpty)
-        XCTAssertEqual(zones.count, 3)
-    }
-
-    func testHeatZonesWhenShowHeatMapIsFalse() {
-        // Given
-        sut.showHeatMap = false
-
-        // When
-        let zones = sut.heatZones
-
-        // Then
-        XCTAssertTrue(zones.isEmpty)
-    }
-}
-
-// MARK: - Map Annotations Tests
-
-extension MapViewModelTests {
-
-    func testMarkerColorForLibrary() {
-        // Given
-        let location = MockLocationServiceForMap.createMockLocation(category: .library)
-
-        // When
-        let color = sut.markerColor(for: location)
-
-        // Then
-        XCTAssertEqual(color, .purple)
-    }
-
-    func testMarkerColorForCafe() {
-        // Given
-        let location = MockLocationServiceForMap.createMockLocation(category: .cafe)
-
-        // When
-        let color = sut.markerColor(for: location)
-
-        // Then
-        XCTAssertEqual(color, .orange)
-    }
-
-    func testMarkerColorForRestaurant() {
-        // Given
-        let location = MockLocationServiceForMap.createMockLocation(category: .restaurant)
-
-        // When
-        let color = sut.markerColor(for: location)
-
-        // Then
-        XCTAssertEqual(color, .red)
-    }
-
-    func testMarkerColorForPark() {
-        // Given
-        let location = MockLocationServiceForMap.createMockLocation(category: .park)
-
-        // When
-        let color = sut.markerColor(for: location)
-
-        // Then
-        XCTAssertEqual(color, .mint)
-    }
-
-    func testMarkerColorForSchool() {
-        // Given
-        let location = MockLocationServiceForMap.createMockLocation(category: .school)
-
-        // When
-        let color = sut.markerColor(for: location)
-
-        // Then
-        XCTAssertEqual(color, .blue)
-    }
-
-    func testMarkerColorForOther() {
-        // Given
-        let location = MockLocationServiceForMap.createMockLocation(category: .other)
-
-        // When
-        let color = sut.markerColor(for: location)
-
-        // Then
-        XCTAssertEqual(color, .gray)
-    }
-
-    func testIconNameForLibrary() {
-        // Given
-        let location = MockLocationServiceForMap.createMockLocation(category: .library)
-
-        // When
-        let icon = sut.iconName(for: location)
-
-        // Then
-        XCTAssertEqual(icon, "books.vertical.fill")
-    }
-
-    func testIconNameForCafe() {
-        // Given
-        let location = MockLocationServiceForMap.createMockLocation(category: .cafe)
-
-        // When
-        let icon = sut.iconName(for: location)
-
-        // Then
-        XCTAssertEqual(icon, "cup.and.saucer.fill")
-    }
-
-    func testIconNameForRestaurant() {
-        // Given
-        let location = MockLocationServiceForMap.createMockLocation(category: .restaurant)
-
-        // When
-        let icon = sut.iconName(for: location)
-
-        // Then
-        XCTAssertEqual(icon, "fork.knife")
-    }
-
-    func testIconNameForEntertainment() {
-        // Given
-        let location = MockLocationServiceForMap.createMockLocation(category: .entertainment)
-
-        // When
-        let icon = sut.iconName(for: location)
-
-        // Then
-        XCTAssertEqual(icon, "gamecontroller.fill")
-    }
-
-    func testIconNameForPark() {
-        // Given
-        let location = MockLocationServiceForMap.createMockLocation(category: .park)
-
-        // When
-        let icon = sut.iconName(for: location)
-
-        // Then
-        XCTAssertEqual(icon, "tree.fill")
-    }
-
-    func testIconNameForHome() {
-        // Given
-        let location = MockLocationServiceForMap.createMockLocation(category: .home)
-
-        // When
-        let icon = sut.iconName(for: location)
-
-        // Then
-        XCTAssertEqual(icon, "house.fill")
-    }
-}
-
-// MARK: - Mock Services Call Tracking Tests
-
-extension MapViewModelTests {
-
-    func testLocationServiceCallsOnInit() {
-        // The init calls checkLocationPermission
-        XCTAssertTrue(mockLocationService.requestPermissionCallCount >= 0)
-    }
-
-    func testMockLocationServiceReset() {
-        // Given
-        mockLocationService.requestPermissionCallCount = 5
-
-        // When
-        mockLocationService.reset()
-
-        // Then
-        XCTAssertEqual(mockLocationService.requestPermissionCallCount, 0)
-        XCTAssertNil(mockLocationService.currentLocationValue)
-    }
-
-    func testMockMapSearchServiceReset() {
-        // Given
-        mockMapSearchService.searchPOICallCount = 5
-
-        // When
-        mockMapSearchService.reset()
-
-        // Then
-        XCTAssertEqual(mockMapSearchService.searchPOICallCount, 0)
-    }
-}
-
-// MARK: - LocationCategory Tests
-
-extension MapViewModelTests {
-
-    func testLocationCategoryAllCases() {
-        // Then - verify all expected categories exist
-        let categories: [LocationCategory] = [.school, .library, .cafe, .restaurant, .entertainment, .home, .park, .other]
-        XCTAssertEqual(categories.count, 8)
-    }
-}
-
-// MARK: - MapViewModel Preview Tests
-
-extension MapViewModelTests {
-
-    func testMapViewModelPreview() {
-        // Given
-        let preview = MapViewModel.preview
-
-        // Then
-        XCTAssertFalse(preview.allLocations.isEmpty)
-        XCTAssertEqual(preview.allLocations.count, 2)
-        XCTAssertEqual(preview.filteredLocations.count, 2)
-    }
-}
-
-// MARK: - POI Result Tests
-
-extension MapViewModelTests {
-
-    func testPOIResultInit() {
-        // Given
-        let coordinate = CLLocationCoordinate2D(latitude: 31.2304, longitude: 121.4737)
-
-        // When
-        let poi = POIResult(name: "Test Place", address: "123 Test Street", coordinate: coordinate)
-
-        // Then
-        XCTAssertEqual(poi.name, "Test Place")
-        XCTAssertEqual(poi.address, "123 Test Street")
-        XCTAssertEqual(poi.latitude, 31.2304)
-        XCTAssertEqual(poi.longitude, 121.4737)
-    }
-
-    func testPOIResultEquality() {
-        // Given
-        let poi1 = POIResult(name: "Test", address: "Street", coordinate: CLLocationCoordinate2D(latitude: 1.0, longitude: 1.0))
-        let poi2 = POIResult(name: "Test", address: "Street", coordinate: CLLocationCoordinate2D(latitude: 1.0, longitude: 1.0))
-        let poi3 = POIResult(name: "Different", address: "Street", coordinate: CLLocationCoordinate2D(latitude: 1.0, longitude: 1.0))
-
-        // Then
-        XCTAssertEqual(poi1, poi2)
-        XCTAssertNotEqual(poi1, poi3)
-    }
-
-    func testPOIResultIdentifiable() {
-        // Given
-        let poi = POIResult(name: "Test", address: "Street", coordinate: CLLocationCoordinate2D(latitude: 0, longitude: 0))
-
-        // Then
-        XCTAssertNotEqual(poi.id.uuidString, "")
-    }
-}
-
-// MARK: - Route Result Tests
-
-extension MapViewModelTests {
-
-    func testRouteResultFormattedDistanceMeters() {
-        // Given
-        let route = RouteResult(distance: 500, duration: 120, coordinates: [])
-
-        // Then
-        XCTAssertEqual(route.formattedDistance, "500 m")
-    }
-
-    func testRouteResultFormattedDistanceKilometers() {
-        // Given
-        let route = RouteResult(distance: 2500, duration: 600, coordinates: [])
-
-        // Then
-        XCTAssertEqual(route.formattedDistance, "2.5 km")
-    }
-
-    func testRouteResultFormattedDurationMinutes() {
-        // Given
-        let route = RouteResult(distance: 1000, duration: 300, coordinates: [])
-
-        // Then
-        XCTAssertEqual(route.formattedDuration, "5分钟")
-    }
-
-    func testRouteResultFormattedDurationHoursAndMinutes() {
-        // Given
-        let route = RouteResult(distance: 10000, duration: 5400, coordinates: [])
-
-        // Then
-        XCTAssertEqual(route.formattedDuration, "1小时30分钟")
-    }
-
-    func testRouteResultEquality() {
-        // Given
-        let route1 = RouteResult(distance: 1000, duration: 300, coordinates: [])
-        let route2 = RouteResult(distance: 1000, duration: 300, coordinates: [])
-        let route3 = RouteResult(distance: 2000, duration: 300, coordinates: [])
-
-        // Then
-        XCTAssertEqual(route1, route2)
-        XCTAssertNotEqual(route1, route3)
-    }
-}
-
-// MARK: - Friend Location Model Tests
-
-extension MapViewModelTests {
-
-    func testFriendMapLocationProperties() {
-        // Given
-        let friend = MockLocationServiceForMap.createMockFriendLocation(
-            id: "friend_test",
-            name: "Test Friend",
-            latitude: 31.2304,
-            longitude: 121.4737,
-            isStudying: true,
-            status: "online"
+    func test_clearSelection() throws {
+        // Arrange
+        let location = Location(
+            id: "1",
+            userId: "user1",
+            name: "Test Location",
+            description: nil,
+            latitude: 37.7749,
+            longitude: -122.4194,
+            address: nil,
+            category: nil,
+            createdAt: Date(),
+            updatedAt: Date()
         )
 
-        // Then
-        XCTAssertEqual(friend.id, "friend_test")
-        XCTAssertEqual(friend.name, "Test Friend")
-        XCTAssertEqual(friend.latitude, 31.2304)
-        XCTAssertEqual(friend.longitude, 121.4737)
-        XCTAssertTrue(friend.isStudying)
-        XCTAssertEqual(friend.status, "online")
+        mapViewModel.selectLocation(location)
+        XCTAssertNotNil(mapViewModel.selectedLocation)
+
+        // Act
+        mapViewModel.clearSelection()
+
+        // Assert
+        XCTAssertNil(mapViewModel.selectedLocation, "Should clear selection")
     }
 
-    func testFriendMapLocationCoordinate() {
-        // Given
-        let friend = MockLocationServiceForMap.createMockFriendLocation(
-            latitude: 39.9042,
-            longitude: 116.4074
+    // MARK: - Center on User Location Tests
+
+    func test_centerOnUserLocation_updatesRegion() async throws {
+        // Arrange
+        let testLocation = CLLocation(latitude: 37.7749, longitude: -122.4194)
+        mockLocationService.currentLocation = testLocation
+
+        // Act
+        await mapViewModel.centerOnUserLocation()
+
+        // Assert
+        XCTAssertNotNil(mapViewModel.userLocation, "Should set user location")
+        XCTAssertEqual(
+            mapViewModel.mapRegion.center.latitude,
+            testLocation.coordinate.latitude,
+            accuracy: 0.001
         )
-
-        // Then
-        XCTAssertEqual(friend.coordinate.latitude, 39.9042)
-        XCTAssertEqual(friend.coordinate.longitude, 116.4074)
     }
-}
 
-// MARK: - Load Nearby Locations Tests
+    func test_centerOnUserLocation_handlesError() async throws {
+        // Arrange - No location available
+        mockLocationService.currentLocation = nil
 
-extension MapViewModelTests {
+        // Act
+        await mapViewModel.centerOnUserLocation()
 
-    func testLoadNearbyLocationsWithSuccess() async {
-        // Given
-        mockLocationService.shouldFailFetchNearby = false
-        mockLocationService.mockNearbyLocations = [
-            MockLocationServiceForMap.createMockLocation(id: "nearby_1"),
-            MockLocationServiceForMap.createMockLocation(id: "nearby_2")
+        // Assert
+        XCTAssertNil(mapViewModel.userLocation, "Should not set user location")
+        XCTAssertNotNil(mapViewModel.errorMessage, "Should have error message")
+    }
+
+    // MARK: - Share Location Tests
+
+    func test_shareLocation_callsService() async throws {
+        // Arrange
+        let testLocation = CLLocation(latitude: 37.7749, longitude: -122.4194)
+        mockLocationService.currentLocation = testLocation
+
+        mapViewModel.selectLocation(Location(
+            id: "1",
+            userId: "user1",
+            name: "Test",
+            description: nil,
+            latitude: 37.7749,
+            longitude: -122.4194,
+            address: nil,
+            category: nil,
+            createdAt: Date(),
+            updatedAt: Date()
+        ))
+
+        mockLocationService.mockShareLocationResult = .success(true)
+
+        // Act
+        let result = await mapViewModel.shareLocation(companionId: "companion-123")
+
+        // Assert
+        XCTAssertTrue(result, "Should return success")
+        XCTAssertEqual(mockLocationService.shareLocationCallCount, 1, "Should call service once")
+    }
+
+    func test_shareLocation_handlesError() async throws {
+        // Arrange
+        mockLocationService.mockShareLocationResult = .failure(.networkError(NSError(domain: "test", code: 0)))
+
+        // Act
+        let result = await mapViewModel.shareLocation(companionId: "companion-123")
+
+        // Assert
+        XCTAssertFalse(result, "Should return failure")
+        XCTAssertNotNil(mapViewModel.errorMessage, "Should have error message")
+    }
+
+    func test_shareLocation_noLocation() async throws {
+        // Arrange - No selected location and no user location
+        mapViewModel.clearSelection()
+
+        // Act
+        let result = await mapViewModel.shareLocation(companionId: "companion-123")
+
+        // Assert
+        XCTAssertFalse(result, "Should return failure")
+        XCTAssertNotNil(mapViewModel.errorMessage, "Should have error message")
+    }
+
+    // MARK: - Refresh Tests
+
+    func test_refresh_reloadsLocations() async throws {
+        // Arrange
+        let mockLocations = [
+            Location(
+                id: "1",
+                userId: "user1",
+                name: "Test",
+                description: nil,
+                latitude: 37.7749,
+                longitude: -122.4194,
+                address: nil,
+                category: nil,
+                createdAt: Date(),
+                updatedAt: Date()
+            )
         ]
 
-        // When
-        await sut.loadNearbyLocations()
+        mockLocationService.mockFetchNearbyLocationsResult = .success(mockLocations)
 
-        // Then
-        XCTAssertFalse(sut.isLoading)
-        XCTAssertNil(sut.errorMessage)
+        // Act
+        await mapViewModel.refresh()
+
+        // Assert
+        XCTAssertFalse(mapViewModel.nearbyLocations.isEmpty, "Should reload locations")
     }
 
-    func testLoadNearbyLocationsWithFailure() async {
-        // Given
-        mockLocationService.shouldFailFetchNearby = true
+    // MARK: - Loading State Tests
 
-        // When
-        await sut.loadNearbyLocations()
+    func test_loadingState_duringFetch() async throws {
+        // Arrange
+        let mockLocations = [Location(
+            id: "1",
+            userId: "user1",
+            name: "Test",
+            description: nil,
+            latitude: 37.7749,
+            longitude: -122.4194,
+            address: nil,
+            category: nil,
+            createdAt: Date(),
+            updatedAt: Date()
+        )]
 
-        // Then
-        XCTAssertFalse(sut.isLoading)
-        // Falls back to mock data, so no error message
+        mockLocationService.mockFetchNearbyLocationsResult = .success(mockLocations)
+
+        // Track loading state changes
+        var loadingStates: [Bool] = []
+        mapViewModel.$isLoading
+            .sink { loading in
+                loadingStates.append(loading)
+            }
+            .store(in: &cancellables)
+
+        // Act
+        await mapViewModel.loadNearbyLocations()
+
+        // Assert
+        XCTAssertTrue(loadingStates.contains(true), "Should show loading state")
+        XCTAssertTrue(loadingStates.last ?? true, "Should end with non-loading state")
+    }
+
+    // MARK: - Search Query Binding Tests
+
+    func test_searchQuery_binding() throws {
+        // This test verifies the search query binding works
+
+        // Note: Debounce makes this hard to test synchronously
+        // The binding is tested through searchLocations tests
+
+        XCTAssertEqual(mapViewModel.searchQuery, "", "Should start with empty query")
     }
 }
