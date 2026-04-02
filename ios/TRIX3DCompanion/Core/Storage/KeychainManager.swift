@@ -520,7 +520,7 @@ final class KeychainManager: KeychainManagerProtocol {
         try safeSave(deviceId, key: Key.pairedDeviceId)
         try safeSave(deviceName, key: Key.pairedDeviceName)
         try safeSave("true", key: Key.isPaired)
-        SecureLogger.shared.info("Paired device saved to Keychain: \(deviceName)")
+        SecureLogger.shared.info("Paired device saved to Keychain")
     }
 
     /// Get paired device ID

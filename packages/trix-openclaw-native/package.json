@@ -52,7 +52,7 @@
     "ws": "^8.19.0"
   },
   "peerDependencies": {
-    "openclaw": ">=2026.3.28 <2027"
+    "openclaw": ">=2026.4.1 <2027"
   },
   "openclaw": {
     "extensions": [

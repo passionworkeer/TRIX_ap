@@ -141,7 +141,7 @@ describe('TrixNativeChannelClient session switching', () => {
     });
     vi.stubGlobal('window', globalThis);
 
-    localStorage.setItem(
+    sessionStorage.setItem(
       'trix_native_channel_sessions_v2',
       JSON.stringify({
         version: 2,
@@ -160,7 +160,7 @@ describe('TrixNativeChannelClient session switching', () => {
         },
       }),
     );
-    localStorage.setItem('trix_native_channel_active_account', 'default');
+    sessionStorage.setItem('trix_native_channel_active_account', 'default');
     localStorage.setItem('trix_native_channel_client_id', 'web_client_1');
     sessionStorage.setItem('trix_native_channel_token:default:conv_old:web_client_1', 'token_old');
   });

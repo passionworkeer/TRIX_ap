@@ -81,7 +81,7 @@ ios/TRIX3DCompanion/
 |   +- Home/               # Main tab, bot chat
 |   +- Chat/               # Chat detail, messages, voice
 |   +- Study/              # Study room, timer, stats
-|   +- Map/                # Baidu Map integration
+|   +- Map/                # MapKit-based map experience
 |   +- Store/              # Points, subscriptions, payments
 |   +- Pairing/            # QR code device pairing
 |   +- Snapshot/           # Camera, photo analysis
@@ -118,7 +118,7 @@ ios/TRIX3DCompanion/
 | `ChatService` | Message sending/receiving |
 | `PushNotificationService` | APNs registration and handling |
 | `StoreKitService` | StoreKit 2 subscriptions |
-| `LocationService` | Baidu Map location |
+| `LocationService` | Core Location nearby places + sharing |
 
 ---
 

@@ -142,6 +142,36 @@
         return `${sessionTokenPrefix}:${(resolvedAccountId || 'default').trim() || 'default'}:${conversationId}:${clientId}`;
       }
 
+      function getSessionStateStorage() {
+        return window.sessionStorage || window.localStorage;
+      }
+
+      function migrateLegacyNativeSessionState() {
+        const sessionStateStorage = getSessionStateStorage();
+        if (sessionStateStorage === window.localStorage) return sessionStateStorage;
+
+        for (const key of [sessionStateKey, activeAccountKey, legacySessionKey, claimStorageKey]) {
+          const rawValue = window.localStorage.getItem(key);
+          if (!rawValue) continue;
+          if (!sessionStateStorage.getItem(key)) {
+            sessionStateStorage.setItem(key, rawValue);
+          }
+          window.localStorage.removeItem(key);
+        }
+
+        for (const key of Object.keys(window.localStorage)) {
+          if (!key.startsWith(`${sessionTokenPrefix}:`)) continue;
+          const rawValue = window.localStorage.getItem(key);
+          if (!rawValue) continue;
+          if (!window.sessionStorage.getItem(key)) {
+            window.sessionStorage.setItem(key, rawValue);
+          }
+          window.localStorage.removeItem(key);
+        }
+
+        return sessionStateStorage;
+      }
+
       function migrateLegacySupabaseSessions() {
         if (!window.sessionStorage) return;
         for (const key of Object.keys(window.localStorage)) {
@@ -251,6 +281,7 @@
           const resolvedAccountId = (payload.accountId || accountId || 'default').trim() || 'default';
           const websocketUrl = payload.websocketUrl || payload.wsUrl || `${String(payload.serverUrl || window.location.origin).replace(/^http/i, 'ws').replace(/\/$/, '')}/ws`;
           const appUserId = decodeSupabaseUserId(accessToken);
+          const sessionStateStorage = migrateLegacyNativeSessionState();
           const storedSession = {
             accountId: resolvedAccountId,
             appUserId,
@@ -263,7 +294,7 @@
           };
           let existingSessions = {};
           try {
-            const parsedState = JSON.parse(window.localStorage.getItem(sessionStateKey) || '{}').sessions || {};
+            const parsedState = JSON.parse(sessionStateStorage.getItem(sessionStateKey) || '{}').sessions || {};
             existingSessions = Object.fromEntries(
               Object.entries(parsedState).map(([existingAccountId, existingSession]) => [
                 existingAccountId,
@@ -300,10 +331,10 @@
             buildSessionTokenStorageKey(resolvedAccountId, payload.conversationId, storedSession.clientId),
             payload.clientToken,
           );
-          window.localStorage.setItem(sessionStateKey, JSON.stringify(sessionState));
-          window.localStorage.setItem(activeAccountKey, resolvedAccountId);
-          window.localStorage.setItem(legacySessionKey, JSON.stringify(storedSession));
-          window.localStorage.setItem(claimStorageKey, JSON.stringify({
+          sessionStateStorage.setItem(sessionStateKey, JSON.stringify(sessionState));
+          sessionStateStorage.setItem(activeAccountKey, resolvedAccountId);
+          sessionStateStorage.setItem(legacySessionKey, JSON.stringify(storedSession));
+          sessionStateStorage.setItem(claimStorageKey, JSON.stringify({
             ...payload,
             clientToken: undefined,
           }));

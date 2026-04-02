@@ -15,7 +15,18 @@ const IMAGE_PREFIXES = ['image/'];
 const AUDIO_PREFIXES = ['audio/'];
 const VIDEO_PREFIXES = ['video/'];
 const MAX_REMOTE_ATTACHMENT_BYTES = Number(process.env.TRIX_NATIVE_MAX_REMOTE_ATTACHMENT_BYTES || 25 * 1024 * 1024);
-const ALLOW_LOCAL_ATTACHMENT_PATHS = process.env.TRIX_NATIVE_ALLOW_LOCAL_ATTACHMENT_PATHS === '1';
+
+function isLocalAttachmentPathsEnabled(): boolean {
+  return process.env.TRIX_NATIVE_ALLOW_LOCAL_ATTACHMENT_PATHS === '1';
+}
+
+function getAllowedLocalAttachmentRoots(): string[] {
+  return String(process.env.TRIX_NATIVE_ALLOWED_LOCAL_ATTACHMENT_ROOTS || '')
+    .split(',')
+    .map((entry) => entry.trim())
+    .filter(Boolean)
+    .map((entry) => path.resolve(entry));
+}
 
 function isPrivateIpAddress(address: string): boolean {
   const normalized = address.toLowerCase();
@@ -79,6 +90,71 @@ async function assertSafeRemoteUrl(rawUrl: string): Promise<string> {
   }
 
   return parsed.toString();
+}
+
+function isPathInsideRoot(targetPath: string, rootPath: string): boolean {
+  const relative = path.relative(rootPath, targetPath);
+  return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative));
+}
+
+function assertAllowedLocalPath(rawPath: string): string {
+  if (!isLocalAttachmentPathsEnabled()) {
+    throw new Error('Local attachment paths are disabled');
+  }
+
+  const allowedRoots = getAllowedLocalAttachmentRoots();
+  if (allowedRoots.length === 0) {
+    throw new Error('Local attachment roots are not configured');
+  }
+
+  const resolvedPath = path.resolve(rawPath);
+  if (!allowedRoots.some((rootPath) => isPathInsideRoot(resolvedPath, rootPath))) {
+    throw new Error('Local attachment path is outside allowed roots');
+  }
+
+  return resolvedPath;
+}
+
+async function fetchRemoteAttachment(rawUrl: string): Promise<{
+  buffer: Buffer;
+  fileName: string;
+  mimeType: string;
+}> {
+  const safeUrl = await assertSafeRemoteUrl(rawUrl);
+  const response = await fetch(safeUrl);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch attachment URL: ${response.status} ${response.statusText}`);
+  }
+
+  const contentLength = Number(response.headers.get('content-length') || 0);
+  if (contentLength > MAX_REMOTE_ATTACHMENT_BYTES) {
+    throw new Error('Attachment URL content is too large');
+  }
+
+  const buffer = Buffer.from(await response.arrayBuffer());
+  if (buffer.length > MAX_REMOTE_ATTACHMENT_BYTES) {
+    throw new Error('Attachment URL content is too large');
+  }
+
+  const parsedUrl = new URL(safeUrl);
+  return {
+    buffer,
+    fileName: parsedUrl.pathname.split('/').pop() || 'reply-media.bin',
+    mimeType: response.headers.get('content-type') ?? 'application/octet-stream',
+  };
+}
+
+async function readLocalAttachment(rawPath: string): Promise<{
+  buffer: Buffer;
+  fileName: string;
+  mimeType: string;
+}> {
+  const resolvedPath = assertAllowedLocalPath(rawPath);
+  return {
+    buffer: await fs.readFile(resolvedPath),
+    fileName: path.basename(resolvedPath),
+    mimeType: 'application/octet-stream',
+  };
 }
 
 function inferKind(mimeType: string | undefined, fileName: string | undefined): AttachmentKind {
@@ -175,24 +251,15 @@ export class AttachmentStore {
 
   async loadReplyMedia(mediaUrl: string): Promise<AttachmentDescriptor> {
     if (/^https?:\/\//i.test(mediaUrl)) {
-      const response = await fetch(mediaUrl);
-      if (!response.ok) {
-        throw new Error(`Failed to fetch mediaUrl: ${response.status} ${response.statusText}`);
-      }
-      const buffer = Buffer.from(await response.arrayBuffer());
-      const url = new URL(mediaUrl);
-      const fileName = url.pathname.split('/').pop() || 'reply-media.bin';
-      const mimeType = response.headers.get('content-type') ?? 'application/octet-stream';
+      const { buffer, fileName, mimeType } = await fetchRemoteAttachment(mediaUrl);
       return this.saveBuffer({ buffer, fileName, mimeType });
     }
 
-    const localPath = path.resolve(mediaUrl);
-    const buffer = await fs.readFile(localPath);
-    const fileName = path.basename(localPath);
+    const { buffer, fileName, mimeType } = await readLocalAttachment(mediaUrl);
     return this.saveBuffer({
       buffer,
       fileName,
-      mimeType: 'application/octet-stream',
+      mimeType,
     });
   }
 
@@ -214,27 +281,11 @@ export class AttachmentStore {
     }
 
     if (input.localPath) {
-      if (!ALLOW_LOCAL_ATTACHMENT_PATHS) {
-        throw new Error('Local attachment paths are disabled');
-      }
-      return fs.readFile(path.resolve(input.localPath));
+      return (await readLocalAttachment(input.localPath)).buffer;
     }
 
     if (input.url) {
-      const safeUrl = await assertSafeRemoteUrl(input.url);
-      const response = await fetch(safeUrl);
-      if (!response.ok) {
-        throw new Error(`Failed to fetch attachment URL: ${response.status} ${response.statusText}`);
-      }
-      const contentLength = Number(response.headers.get('content-length') || 0);
-      if (contentLength > MAX_REMOTE_ATTACHMENT_BYTES) {
-        throw new Error('Attachment URL content is too large');
-      }
-      const buffer = Buffer.from(await response.arrayBuffer());
-      if (buffer.length > MAX_REMOTE_ATTACHMENT_BYTES) {
-        throw new Error('Attachment URL content is too large');
-      }
-      return buffer;
+      return (await fetchRemoteAttachment(input.url)).buffer;
     }
 
     throw new Error('Attachment input requires contentBase64, localPath, or url');

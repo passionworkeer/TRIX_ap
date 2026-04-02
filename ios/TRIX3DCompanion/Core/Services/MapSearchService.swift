@@ -116,13 +116,12 @@ final class MapSearchService: NSObject, MapSearchServiceProtocol {
         search.start { response, error in
             if let error = error {
                 SecureLogger.shared.warning("MapSearchService: searchPOI error: \(error.localizedDescription)")
-                // Fallback to mock
-                completion(Self.mockSearchResults(keyword: keyword, city: city))
+                completion([])
                 return
             }
 
             let results = (response?.mapItems ?? []).map { POIResult(from: $0) }
-            completion(results.isEmpty ? Self.mockSearchResults(keyword: keyword, city: city) : results)
+            completion(results)
         }
     }
 
@@ -154,12 +153,12 @@ final class MapSearchService: NSObject, MapSearchServiceProtocol {
         search.start { response, error in
             if let error = error {
                 SecureLogger.shared.warning("MapSearchService: searchNearby error: \(error.localizedDescription)")
-                completion(Self.mockSearchResults(keyword: keyword))
+                completion([])
                 return
             }
 
             let results = (response?.mapItems ?? []).map { POIResult(from: $0) }
-            completion(results.isEmpty ? Self.mockSearchResults(keyword: keyword) : results)
+            completion(results)
         }
     }
 

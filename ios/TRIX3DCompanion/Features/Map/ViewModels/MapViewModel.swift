@@ -130,15 +130,12 @@ final class MapViewModel: ObservableObject {
 
         guard autoLoad else { return }
 
-        // Preload demo friend markers so the first render has stable data.
-        loadMockFriends()
-
-        // Load data from API (falls back to mock for demo)
+        // Load data from API and keep the UI honest when the backend is unavailable.
         Task {
             await loadLocationsFromAPI()
         }
 
-        // Load friend locations (falls back to mock for demo)
+        // Friend locations stay empty until the backend supports them.
         Task {
             await loadFriendLocationsFromAPI()
         }
@@ -153,18 +150,11 @@ final class MapViewModel: ObservableObject {
 
         do {
             let locations: [Location] = try await APIClient.shared.get(.placeNearby)
-            // If API returns empty, fallback to mock data for demo
-            if locations.isEmpty {
-                loadMockData()
-            } else {
-                allLocations = locations
-                filteredLocations = locations
-                applyCategoryFilter()
-            }
+            applyLoadedLocations(locations)
         } catch {
-            // API failed - fallback to mock data for demo
-            SecureLogger.shared.warning("MapViewModel: loadLocationsFromAPI failed: \(error.localizedDescription), using mock data")
-            loadMockData()
+            SecureLogger.shared.warning("MapViewModel: loadLocationsFromAPI failed: \(error.localizedDescription)")
+            clearLoadedLocations()
+            errorMessage = error.localizedDescription
         }
 
         isLoading = false
@@ -172,8 +162,7 @@ final class MapViewModel: ObservableObject {
 
     /// Load friend locations from API
     private func loadFriendLocationsFromAPI() async {
-        // Friend locations API not yet implemented - use mock for demo
-        loadMockFriends()
+        friendLocations = []
     }
 
     // MARK: - Mock Data
@@ -502,17 +491,12 @@ final class MapViewModel: ObservableObject {
 
         switch result {
         case .success(let locations):
-            if locations.isEmpty {
-                loadMockData()
-            } else {
-                allLocations = locations
-                filteredLocations = locations
-                applyCategoryFilter()
-            }
+            applyLoadedLocations(locations)
 
         case .failure(let error):
-            SecureLogger.shared.warning("MapViewModel: API failed: \(error.localizedDescription), using mock data")
-            loadMockData()
+            SecureLogger.shared.warning("MapViewModel: API failed: \(error.localizedDescription)")
+            clearLoadedLocations()
+            errorMessage = error.errorDescription
         }
 
         isLoading = false
@@ -579,6 +563,17 @@ final class MapViewModel: ObservableObject {
     /// Clear error message
     func clearError() {
         errorMessage = nil
+    }
+
+    private func applyLoadedLocations(_ locations: [Location]) {
+        allLocations = locations
+        filteredLocations = locations
+        applyCategoryFilter()
+    }
+
+    private func clearLoadedLocations() {
+        allLocations = []
+        filteredLocations = []
     }
 
     // MARK: - Category Filter

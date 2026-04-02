@@ -163,6 +163,36 @@ function getSessionTokenStorage(): Storage {
     : localStorage;
 }
 
+function getSessionStateStorage(): Storage {
+  return typeof window !== 'undefined' && window.sessionStorage
+    ? window.sessionStorage
+    : localStorage;
+}
+
+function getStorageFallbacks(primaryStorage: Storage): Storage[] {
+  return primaryStorage === localStorage ? [primaryStorage] : [primaryStorage, localStorage];
+}
+
+function getSessionTokenStorages(): Storage[] {
+  return getStorageFallbacks(getSessionTokenStorage());
+}
+
+function getSessionStateStorages(): Storage[] {
+  return getStorageFallbacks(getSessionStateStorage());
+}
+
+function readTrimmedStorageItem(storage: Storage, key: string): string | null {
+  const value = storage.getItem(key)?.trim();
+  return value ? value : null;
+}
+
+function clearPersistedSessionState(storage: Storage): void {
+  storage.removeItem(STORAGE_KEYS.sessions);
+  storage.removeItem(STORAGE_KEYS.activeAccountId);
+  storage.removeItem(STORAGE_KEYS.legacySession);
+  storage.removeItem(STORAGE_KEYS.legacyClaim);
+}
+
 function buildSessionTokenStorageKey(accountId: string, conversationId: string, clientId: string): string {
   return `${STORAGE_KEYS.sessionTokenPrefix}:${normalizeAccountId(accountId)}:${conversationId}:${clientId}`;
 }
@@ -530,10 +560,27 @@ class TrixNativeChannelClient {
     if (!parsed.conversationId || !parsed.clientId) {
       return null;
     }
-    const stored = getSessionTokenStorage().getItem(
-      buildSessionTokenStorageKey(accountId, parsed.conversationId, parsed.clientId),
-    );
-    return stored?.trim() || null;
+    const storageKey = buildSessionTokenStorageKey(accountId, parsed.conversationId, parsed.clientId);
+    const primaryStorage = getSessionTokenStorage();
+    const primaryValue = readTrimmedStorageItem(primaryStorage, storageKey);
+    if (primaryValue) {
+      return primaryValue;
+    }
+
+    for (const storage of getSessionTokenStorages()) {
+      if (storage === primaryStorage) {
+        continue;
+      }
+      const legacyValue = readTrimmedStorageItem(storage, storageKey);
+      if (!legacyValue) {
+        continue;
+      }
+      primaryStorage.setItem(storageKey, legacyValue);
+      storage.removeItem(storageKey);
+      return legacyValue;
+    }
+
+    return null;
   }
 
   private persistSessionToken(session: StoredSession): void {
@@ -544,18 +591,24 @@ class TrixNativeChannelClient {
   }
 
   private synchronizePersistedSessionTokens(state: StoredSessionState): void {
-    const storage = getSessionTokenStorage();
+    const primaryStorage = getSessionTokenStorage();
     const expected = new Set<string>();
     Object.values(state.sessions).forEach((session) => {
       this.persistSessionToken(session);
       expected.add(buildSessionTokenStorageKey(session.accountId, session.conversationId, session.clientId));
     });
-    for (let index = storage.length - 1; index >= 0; index -= 1) {
-      const key = storage.key(index);
-      if (!key || !key.startsWith(`${STORAGE_KEYS.sessionTokenPrefix}:`) || expected.has(key)) {
-        continue;
+
+    for (const storage of getSessionTokenStorages()) {
+      for (let index = storage.length - 1; index >= 0; index -= 1) {
+        const key = storage.key(index);
+        if (!key || !key.startsWith(`${STORAGE_KEYS.sessionTokenPrefix}:`)) {
+          continue;
+        }
+        if (storage === primaryStorage && expected.has(key)) {
+          continue;
+        }
+        storage.removeItem(key);
       }
-      storage.removeItem(key);
     }
   }
 
@@ -622,66 +675,83 @@ class TrixNativeChannelClient {
     };
   }
 
-  private readSessionState(): StoredSessionState {
-    const raw = localStorage.getItem(STORAGE_KEYS.sessions);
-    if (raw) {
-      try {
-        const parsed = JSON.parse(raw) as Partial<StoredSessionState>;
-        const sessions = Object.fromEntries(
-          Object.entries(parsed.sessions ?? {})
-            .map(([accountId, session]) => [normalizeAccountId(accountId), this.normalizeStoredSession(session)])
-            .filter((entry): entry is [string, StoredSession] => Boolean(entry[1])),
-        );
-        const activeAccountId = normalizeAccountId(
-          parsed.activeAccountId
-          || localStorage.getItem(STORAGE_KEYS.activeAccountId)
-          || Object.keys(sessions)[0],
-        );
+  private parseStoredSessionState(raw: string, fallbackActiveAccountId?: string | null): StoredSessionState | null {
+    try {
+      const parsed = JSON.parse(raw) as Partial<StoredSessionState>;
+      const sessions = Object.fromEntries(
+        Object.entries(parsed.sessions ?? {})
+          .map(([accountId, session]) => [normalizeAccountId(accountId), this.normalizeStoredSession(session)])
+          .filter((entry): entry is [string, StoredSession] => Boolean(entry[1])),
+      );
+      const activeAccountId = normalizeAccountId(
+        parsed.activeAccountId
+        || fallbackActiveAccountId
+        || Object.keys(sessions)[0],
+      );
 
-        return {
-          version: 2,
-          activeAccountId,
-          sessions,
-        };
-      } catch (error) {
-        logger.debug('TrixNativeChannel', 'Session state parsing failed:', error);
-      }
-    }
-
-    const legacyRaw = localStorage.getItem(STORAGE_KEYS.legacySession);
-    if (!legacyRaw) {
       return {
         version: 2,
-        activeAccountId: 'default',
-        sessions: {},
+        activeAccountId,
+        sessions,
       };
-    }
-
-    try {
-      const legacyParsed = JSON.parse(legacyRaw) as Partial<StoredSession>;
-      const normalized = this.normalizeStoredSession({ ...legacyParsed, accountId: normalizeAccountId(legacyParsed.accountId) });
-      if (!normalized) {
-        return {
-          version: 2,
-          activeAccountId: 'default',
-          sessions: {},
-        };
-      }
-      const migrated = {
-        version: 2 as const,
-        activeAccountId: normalized.accountId,
-        sessions: {
-          [normalized.accountId]: normalized,
-        },
-      };
-      this.writeSessionState(migrated);
-      return migrated;
     } catch (error) {
-      logger.debug('TrixNativeChannel', 'Legacy session migration failed:', error);
+      logger.debug('TrixNativeChannel', 'Session state parsing failed:', error);
+      return null;
+    }
+  }
+
+  private readSessionState(): StoredSessionState {
+    const primaryStorage = getSessionStateStorage();
+
+    for (const storage of getSessionStateStorages()) {
+      const raw = readTrimmedStorageItem(storage, STORAGE_KEYS.sessions);
+      if (!raw) {
+        continue;
+      }
+
+      const fallbackActiveAccountId = readTrimmedStorageItem(storage, STORAGE_KEYS.activeAccountId)
+        || (storage !== localStorage ? readTrimmedStorageItem(localStorage, STORAGE_KEYS.activeAccountId) : null);
+      const state = this.parseStoredSessionState(raw, fallbackActiveAccountId);
+      if (!state) {
+        continue;
+      }
+
+      if (storage !== primaryStorage) {
+        this.writeSessionState(state);
+      }
+      return state;
     }
 
-    const legacyClaimRaw = localStorage.getItem(STORAGE_KEYS.legacyClaim);
-    if (legacyClaimRaw) {
+    for (const storage of getSessionStateStorages()) {
+      const legacyRaw = readTrimmedStorageItem(storage, STORAGE_KEYS.legacySession);
+      if (!legacyRaw) {
+        continue;
+      }
+      try {
+        const legacyParsed = JSON.parse(legacyRaw) as Partial<StoredSession>;
+        const normalized = this.normalizeStoredSession({ ...legacyParsed, accountId: normalizeAccountId(legacyParsed.accountId) });
+        if (normalized) {
+          const migrated = {
+            version: 2 as const,
+            activeAccountId: normalized.accountId,
+            sessions: {
+              [normalized.accountId]: normalized,
+            },
+          };
+          this.writeSessionState(migrated);
+          return migrated;
+        }
+      } catch (error) {
+        logger.debug('TrixNativeChannel', 'Legacy session migration failed:', error);
+      }
+    }
+
+    for (const storage of getSessionStateStorages()) {
+      const legacyClaimRaw = readTrimmedStorageItem(storage, STORAGE_KEYS.legacyClaim);
+      if (!legacyClaimRaw) {
+        continue;
+      }
+
       try {
         const legacyClaim = JSON.parse(legacyClaimRaw) as Partial<ClaimResponse> & {
           websocketUrl?: string;
@@ -715,7 +785,8 @@ class TrixNativeChannelClient {
 
   private writeSessionState(state: StoredSessionState): void {
     this.synchronizePersistedSessionTokens(state);
-    localStorage.setItem(
+    const primaryStorage = getSessionStateStorage();
+    primaryStorage.setItem(
       STORAGE_KEYS.sessions,
       JSON.stringify({
         ...state,
@@ -724,15 +795,23 @@ class TrixNativeChannelClient {
         ),
       }),
     );
-    localStorage.setItem(STORAGE_KEYS.activeAccountId, state.activeAccountId);
+    primaryStorage.setItem(STORAGE_KEYS.activeAccountId, state.activeAccountId);
 
     const activeSession = state.sessions[state.activeAccountId];
     if (activeSession) {
-      localStorage.setItem(STORAGE_KEYS.legacySession, JSON.stringify(this.stripSessionSecrets(activeSession)));
+      primaryStorage.setItem(STORAGE_KEYS.legacySession, JSON.stringify(this.stripSessionSecrets(activeSession)));
       localStorage.setItem(STORAGE_KEYS.clientId, activeSession.clientId);
       localStorage.setItem(STORAGE_KEYS.legacyPairDeviceId, activeSession.clientId);
     } else {
-      localStorage.removeItem(STORAGE_KEYS.legacySession);
+      primaryStorage.removeItem(STORAGE_KEYS.legacySession);
+    }
+    primaryStorage.removeItem(STORAGE_KEYS.legacyClaim);
+
+    for (const storage of getSessionStateStorages()) {
+      if (storage === primaryStorage) {
+        continue;
+      }
+      clearPersistedSessionState(storage);
     }
   }
 
@@ -789,10 +868,9 @@ class TrixNativeChannelClient {
     });
 
     if (Object.keys(sessions).length === 0) {
-      localStorage.removeItem(STORAGE_KEYS.sessions);
-      localStorage.removeItem(STORAGE_KEYS.activeAccountId);
-      localStorage.removeItem(STORAGE_KEYS.legacySession);
-      localStorage.removeItem(STORAGE_KEYS.legacyClaim);
+      for (const storage of getSessionStateStorages()) {
+        clearPersistedSessionState(storage);
+      }
     }
   }
 

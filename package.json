@@ -45,7 +45,6 @@
     "@react-three/drei": "^10.7.7",
     "@react-three/fiber": "^9.5.0",
     "@supabase/supabase-js": "^2.94.0",
-    "ali-oss": "^6.23.0",
     "browser-image-compression": "^2.0.2",
     "electron-log": "^5.4.3",
     "electron-store": "^11.0.2",
@@ -107,6 +106,8 @@
     "utf-8-validate": "^6.0.6"
   },
   "overrides": {
+    "@anthropic-ai/sdk": "0.82.0",
+    "openclaw": "2026.4.1",
     "socket.io-parser": "4.2.6",
     "path-to-regexp": "0.1.13"
   }

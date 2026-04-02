@@ -27,18 +27,10 @@
 	</array>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
-	<key>NSAppleMusicUsageDescription</key>
-	<string>TRIX 3D Companion does not access Apple Music. This permission is not used.</string>
-	<key>NSBluetoothAlwaysUsageDescription</key>
-	<string>TRIX 3D Companion uses Bluetooth to discover nearby study partners for quick pairing.</string>
-	<key>NSBluetoothPeripheralUsageDescription</key>
-	<string>TRIX 3D Companion uses Bluetooth to connect with nearby study partners.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>TRIX 3D Companion uses the camera to capture study snapshots and scan QR codes for quick pairing with friends.</string>
 	<key>NSFaceIDUsageDescription</key>
 	<string>TRIX 3D Companion uses Face ID for secure and convenient authentication to protect your account.</string>
-	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>TRIX 3D Companion uses your location to show nearby study spots and share your location with friends when you choose to.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>TRIX 3D Companion uses your location to show nearby study spots and share your location with friends when you choose to.</string>
 	<key>NSMicrophoneUsageDescription</key>
@@ -113,15 +105,11 @@
 			</array>
 		</dict>
 	</array>
-	<key>WECHAT_APP_ID</key>
-	<string>YOUR_WECHAT_APP_ID</string>
 	<key>WECHAT_UNIVERSAL_LINK</key>
 	<string>https://trix.love/wechat/</string>
 	<key>SUPABASE_URL</key>
 	<string>https://__SUPABASE_PROJECT_REF_REDACTED__.supabase.co</string>
 	<key>SUPABASE_ANON_KEY</key>
 	<string>__SUPABASE_ANON_KEY_REDACTED__</string>
-	<key>BAIDU_MAP_AK</key>
-	<string>ThFJ8VXTZrMD4AO9vUEVsw96bUwivVyu</string>
 </dict>
 </plist>

@@ -1746,16 +1746,15 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
                        senderRaw.lowercased().hasPrefix("openclaw:") ||
                        senderRaw != (userId ?? "")
 
-        NSLog("[TRIX-UI] ws message.created id=%{public}@ sender=%{public}@ userId=%{public}@ fromBot=%{public}@ textLength=%{public}d",
-              messageId,
-              senderRaw,
-              userId ?? "",
-              String(isFromBot),
-              content.count)
+#if DEBUG
+        SecureLogger.shared.debug("[TRIX-UI] ws message.created fromBot=\(isFromBot) textLength=\(content.count)")
+#endif
 
         if !isFromBot {
             // 忽略自己发送的消息
-            NSLog("[TRIX-UI] ws ignored self-authored message id=%{public}@", messageId)
+#if DEBUG
+            SecureLogger.shared.debug("[TRIX-UI] ws ignored self-authored message")
+#endif
             return
         }
 
@@ -2214,103 +2213,169 @@ final class ClawbotChannelService: ObservableObject, ClawbotChannelServiceProtoc
             }
         }
 
-        let defaults = UserDefaults.standard
         let resolvedAccountId = accountId ?? "default"
-        defaults.set(isPaired, forKey: "clawbot_paired")
-        defaults.set(deviceId, forKey: "clawbot_device_id")
-        defaults.set(resolvedAccountId, forKey: "clawbot_active_account_id")
-        defaults.set(resolvedAccountId, forKey: "clawbot_account_id")
-        defaults.set(userId, forKey: sessionDefaultsKey("app_user_id", accountId: resolvedAccountId))
-        defaults.set(conversationId, forKey: sessionDefaultsKey("conversation_id", accountId: resolvedAccountId))
-        defaults.set(websocketUrl, forKey: sessionDefaultsKey("websocket_url", accountId: resolvedAccountId))
-        defaults.set(serverUrl, forKey: sessionDefaultsKey("server_url", accountId: resolvedAccountId))
-        defaults.removeObject(forKey: sessionDefaultsKey("client_token", accountId: resolvedAccountId))
-        UserDefaults.standard.removeObject(forKey: "clawbot_client_token")
+        persistSecureString(resolvedAccountId, forKey: pairingStateKey("active_account_id"))
+        persistSecureString(userId, forKey: sessionKeychainKey("app_user_id", accountId: resolvedAccountId))
+        persistSecureString(conversationId, forKey: sessionKeychainKey("conversation_id", accountId: resolvedAccountId))
+        persistSecureString(websocketUrl, forKey: sessionKeychainKey("websocket_url", accountId: resolvedAccountId))
+        persistSecureString(serverUrl, forKey: sessionKeychainKey("server_url", accountId: resolvedAccountId))
+        persistSecureString(clientToken, forKey: sessionKeychainKey("client_token", accountId: resolvedAccountId))
 
-        let secureTokenKey = sessionKeychainKey("client_token", accountId: resolvedAccountId)
-        if let clientToken, !clientToken.isEmpty {
-            do {
-                try KeychainManager.shared.saveString(clientToken, forKey: secureTokenKey)
-            } catch {
-                SecureLogger.shared.error("Failed to save client token to Keychain: \(error)")
-            }
-        } else {
-            try? KeychainManager.shared.remove(forKey: secureTokenKey)
-        }
+        clearLegacyPairingDefaults(for: resolvedAccountId, defaults: UserDefaults.standard)
     }
 
     private func loadPersistedState() {
         let defaults = UserDefaults.standard
+        if defaults.object(forKey: "clawbot_paired") != nil || defaults.string(forKey: "clawbot_device_id") != nil {
+            _ = KeychainManager.shared.migratePairingDataFromUserDefaults()
+        }
         isPaired = KeychainManager.shared.isDevicePaired()
         deviceId = KeychainManager.shared.getPairedDeviceId()
-        let resolvedAccountId = defaults.string(forKey: "clawbot_active_account_id")
-            ?? defaults.string(forKey: "clawbot_account_id")
+        let resolvedAccountId = loadSecureStringWithLegacyMigration(
+            forKey: pairingStateKey("active_account_id"),
+            legacyDefaultsKeys: ["clawbot_active_account_id", "clawbot_account_id"],
+            defaults: defaults
+        )
             ?? "default"
         accountId = resolvedAccountId
-        pairedAppUserId = defaults.string(forKey: sessionDefaultsKey("app_user_id", accountId: resolvedAccountId))
-            ?? defaults.string(forKey: "clawbot_app_user_id")
-        conversationId = defaults.string(forKey: sessionDefaultsKey("conversation_id", accountId: resolvedAccountId))
-            ?? defaults.string(forKey: "clawbot_conversation_id")
-        let secureTokenKey = sessionKeychainKey("client_token", accountId: resolvedAccountId)
-        clientToken = KeychainManager.shared.getString(forKey: secureTokenKey)
-        websocketUrl = defaults.string(forKey: sessionDefaultsKey("websocket_url", accountId: resolvedAccountId))
-            ?? defaults.string(forKey: "clawbot_websocket_url")
-        serverUrl = defaults.string(forKey: sessionDefaultsKey("server_url", accountId: resolvedAccountId))
-            ?? defaults.string(forKey: "clawbot_server_url")
+        pairedAppUserId = loadSecureStringWithLegacyMigration(
+            forKey: sessionKeychainKey("app_user_id", accountId: resolvedAccountId),
+            legacyDefaultsKeys: [
+                sessionDefaultsKey("app_user_id", accountId: resolvedAccountId),
+                "clawbot_app_user_id"
+            ],
+            defaults: defaults
+        )
+        conversationId = loadSecureStringWithLegacyMigration(
+            forKey: sessionKeychainKey("conversation_id", accountId: resolvedAccountId),
+            legacyDefaultsKeys: [
+                sessionDefaultsKey("conversation_id", accountId: resolvedAccountId),
+                "clawbot_conversation_id"
+            ],
+            defaults: defaults
+        )
+        clientToken = loadSecureStringWithLegacyMigration(
+            forKey: sessionKeychainKey("client_token", accountId: resolvedAccountId),
+            legacyDefaultsKeys: [
+                sessionDefaultsKey("client_token", accountId: resolvedAccountId),
+                "clawbot_client_token"
+            ],
+            defaults: defaults
+        )
+        websocketUrl = loadSecureStringWithLegacyMigration(
+            forKey: sessionKeychainKey("websocket_url", accountId: resolvedAccountId),
+            legacyDefaultsKeys: [
+                sessionDefaultsKey("websocket_url", accountId: resolvedAccountId),
+                "clawbot_websocket_url"
+            ],
+            defaults: defaults
+        )
+        serverUrl = loadSecureStringWithLegacyMigration(
+            forKey: sessionKeychainKey("server_url", accountId: resolvedAccountId),
+            legacyDefaultsKeys: [
+                sessionDefaultsKey("server_url", accountId: resolvedAccountId),
+                "clawbot_server_url"
+            ],
+            defaults: defaults
+        )
         httpClient.overrideBaseURL = serverUrl
-
-        if clientToken == nil {
-            let legacyToken = defaults.string(forKey: sessionDefaultsKey("client_token", accountId: resolvedAccountId))
-                ?? defaults.string(forKey: "clawbot_client_token")
-            if let legacyToken, !legacyToken.isEmpty {
-                clientToken = legacyToken
-                do {
-                    try KeychainManager.shared.saveString(legacyToken, forKey: secureTokenKey)
-                } catch {
-                    SecureLogger.shared.error("Failed to migrate client token to Keychain: \(error)")
-                }
-                defaults.removeObject(forKey: sessionDefaultsKey("client_token", accountId: resolvedAccountId))
-                defaults.removeObject(forKey: "clawbot_client_token")
-            }
-        }
-
-        if !isPaired {
-            isPaired = defaults.bool(forKey: "clawbot_paired")
-        }
-        if deviceId == nil {
-            deviceId = defaults.string(forKey: "clawbot_device_id")
-        }
+        clearLegacyPairingDefaults(for: resolvedAccountId, defaults: defaults)
     }
 
     private func clearPersistedState() {
         let defaults = UserDefaults.standard
         let resolvedAccountId = accountId
+            ?? KeychainManager.shared.getString(forKey: pairingStateKey("active_account_id"))
             ?? defaults.string(forKey: "clawbot_active_account_id")
-            ?? defaults.string(forKey: "clawbot_account_id")
             ?? "default"
         try? KeychainManager.shared.removePairedDevice()
-        try? KeychainManager.shared.remove(forKey: sessionKeychainKey("client_token", accountId: resolvedAccountId))
-        defaults.removeObject(forKey: "clawbot_paired")
-        defaults.removeObject(forKey: "clawbot_device_id")
-        defaults.removeObject(forKey: "clawbot_conversation_id")
-        defaults.removeObject(forKey: "clawbot_client_token")
-        defaults.removeObject(forKey: "clawbot_websocket_url")
-        defaults.removeObject(forKey: "clawbot_server_url")
-        defaults.removeObject(forKey: "clawbot_account_id")
-        defaults.removeObject(forKey: "clawbot_active_account_id")
-        defaults.removeObject(forKey: "clawbot_app_user_id")
+        removePersistedSessionState(for: resolvedAccountId)
+        clearLegacyPairingDefaults(for: resolvedAccountId, defaults: defaults)
     }
 
     private func clearPersistedPairingState() {
         let defaults = UserDefaults.standard
-        let resolvedAccountId = accountId ?? defaults.string(forKey: "clawbot_active_account_id") ?? "default"
-        defaults.removeObject(forKey: sessionDefaultsKey("conversation_id", accountId: resolvedAccountId))
-        defaults.removeObject(forKey: sessionDefaultsKey("client_token", accountId: resolvedAccountId))
-        defaults.removeObject(forKey: sessionDefaultsKey("websocket_url", accountId: resolvedAccountId))
-        defaults.removeObject(forKey: sessionDefaultsKey("server_url", accountId: resolvedAccountId))
-        defaults.removeObject(forKey: sessionDefaultsKey("app_user_id", accountId: resolvedAccountId))
-        try? KeychainManager.shared.remove(forKey: sessionKeychainKey("client_token", accountId: resolvedAccountId))
+        let resolvedAccountId = accountId
+            ?? KeychainManager.shared.getString(forKey: pairingStateKey("active_account_id"))
+            ?? defaults.string(forKey: "clawbot_active_account_id")
+            ?? "default"
+        removePersistedSessionState(for: resolvedAccountId)
         clearPersistedState()
+    }
+
+    private func persistSecureString(_ value: String?, forKey key: String) {
+        let normalized = value?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        if normalized.isEmpty {
+            try? KeychainManager.shared.remove(forKey: key)
+            return
+        }
+
+        do {
+            try KeychainManager.shared.saveString(normalized, forKey: key)
+        } catch {
+            SecureLogger.shared.error("Failed to persist secure pairing state for key \(key): \(error.localizedDescription)")
+        }
+    }
+
+    private func loadSecureStringWithLegacyMigration(
+        forKey key: String,
+        legacyDefaultsKeys: [String],
+        defaults: UserDefaults
+    ) -> String? {
+        if let secureValue = KeychainManager.shared.getString(forKey: key), !secureValue.isEmpty {
+            legacyDefaultsKeys.forEach { defaults.removeObject(forKey: $0) }
+            return secureValue
+        }
+
+        for legacyKey in legacyDefaultsKeys {
+            let legacyValue = defaults.string(forKey: legacyKey)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            guard !legacyValue.isEmpty else {
+                defaults.removeObject(forKey: legacyKey)
+                continue
+            }
+
+            persistSecureString(legacyValue, forKey: key)
+            legacyDefaultsKeys.forEach { defaults.removeObject(forKey: $0) }
+            return legacyValue
+        }
+
+        return nil
+    }
+
+    private func clearLegacyPairingDefaults(for accountId: String, defaults: UserDefaults) {
+        [
+            "clawbot_paired",
+            "clawbot_device_id",
+            "clawbot_conversation_id",
+            "clawbot_client_token",
+            "clawbot_websocket_url",
+            "clawbot_server_url",
+            "clawbot_account_id",
+            "clawbot_active_account_id",
+            "clawbot_app_user_id",
+            sessionDefaultsKey("conversation_id", accountId: accountId),
+            sessionDefaultsKey("client_token", accountId: accountId),
+            sessionDefaultsKey("websocket_url", accountId: accountId),
+            sessionDefaultsKey("server_url", accountId: accountId),
+            sessionDefaultsKey("app_user_id", accountId: accountId)
+        ].forEach { defaults.removeObject(forKey: $0) }
+    }
+
+    private func removePersistedSessionState(for accountId: String) {
+        try? KeychainManager.shared.remove(forKey: pairingStateKey("active_account_id"))
+        [
+            "app_user_id",
+            "conversation_id",
+            "client_token",
+            "websocket_url",
+            "server_url"
+        ].forEach { suffix in
+            try? KeychainManager.shared.remove(forKey: sessionKeychainKey(suffix, accountId: accountId))
+        }
+    }
+
+    private func pairingStateKey(_ suffix: String) -> String {
+        "clawbot_\(suffix)_secure"
     }
 
     private func sessionDefaultsKey(_ suffix: String, accountId: String) -> String {

@@ -167,7 +167,7 @@ struct MapView: View {
     @ViewBuilder
     private var mapContent: some View {
         ZStack {
-            // Base map with location markers and friend markers using Baidu Map
+            // Base map with location markers and friend markers rendered by the MapKit wrapper
             BaiduMapView(
                 centerCoordinate: Binding(
                     get: { viewModel.region.center },

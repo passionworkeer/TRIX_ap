@@ -420,22 +420,16 @@ final class DiagnosticViewModel: ObservableObject {
 
     /// Load recent log entries
     func loadLogs() {
-        // Generate sample logs for demonstration
-        // In a real implementation, this would read from SecureLogger or a log file
-        logEntries = generateSampleLogs()
+        logEntries = generatePlaceholderLogs()
     }
 
-    /// Generate sample logs
-    private func generateSampleLogs() -> [LogEntry] {
+    /// Generate explicit placeholder entries until on-device log export is implemented.
+    private func generatePlaceholderLogs() -> [LogEntry] {
         return [
-            LogEntry(level: .info, message: "Application started", source: "App"),
-            LogEntry(level: .debug, message: "Network monitoring initialized", source: "NetworkMonitor"),
-            LogEntry(level: .info, message: "User authenticated successfully", source: "AuthService"),
-            LogEntry(level: .warning, message: "Cache size approaching limit", source: "CacheService"),
-            LogEntry(level: .info, message: "Study session started", source: "StudyManager"),
-            LogEntry(level: .error, message: "Failed to connect to chat server", source: "ChatService"),
-            LogEntry(level: .info, message: "Data sync completed", source: "DataSync"),
-            LogEntry(level: .debug, message: "Memory usage: 145 MB", source: "Diagnostics")
+            LogEntry(level: .info, message: "In-app log export is not enabled in this build.", source: "Diagnostics"),
+            LogEntry(level: .debug, message: "Use Xcode Console or Console.app to inspect live OSLog output.", source: "Diagnostics"),
+            LogEntry(level: .warning, message: "Sensitive auth and network events are intentionally not mirrored into this screen.", source: "Privacy"),
+            LogEntry(level: .error, message: "No persistent diagnostic log sink is configured yet.", source: "Diagnostics")
         ]
     }
 

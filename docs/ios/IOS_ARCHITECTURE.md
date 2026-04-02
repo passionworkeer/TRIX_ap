@@ -69,7 +69,7 @@ Views (UI Layer)
 | Realtime Messaging | ClawbotChannelService | TRIX Native Channel protocol |
 | Local Storage | SQLite (SQLite.swift) + Keychain | - |
 | Payments | StoreKit 2 | - |
-| Maps | MapKit + Baidu Map SDK | - |
+| Maps | MapKit | Legacy `BaiduMapView` name now wraps MapKit |
 | Camera | AVFoundation | Built-in |
 | Push | APNs | - |
 | Testing | XCTest | - |
@@ -366,7 +366,7 @@ View (SwiftUI update)
 |---------|---------------|
 | Keychain | `whenUnlockedThisDeviceOnly`, no iCloud sync |
 | DB Encryption | AES-256-CBC on message content + transaction descriptions |
-| SSL Pinning | Public key pinning, SHA-256, enforced in production |
+| SSL Pinning | Public key pinning, SHA-256, fail-closed when pins are missing in production |
 | Logging | SecureLogger auto-sanitizes tokens, emails, coordinates |
 | Jailbreak Detection | `JailbreakDetector.swift` checks for common indicators |
 

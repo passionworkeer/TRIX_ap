@@ -152,9 +152,44 @@ function startCanvasServer(
   };
   const proc = spawn('node', [CANVAS_SERVER_ENTRY], {
     env,
-    stdio: ['ignore', 'ignore', 'pipe'],
+    stdio: ['ignore', 'pipe', 'pipe'],
   });
-  return { proc, workdir };
+  let stdout = '';
+  let stderr = '';
+  let exitCode = null;
+  let exitSignal = null;
+
+  proc.stdout.on('data', (chunk) => {
+    stdout = `${stdout}${chunk.toString()}`.slice(-16_000);
+  });
+  proc.stderr.on('data', (chunk) => {
+    stderr = `${stderr}${chunk.toString()}`.slice(-16_000);
+  });
+  proc.once('exit', (code, signal) => {
+    exitCode = code;
+    exitSignal = signal;
+  });
+
+  return {
+    proc,
+    workdir,
+    hasExited() {
+      return exitCode !== null || exitSignal !== null;
+    },
+    diagnostics() {
+      const parts = [];
+      if (exitCode !== null || exitSignal !== null) {
+        parts.push(`canvas process exited (code=${exitCode ?? 'null'}, signal=${exitSignal ?? 'null'})`);
+      }
+      if (stderr.trim()) {
+        parts.push(`stderr:\n${stderr.trim()}`);
+      }
+      if (stdout.trim()) {
+        parts.push(`stdout:\n${stdout.trim()}`);
+      }
+      return parts.join('\n\n');
+    },
+  };
 }
 
 async function stopProcess(proc) {
@@ -201,7 +236,7 @@ export async function createCanvasTestEnvironment(options = {}) {
         allowPrivateRemoteUrls: options.allowPrivateRemoteUrls ?? true,
       },
     );
-    await waitForOk(canvasUrl, '/health');
+    await waitForCanvasServerReady(canvasRuntime, canvasUrl);
   } catch (error) {
     if (canvasRuntime?.proc) {
       await stopProcess(canvasRuntime.proc);
@@ -230,4 +265,33 @@ export async function createCanvasTestEnvironment(options = {}) {
       rmSync(canvasRuntime.workdir, { recursive: true, force: true });
     },
   };
+}
+
+async function waitForCanvasServerReady(canvasRuntime, canvasUrl, attempts = 300, delayMs = 100) {
+  for (let index = 0; index < attempts; index += 1) {
+    if (canvasRuntime.hasExited()) {
+      const diagnostics = canvasRuntime.diagnostics();
+      throw new Error(
+        diagnostics
+          ? `Canvas server exited before readiness check succeeded.\n\n${diagnostics}`
+          : 'Canvas server exited before readiness check succeeded.',
+      );
+    }
+    try {
+      const response = await fetch(`${canvasUrl}/api/auth/status`);
+      if (response.ok) {
+        return response;
+      }
+    } catch {
+      // Retry until the timeout budget is exhausted.
+    }
+    await new Promise((resolvePromise) => setTimeout(resolvePromise, delayMs));
+  }
+
+  const diagnostics = canvasRuntime.diagnostics();
+  throw new Error(
+    diagnostics
+      ? `Failed to reach ${canvasUrl}/api/auth/status\n\n${diagnostics}`
+      : `Failed to reach ${canvasUrl}/api/auth/status`,
+  );
 }

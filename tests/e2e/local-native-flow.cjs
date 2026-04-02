@@ -306,6 +306,7 @@ async function claimPairingDirectly(page, code) {
         const accountId = claim.accountId || 'default';
         const serverUrl = claim.serverUrl || 'http://127.0.0.1:8788';
         const websocketUrl = claim.websocketUrl || claim.wsUrl || 'ws://127.0.0.1:8788/ws';
+        const sessionStateStorage = window.sessionStorage || window.localStorage;
         const session = {
           accountId,
           appUserId: userId,
@@ -318,13 +319,13 @@ async function claimPairingDirectly(page, code) {
           pairingCode: claim.pairing?.code,
         };
 
-        localStorage.setItem('trix_native_channel_sessions_v2', JSON.stringify({
+        sessionStateStorage.setItem('trix_native_channel_sessions_v2', JSON.stringify({
           version: 2,
           activeAccountId: accountId,
           sessions: { [accountId]: session },
         }));
-        localStorage.setItem('trix_native_channel_active_account', accountId);
-        localStorage.setItem('trix_native_channel_session', JSON.stringify(session));
+        sessionStateStorage.setItem('trix_native_channel_active_account', accountId);
+        sessionStateStorage.setItem('trix_native_channel_session', JSON.stringify(session));
       }, sessionPayload);
       return {
         ok: true,

@@ -9,6 +9,28 @@ import Foundation
 import Alamofire
 import CommonCrypto
 
+private struct SSLPinningConfigurationError: Error, LocalizedError {
+    let message: String
+
+    var errorDescription: String? {
+        message
+    }
+}
+
+private struct FailingTrustEvaluator: ServerTrustEvaluating {
+    let message: String
+
+    func evaluate(_ trust: SecTrust, forHost host: String) throws {
+        throw AFError.serverTrustEvaluationFailed(
+            reason: .customEvaluationFailed(
+                error: SSLPinningConfigurationError(
+                    message: "\(message) (host: \(host))"
+                )
+            )
+        )
+    }
+}
+
 /// SSL Pinning Manager for certificate validation
 /// Implements certificate pinning to prevent man-in-the-middle attacks
 final class SSLPinningManager {
@@ -97,8 +119,9 @@ final class SSLPinningManager {
             // Pin specific certificates
             let certificates = getCertificates()
             guard !certificates.isEmpty else {
-                SecureLogger.shared.warning("SSLPinningManager: no certificates found, fallback to default trust evaluator")
-                return DefaultTrustEvaluator()
+                let message = "SSLPinningManager: certificate pinning is enabled but no bundled certificates were found"
+                SecureLogger.shared.error(message)
+                return FailingTrustEvaluator(message: message)
             }
             return PinnedCertificatesTrustEvaluator(
                 certificates: certificates,
@@ -111,8 +134,9 @@ final class SSLPinningManager {
             // Pin public keys (recommended - allows cert rotation)
             let publicKeys = getPublicKeys()
             guard !publicKeys.isEmpty else {
-                SecureLogger.shared.warning("SSLPinningManager: no public keys found, fallback to default trust evaluator")
-                return DefaultTrustEvaluator()
+                let message = "SSLPinningManager: public-key pinning is enabled but no bundled certificates were found"
+                SecureLogger.shared.error(message)
+                return FailingTrustEvaluator(message: message)
             }
             return PublicKeysTrustEvaluator(
                 keys: publicKeys,
@@ -155,6 +179,17 @@ final class SSLPinningManager {
         SecureLogger.shared.info("SSL pinning hashes updated")
     }
 
+    func hasOperationalPinningMaterial(for mode: PinningMode? = nil) -> Bool {
+        switch mode ?? pinningMode {
+        case .none:
+            return true
+        case .certificate:
+            return !getCertificates().isEmpty
+        case .publicKey:
+            return !getPublicKeys().isEmpty
+        }
+    }
+
     // MARK: - Private Methods
 
     /// Load certificates from bundle
@@ -183,6 +218,13 @@ final class SSLPinningManager {
         }
 
         SecureLogger.shared.info("Loaded \(allowedHashes.count) certificates for pinning")
+
+        if enablePinning && !hasOperationalPinningMaterial(for: pinningMode) {
+            SecureLogger.shared.error(
+                "SSLPinningManager: pinning is enabled but no bundled certificates are available. " +
+                "Release builds must ship the expected .cer resources."
+            )
+        }
     }
 
     /// Get certificates from bundle

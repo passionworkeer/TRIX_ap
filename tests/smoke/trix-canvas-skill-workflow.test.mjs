@@ -21,6 +21,10 @@ workflow.parse_script = lambda text: [
     {"index": 1, "text": "scene 1", "media_type": "image"},
     {"index": 2, "text": "scene 2", "media_type": "video"},
 ]
+workflow._common.get_canvas_capabilities = lambda: {
+    "imageToVideoStatus": "ready",
+    "reasons": {},
+}
 
 create_calls = []
 
@@ -104,6 +108,10 @@ workflow.parse_script = lambda text: [
     {"index": 2, "text": "scene 2", "media_type": "video"},
     {"index": 3, "text": "scene 3", "media_type": "image"},
 ]
+workflow._common.get_canvas_capabilities = lambda: {
+    "imageToVideoStatus": "ready",
+    "reasons": {},
+}
 
 create_calls = []
 

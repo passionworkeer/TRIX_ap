@@ -1038,6 +1038,14 @@ extension APIClientTests {
         XCTAssertNotNil(evaluator)
     }
 
+    func testSSLPinningManager_HasOperationalPinningMaterial() {
+        // Given
+        let manager = SSLPinningManager.shared
+
+        // Then
+        XCTAssertTrue(manager.hasOperationalPinningMaterial(for: .none))
+    }
+
     func testSSLPinningManager_ValidateServerTrust() {
         // Given
         let manager = SSLPinningManager.shared
@@ -1095,12 +1103,13 @@ extension APIClientTests {
         XCTAssertFalse(result.isValid)
 
         result = .warning(header: "X-Test", reason: "test")
-        XCTAssertFalse(result.isValid)
+        XCTAssertTrue(result.isValid)
     }
 
     func testSecurityHeadersValidator_Validate() {
         // Given
         let validator = SecurityHeadersValidator.shared
+        validator.updateMode(.strict)
         let response = HTTPURLResponse(
             url: URL(string: "https://test.com")!,
             statusCode: 200,
@@ -1112,12 +1121,43 @@ extension APIClientTests {
         let result = validator.validate(response)
 
         // Then - Result should be valid, invalid, or warning
-        XCTAssertNotNil(result)
+        XCTAssertFalse(result.isValid)
+
+        // Reset
+        validator.updateMode(.moderate)
+    }
+
+    func testSecurityHeadersValidator_ValidateRequiredHeadersPasses() {
+        // Given
+        let validator = SecurityHeadersValidator.shared
+        validator.updateMode(.strict)
+        let response = HTTPURLResponse(
+            url: URL(string: "https://test.com")!,
+            statusCode: 200,
+            httpVersion: nil,
+            headerFields: [
+                "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
+                "X-Content-Type-Options": "nosniff",
+                "X-Frame-Options": "DENY",
+                "Cache-Control": "no-store",
+                "Content-Type": "application/json; charset=utf-8"
+            ]
+        )!
+
+        // When
+        let result = validator.validate(response)
+
+        // Then
+        XCTAssertTrue(result.isValid)
+
+        // Reset
+        validator.updateMode(.moderate)
     }
 
     func testSecurityHeadersValidator_ValidateAndLog() {
         // Given
         let validator = SecurityHeadersValidator.shared
+        validator.updateMode(.strict)
         let response = HTTPURLResponse(
             url: URL(string: "https://test.com")!,
             statusCode: 200,
@@ -1128,8 +1168,11 @@ extension APIClientTests {
         // When
         let isValid = validator.validateAndLog(response)
 
-        // Then - Should return boolean
-        XCTAssertNotNil(isValid)
+        // Then
+        XCTAssertFalse(isValid)
+
+        // Reset
+        validator.updateMode(.moderate)
     }
 
     func testSecurityHeadersValidator_SetEnabled() {

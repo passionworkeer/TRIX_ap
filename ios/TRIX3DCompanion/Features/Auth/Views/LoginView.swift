@@ -283,19 +283,20 @@ struct LoginView: View {
                 }
             }
 
-            // WeChat Sign In
-            Button {
-                Task { await handleWeChatSignIn() }
-            } label: {
-                HStack {
-                    Image(systemName: "message.fill")
-                    Text(L("auth.signin.wechat"))
+            if WeChatConfiguration.isConfigured {
+                Button {
+                    Task { await handleWeChatSignIn() }
+                } label: {
+                    HStack {
+                        Image(systemName: "message.fill")
+                        Text(L("auth.signin.wechat"))
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 14)
+                    .background(Color.green)
+                    .foregroundStyle(.white)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 14)
-                .background(Color.green)
-                .foregroundStyle(.white)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
             }
         }
     }

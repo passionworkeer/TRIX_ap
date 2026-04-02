@@ -1,6 +1,6 @@
 # Web 架构
 
-> **最后更新**: 2026-03-31（代码扫描同步：Routes 19→20（新增 /study/timer），utils 10 确认，hooks 12 含 useConfirmModal 确认，useClawbotMessages 存在，SETTINGS 路由已登记但无对应 Screen，Auth.tsx 含 Login+Register 双导出，TrixNativeChannelClient 约 1347 行确认）
+> **最后更新**: 2026-04-02（补充 native channel 会话存储收敛：敏感会话状态优先 `sessionStorage`，仅保留设备标识等低敏字段在 `localStorage`）
 > **技术栈**: React 19.2.4 + TypeScript 5.8.2 + Vite 6.2.0 + Tailwind CSS 4.2.0 + Supabase 2.94.0
 
 ---
@@ -195,7 +195,7 @@ interface ThreeStore {
 - 配对（QR 码 + 手动输入）
 - 消息发送/接收（REST + WebSocket）
 - 附件上传（签名 URL）
-- 会话持久化（localStorage + 服务器）
+- 会话持久化（`sessionStorage` + 服务器；仅低敏设备标识保留在 `localStorage`）
 - Study Room（创建/加入/离开/主持人操作）
 - Session bind/restore
 

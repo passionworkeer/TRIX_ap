@@ -107,7 +107,7 @@ func unlinkAccount(provider: OAuthProvider) async throws -> User
 
 ### APIClient
 
-HTTP client with SSL pinning, retry logic, and request deduplication.
+HTTP client with SSL pinning, retry logic, request deduplication, and required security-header enforcement.
 
 ```swift
 final class APIClient

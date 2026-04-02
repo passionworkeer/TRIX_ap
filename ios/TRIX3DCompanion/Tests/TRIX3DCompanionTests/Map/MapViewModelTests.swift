@@ -52,14 +52,16 @@ final class MapViewModelTests: XCTestCase {
         XCTAssertFalse(mapViewModel.isLoading)
     }
 
-    func test_loadNearbyLocations_failureFallsBackToDemoData() async throws {
+    func test_loadNearbyLocations_failureClearsLocationsAndSurfacesError() async throws {
+        mapViewModel.allLocations = [makeLocation(id: "seed", name: "Seed", category: .library)]
+        mapViewModel.filteredLocations = mapViewModel.allLocations
         mockLocationService.mockFetchNearbyLocationsResult = .failure(.locationUnavailable)
 
         await mapViewModel.loadNearbyLocations()
 
-        XCTAssertFalse(mapViewModel.filteredLocations.isEmpty)
-        XCTAssertFalse(mapViewModel.allLocations.isEmpty)
-        XCTAssertNil(mapViewModel.errorMessage)
+        XCTAssertTrue(mapViewModel.filteredLocations.isEmpty)
+        XCTAssertTrue(mapViewModel.allLocations.isEmpty)
+        XCTAssertEqual(mapViewModel.errorMessage, LocationError.locationUnavailable.errorDescription)
         XCTAssertFalse(mapViewModel.isLoading)
     }
 

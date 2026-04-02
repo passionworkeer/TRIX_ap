@@ -46,7 +46,23 @@ final class SecurityHeadersValidator {
             if case .valid = self {
                 return true
             }
+            if case .warning = self {
+                return true
+            }
             return false
+        }
+
+        var failureDescription: String? {
+            switch self {
+            case .valid:
+                return nil
+            case .missing(let header):
+                return "Missing required security header: \(header)"
+            case .invalid(let header, let reason):
+                return "Invalid security header '\(header)': \(reason)"
+            case .warning(let header, let reason):
+                return "Security header warning '\(header)': \(reason)"
+            }
         }
     }
 
@@ -237,14 +253,14 @@ final class SecurityHeadersValidator {
 
     /// Validate response and log issues
     /// - Parameter response: HTTP URL response
-    /// - Returns: True if validation passed
+    /// - Returns: Detailed validation result
     @discardableResult
-    func validateAndLog(_ response: HTTPURLResponse) -> Bool {
+    func validateAndLogResult(_ response: HTTPURLResponse) -> ValidationResult {
         let result = validate(response)
 
         switch result {
         case .valid:
-            return true
+            return result
 
         case .missing(let header):
             SecureLogger.shared.error("Missing required security header: \(header)")
@@ -256,7 +272,15 @@ final class SecurityHeadersValidator {
             SecureLogger.shared.warning("Security header warning '\(header)': \(reason)")
         }
 
-        return result.isValid
+        return result
+    }
+
+    /// Validate response and log issues
+    /// - Parameter response: HTTP URL response
+    /// - Returns: True if validation passed
+    @discardableResult
+    func validateAndLog(_ response: HTTPURLResponse) -> Bool {
+        validateAndLogResult(response).isValid
     }
 
     /// Get detailed validation report

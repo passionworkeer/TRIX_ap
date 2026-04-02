@@ -24,6 +24,13 @@ The application demonstrates strong security fundamentals with proper implementa
 
 However, there are several **medium priority** issues that should be addressed to enhance security posture.
 
+### 2026-04-02 Addendum
+
+- SSL pinning now fails closed when pinning is enabled but no bundled pin material exists.
+- `SecurityHeadersValidator` is now enforced by `APIClient` for required headers, not just logged.
+- Pairing metadata and client tokens now persist in Keychain; legacy `UserDefaults` values are migrated once and then removed.
+- Unused Apple Music / Bluetooth / always-location permission strings and the stale Baidu map key were removed from `Info.plist`.
+
 ---
 
 ## 1. Authentication & Authorization
@@ -333,8 +340,8 @@ All privacy permissions are properly justified with clear descriptions.
 | ID | Issue | Severity | Recommendation | Status |
 |----|-------|----------|----------------|--------|
 | M-001 | Common password list too small | Medium | Expand to 10,000+ entries | ✅ **COMPLETED** (2026-02-26) - Expanded to 500+ entries |
-| M-002 | UserDefaults for pairing state | Medium | Move to Keychain | ✅ **COMPLETED** (2026-02-26) - Migrated to Keychain with data migration support |
-| M-003 | No certificate pinning | Medium | Implement for API endpoints | ✅ **COMPLETED** (2026-02-26) - Implemented SSL pinning, retry, deduplication, security headers |
+| M-002 | UserDefaults for pairing/session metadata | Medium | Move pairing/session metadata to Keychain and remove legacy defaults | ✅ **UPDATED** (2026-04-02) - pairing/session metadata now persists in Keychain with one-time migration cleanup |
+| M-003 | Certificate pinning / header enforcement gaps | Medium | Fail closed when pins are absent and enforce required security headers | ✅ **UPDATED** (2026-04-02) - pinning now fails closed and required security headers are enforced in `APIClient` |
 | M-004 | Device ID uses UUID | Medium | Consider cryptographic random | ✅ **COMPLETED** (2026-02-26) - Uses SecRandomCopyBytes for cryptographic random generation |
 
 ### Low Priority Issues

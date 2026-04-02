@@ -465,12 +465,6 @@ final class APIClient: APIClientProtocol, @unchecked Sendable {
                     error: response.error
                 )
 
-                // Validate security headers if response is successful
-                if let httpResponse = response.response,
-                   case .success = response.result {
-                    self.headersValidator.validateAndLog(httpResponse)
-                }
-
                 switch response.result {
                 case .success(let data):
                     // HTTP status validation first
@@ -478,6 +472,19 @@ final class APIClient: APIClientProtocol, @unchecked Sendable {
                        !(200...299).contains(httpResponse.statusCode) {
                         continuation.resume(throwing: self.mapHTTPStatusError(statusCode: httpResponse.statusCode, data: data))
                         return
+                    }
+
+                    if let httpResponse = response.response {
+                        let validationResult = self.headersValidator.validateAndLogResult(httpResponse)
+                        if !validationResult.isValid {
+                            continuation.resume(
+                                throwing: NetworkError.custom(
+                                    message: validationResult.failureDescription
+                                        ?? "Security headers validation failed"
+                                )
+                            )
+                            return
+                        }
                     }
 
                     do {
