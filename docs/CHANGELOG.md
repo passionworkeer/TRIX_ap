@@ -4,6 +4,40 @@
 
 ---
 
+## 📅 2026-04-02 — Web & iOS Launch Readiness Hardening
+
+### 完成内容
+
+1. **Web 启动就绪加固** (`332f355`):
+   - 移除未被任何页面引用的 `src/screens/MapTest.tsx`
+   - 清理孤立的 Map 组件文件（MapView.tsx 等）
+   - 移除 `src/assets/` 中所有未被 import 的图片资源
+   - 显式固定 `socket.io-parser@4.2.6` + `path-to-regexp@0.1.13` 高危依赖版本
+   - E2E 压测 12/12 通过
+
+2. **iOS 启动就绪加固** (`332f355`):
+   - 清理孤立的 `Features/Map/` 子目录及 5 个未使用组件文件
+   - `AppRouter` + `NavigationState` 不再记录隐私敏感路由日志
+   - `TrixBotChatView` / `ClawbotChannelViewModel` 聊天正文日志脱敏
+   - `ios/TRIX3DCompanion/Config/Debug.xcconfig` 清空默认 demo 凭证
+   - iOS UI 测试 6/6 通过
+
+3. **仓库卫生收口** (`824c19e`):
+   - `.env` 从 git 跟踪移除（保留本地副本）
+   - `src/services/OSSService.ts` + test 删除（浏览器直传旧链路移除）
+   - `.env.example` 删除 OSS AK/SK 变量声明
+   - `public/companion-check.html` + `env-check.html` 归档至 `docs/.archive/debug-pages/`
+   - `packages/trix-canvas-service/.gitignore` 新增 `data_8791/` 忽略
+
+4. **Canvas 服务安全加固** (`824c19e`):
+   - `trix-openclaw-native` 仅在回环或显式信任代理下采信 `X-Forwarded-For`
+   - Canvas 500 错误统一脱敏，不泄露 ffmpeg/路径细节
+   - Canvas 前端禁用 `?token=` / `#token=` URL 自动登录
+   - Canvas proxy 的 tasks/sessions 增加硬上限和终态淘汰
+   - `canvasSecurity.js` 从 server.js 抽离独立
+
+---
+
 ## 📅 2026-04-01 — iOS 认证回归修复 + Native/Canvas 安全加固 + 文档同步
 
 ### 完成内容

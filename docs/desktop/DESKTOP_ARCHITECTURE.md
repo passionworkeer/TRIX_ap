@@ -1,7 +1,7 @@
 # Desktop 桌面端架构文档
 
 > **版本**: 2.1
-> **最后更新**: 2026-03-31（源码扫描确认 IPC 101 handlers，preload 79 unique methods；新增 Gateway WS RPC / Auth refresh / Image attachments）
+> **最后更新**: 2026-04-02（源码扫描确认 IPC 101 handlers，preload 79 unique methods；新增 Gateway WS RPC / Auth refresh / Image attachments）
 > **平台**: Windows (Electron 33.4.0)
 
 ---
@@ -21,7 +21,7 @@
 │  │  └──────────────┘  └──────────────┘  └──────────────────────┘ │   │
 │  │                                                                  │   │
 │  │  ┌──────────────────────────────────────────────────────────┐  │   │
-│  │  │                    IPC Handlers (90 handlers)              │  │   │
+│  │  │                    IPC Handlers (101 handlers)              │  │   │
 │  │  │  pairing · gateway · openclaw · auth · study · system*         │  │   │
 │  │  └──────────────────────────────────────────────────────────┘  │   │
 │  └─────────────────────────────────────────────────────────────────┘   │
@@ -838,4 +838,4 @@ openclaw logs --follow
 
 ---
 
-**最后更新**: 2026-03-31（IPC 86→101；新增 Window Mgmt 8 / Gateway WS RPC 8 / Auth 3 / TrixNative 2 / Channel 1；Float 260×280；新增 pet-state.ts；preload 79 methods；preferences/friends/notifications IPC 未实现）
+**最后更新**: 2026-04-02（IPC 90→101；新增 Window Mgmt 8 / Gateway WS RPC 8 / Auth 3 / TrixNative 2 / Channel 1；Float 260×280；preload 79 methods；preferences/friends/notifications IPC 已实现；DESKTOP_ARCHITECTURE.md 图 IPC 90→101 修正）

@@ -1,6 +1,6 @@
 # TRIX 3D Companion — 文档索引
 
-> **版本**: v2.8（2026-04-01：新增项目报告索引、仓库安全卫生收口、调试页归档）
+> **版本**: v2.9（2026-04-02：iOS 认证回归修复、Native/Canvas 安全加固）
 > **维护者**: TRIX 3D Companion 开发团队
 
 ---
@@ -222,4 +222,4 @@ skills/trix-canvas-skill/SKILL.md → skills/trix-canvas-skill/scripts/create_se
 
 ---
 
-**最后更新**: 2026-04-01
+**最后更新**: 2026-04-02

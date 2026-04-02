@@ -2,12 +2,12 @@
 
 > iOS TRIX 3D Companion Technical Architecture
 > Based on SwiftUI + Combine
-> **Last Updated**: 2026-03-31
-> **Version**: 1.5 (295 Swift files, 65 services, new SupabaseService, TRIXApplicationDelegate, OAuth/Apple Sign-In, Mall/Points)
+> **Last Updated**: 2026-04-02
+> **Version**: 1.6 (1064 Swift files, 59 services)
 
 ---
 
-## Accuracy Notes (as of 2026-03-31)
+## Accuracy Notes (as of 2026-04-02)
 
 **Known discrepancies in prior versions:**
 - `AppDelegate.swift` does not exist — lifecycle managed by `TRIXApplicationDelegate` + `TRIX3DCompanionApp`
@@ -18,18 +18,8 @@
 - `UIRenderingOptimizer` exists at `Core/Performance/`
 - `AnalyticsService` exists at `Core/Analytics/`
 
-**v1.5 additions (since v1.4):**
-- Total Swift files corrected to **295** (was incorrectly stated as 231)
-- Core/Services expanded to **59 files** (was 61 — count adjusted to actual)
-- Added: SupabaseService, AppleSignInService, MallService, MapSearchService, NetworkMonitor, OAuthManager, SessionService, DataSyncService, ImageUploadService, ToastManager, ClawbotHistoryService, UserStatsService, VoicePlaybackService (all implementations + protocols)
-- App/: Added `TRIXApplicationDelegate.swift` (replaces AppDelegate pattern)
-- Features/Profile/Views/: Added `OpenClawControlPanel.swift`
-- Features/Home/Views/: Corrected to 15 files including `GlassDockView`, `RobotHeroBackgroundView`, `VideoBackgroundView`
-- Features/Store/Views/: Added `ProductDetailView`, `SubscriptionView`, `PaymentResultView`
-- Features/Store/ViewModels/: Added `ProductViewModel`, `PaymentViewModel`
-- Shared/Components: Added `AnimatedQRDisplay`, `AvatarView`, `ConfirmDialog`, `ShimmerEffect` + EmptyStates subfolder
-- Core/Performance: Added `UIRenderingOptimizer.swift`
-- Core/Analytics: Added `AnalyticsService.swift`
+**v1.6 additions (since v1.5):**
+- Total Swift files corrected to **1064** (was incorrectly stated as 295; counted recursively including Test targets)
 
 ---
 
@@ -450,8 +440,9 @@ dependencies: [
 | 1.3 | 2026-03-26 | Directory structure cleanup: Core/Network (3 files removed), Core/Storage (2 removed), Core/Services count: 61 files (40 impl + 21 protocols), total Swift: 293 |
 | 1.4 | 2026-03-29 | Accuracy fix: AnalyticsService, UIRenderingOptimizer, InputValidator all exist; total Swift corrected to 231; added Core/Design, Core/Video, Features/Data to directory structure; removed duplicate Video/ entry |
 | 1.5 | 2026-03-31 | Total Swift corrected to 295; added SupabaseService, AppleSignInService, OAuthManager, MallService, MapSearchService, NetworkMonitor, SessionService, DataSyncService, ToastManager, ClawbotHistoryService, UserStatsService, VoicePlaybackService; added TRIXApplicationDelegate; updated Features counts; added OpenClawControlPanel |
+| 1.6 | 2026-04-02 | Total Swift corrected to 1064 (recursive count including Test targets); version bump only |
 
 ---
 
-**Last Updated**: 2026-03-31
-**Version**: 1.5
+**Last Updated**: 2026-04-02
+**Version**: 1.6

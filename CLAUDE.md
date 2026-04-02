@@ -11,7 +11,7 @@
 - **核心架构**: Supabase（后端）+ OpenClaw Gateway（实时通信）+ TRIX Native Channel（跨端同步）
 - **三端**: Web (React 19.2.4 + TypeScript 5.8.2 + Vite 6.2 + Tailwind CSS 4.2), iOS (SwiftUI + MVVM), Desktop (Electron 33.4)
 - **包管理**: npm workspaces（根目录 `packages/*`）
-- **最后更新**: 2026-03-29
+- **最后更新**: 2026-04-02
 
 ---
 
@@ -193,7 +193,7 @@ docs/<范围>           # 文档更新
 
 ### iOS 端
 - 配对使用 `ClawbotChannelService`（`Core/Services/`）+ `ClawbotChannelViewModel`（`App/`）
-- QR 扫描：`Features/Pairing/Views/QRScannerView.swift`（535行）+ `PairingView.swift`（543行）
+- QR 扫描：`Features/Pairing/Views/QRScannerView.swift`（535行）+ `PairingView.swift`（544行）
 - 协议文件: `XxxServiceProtocol.swift` + `XxxService.swift`
 
 ### 桌面端
@@ -203,4 +203,4 @@ docs/<范围>           # 文档更新
 
 ---
 
-**最后更新**: 2026-03-29
+**最后更新**: 2026-04-02

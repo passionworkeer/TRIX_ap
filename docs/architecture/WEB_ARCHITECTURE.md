@@ -84,7 +84,7 @@ React App
 | `studyHistoryService.ts` | 学习历史 | — |
 | `studySessionService.ts` | 学习记录 | — |
 | `todoService.ts` | 待办事项 | — |
-| `TrixNativeChannelClient.ts` | **主要通信层** — WebSocket + REST，1347 行 | 1347 |
+| `TrixNativeChannelClient.ts` | **主要通信层** — WebSocket + REST，1597 行 | 1597 |
 | `ttsService.ts` | TTS 语音合成 | — |
 | `uploadService.ts` | 文件上传 | — |
 | `userStatsService.ts` | 用户统计 | — |
@@ -188,7 +188,7 @@ interface ThreeStore {
 
 ## 5. TrixNativeChannelClient
 
-`src/services/TrixNativeChannelClient.ts`（1327 行）是主要通信层：
+`src/services/TrixNativeChannelClient.ts`（1597 行）是主要通信层：
 
 **功能**：
 - WebSocket 连接管理（user 角色）
@@ -317,4 +317,4 @@ src/
 
 ---
 
-**最后更新**: 2026-03-31（Routes 19→20，useClawbotMessages 已存在，Auth.tsx 双导出，SETTINGS 规划中）
+**最后更新**: 2026-04-02（TrixNativeChannelClient 1597 行，iOS Swift 1064 文件，组件总数 45 个）
