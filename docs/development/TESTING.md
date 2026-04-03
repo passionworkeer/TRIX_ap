@@ -1,6 +1,6 @@
 # TRIX 3D Companion - 测试指南
 
-> **最后更新**: 2026-03-31
+> **最后更新**: 2026-04-03
 > **测试框架**: Vitest + Node.js Test Runner + Playwright
 
 ---
@@ -116,8 +116,15 @@ npm test
 ### 运行前端单元测试
 
 ```bash
-# 运行一次
+# 运行一次（所有子命令）
 npm run test:unit
+
+# 分模块运行
+npm run test:unit:components   # 组件测试
+npm run test:unit:services      # 服务层测试
+npm run test:unit:app           # Hooks / Utils / Contexts / Integration
+npm run test:unit:screens:core  # 核心 Screen 测试
+npm run test:unit:screens:aux    # 辅助 Screen 测试
 
 # 监听模式
 npm run test:unit:watch
@@ -206,8 +213,12 @@ npm run test:e2e:ui
 | 命令 | 描述 |
 |------|------|
 | `npm test` | 运行单元 + 冒烟 + 服务器测试 |
-| `npm run test:unit` | 前端单元测试（含 integration/） |
-| `npm run test:unit -- <file>` | 运行单个测试文件 |
+| `npm run test:unit` | 前端单元测试（全部分模块） |
+| `npm run test:unit:components` | 组件测试 |
+| `npm run test:unit:services` | 服务层测试 |
+| `npm run test:unit:app` | Hooks / Utils / Contexts / Integration |
+| `npm run test:unit:screens:core` | 核心 Screen 测试 |
+| `npm run test:unit:screens:aux` | 辅助 Screen 测试 |
 | `npm run test:run` | vitest run（全局） |
 | `npm run test:unit:watch` | 前端单元测试（监听模式） |
 | `npm run test:unit:coverage` | 前端单元测试 + 覆盖率 |
@@ -269,7 +280,7 @@ npm run test:unit:coverage
 ### 运行单个测试文件
 
 ```bash
-npm run test:unit -- src/utils/dateFormat.test.ts
+npm run test:unit:coverage
 ```
 
 ### 调试模式

@@ -9,10 +9,10 @@
 
 | 文档 | 说明 | 最后更新 |
 |------|------|----------|
-| [PAIRING.md](./PAIRING.md) | 三端配对、解绑、故障排查（唯一权威配对文档） | 2026-03-29 |
-| [DEPLOYMENT.md](./DEPLOYMENT.md) | 生产环境部署指南（trix.love） | 2026-03-30 |
-| [SERVER_GUIDE.md](./SERVER_GUIDE.md) | 服务器连接和运维操作 | 2026-03-30 |
-| [IOS_TEST_DEPLOY_GUIDE.md](./IOS_TEST_DEPLOY_GUIDE.md) | iOS 测试、打包、上架完整方案（Windows 开发环境） | 2026-03-22 |
+| [PAIRING.md](./PAIRING.md) | 三端配对、解绑、故障排查（唯一权威配对文档） | 2026-04-03 |
+| [DEPLOYMENT.md](./DEPLOYMENT.md) | 生产环境部署指南（trix.love） | 2026-04-03 |
+| [SERVER_GUIDE.md](./SERVER_GUIDE.md) | 服务器连接和运维操作 | 2026-04-03 |
+| [IOS_TEST_DEPLOY_GUIDE.md](./IOS_TEST_DEPLOY_GUIDE.md) | iOS 测试、打包、上架完整方案（Windows 开发环境） | 2026-04-03 |
 | [MACOS_LAUNCHD.md](./MACOS_LAUNCHD.md) | macOS launchd 开机自启模板（OpenClaw Gateway） | — |
 | [SUPABASE_EMAIL_CONFIRMATION.md](./SUPABASE_EMAIL_CONFIRMATION.md) | Supabase 邮箱确认配置（iOS 已完成，Web/Desktop 待实现） | — |
 
@@ -38,4 +38,4 @@ IOS_TEST_DEPLOY_GUIDE.md  ← iOS 项目配置（ios/IOS_ARCHITECTURE.md）
 
 ---
 
-**最后更新**: 2026-03-31
+**最后更新**: 2026-04-03

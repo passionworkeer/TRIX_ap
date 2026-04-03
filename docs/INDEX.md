@@ -1,6 +1,6 @@
 # TRIX 3D Companion — 文档索引
 
-> **版本**: v2.9（2026-04-02：iOS 认证回归修复、Native/Canvas 安全加固）
+> **版本**: v2.9（2026-04-03：docs 全面同步、Canvas 暗色主题、MiniMax API 支持）
 > **维护者**: TRIX 3D Companion 开发团队
 
 ---

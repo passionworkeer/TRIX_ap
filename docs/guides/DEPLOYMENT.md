@@ -1,7 +1,7 @@
 # TRIX 3D Companion - 部署指南
 
 > 本文档详细介绍生产环境部署流程
-> **最后更新**: 2026-04-01（补充 TRIX Native 可信代理配置、Canvas token 使用约束、proxy 内存上限配置）
+> **最后更新**: 2026-04-03（补充 TRIX Native 可信代理配置、Canvas token 使用约束、proxy 内存上限配置）
 
 ---
 
@@ -534,4 +534,4 @@ curl https://trix.love/api/health
 
 ---
 
-**最后更新**: 2026-03-30（生产域名迁移至 trix.love；Nginx server_name、certbot、健康检查全部更新）
+**最后更新**: 2026-04-03（生产域名迁移至 trix.love；Nginx server_name、certbot、健康检查全部更新）

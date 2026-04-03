@@ -1,12 +1,12 @@
 # Desktop Documentation Index
 
-> Last updated: 2026-03-31
+> Last updated: 2026-04-03
 
 ## Core Documentation
 
 | Document | Description |
 |----------|-------------|
-| [DESKTOP_ARCHITECTURE.md](./DESKTOP_ARCHITECTURE.md) | Electron architecture: 101 IPC handlers, preload, multi-window, LuminaLayout, Gateway WS RPC |
+| [DESKTOP_ARCHITECTURE.md](./DESKTOP_ARCHITECTURE.md) | Electron architecture: 99 IPC handlers, preload, multi-window, LuminaLayout, Gateway WS RPC |
 
 ## Related
 

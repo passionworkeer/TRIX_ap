@@ -1,95 +1,95 @@
-# 数据库设计文�?
+# 数据库设计文�?
 
-> 📚 TRIX 3D Companion 数据库架�?
-> 🎯 基于 Supabase (PostgreSQL) + JSON 文件存储（TRIX Native Server�?
-> **最后更�?*: 2026-03-29
+> [emoji] TRIX 3D Companion 数据库架�?
+> 🎯 基于 Supabase (PostgreSQL) + JSON 文件存储（TRIX Native Server�?
+> **最后更�?*: 2026-04-03
 
 ---
 
-## ⚠️ 重要：表名对�?
+## ⚠️ 重要：表名对�?
 
-以下为代码中实际使用的表名，与某些旧迁移脚本中的名称可能不同�?
+以下为代码中实际使用的表名，与某些旧迁移脚本中的名称可能不同�?
 
-| 实际表名 | 旧迁�?文档�?| 说明 |
+| 实际表名 | 旧迁�?文档�?| 说明 |
 |---------|------------|------|
-| `point_transactions`（单数） | `points_transactions`（复数） | 代码中正确使�?`point_transactions` |
-| `friends` | `friendships` | `locationService.ts` 曾错误引�?`friendships` |
-| `user_points_overview`（视图） | �?| 存在于代码中但旧 Schema 未记�?|
+| `point_transactions`（单数） | `points_transactions`（复数） | 代码中正确使�?`point_transactions` |
+| `friends` | `friendships` | `locationService.ts` 曾错误引�?`friendships` |
+| `user_points_overview`（视图） | �?| 存在于代码中但旧 Schema 未记�?|
 
-> `mallService.ts` 使用 `points_transactions`（复数）�?*代码 Bug**，实际数据库表名�?`point_transactions`（单数）�?
-
----
-
-## 1. 数据库概�?
-
-```
-┌─────────────────────────────────────────────────────────────────────────�?
-�?                        Database Schema                                   �?
-├─────────────────────────────────────────────────────────────────────────�?
-�?                                                                         �?
-�? ┌─────────────────────────────────────────────────────────────────�?  �?
-�? �?                    Core Tables                                   �?  �?
-�? �?                                                                  �?  �?
-�? �? ┌─────────�?     ┌─────────�?     ┌──────────────�?          �?  �?
-�? �? �? users  │───▶─�?profiles│───▶─│user_sessions �?          �?  �?
-�? �? �?Auth)   �?     �?        �?     �?单设备登�?  �?          �?  �?
-�? �? └────┬────�?     └────┬────�?     └──────────────�?          �?  �?
-�? �?      �?               �?                                       �?  �?
-�? �?      �?               �?                                       �?  �?
-�? �? ┌─────────�?     ┌────────────────────────────────�?         �?  �?
-�? �? �?friends │◀─── �? friend_requests                 �?         �?  �?
-�? �? �?        �?     �? chat_messages │unread_counts  �?         �?  �?
-�? �? └─────────�?     └────────────────────────────────�?         �?  �?
-�? �?                                                                  �?  �?
-�? �? ┌─────────────────�?  ┌──────────────────────────────�?     �?  �?
-�? �? �? study_sessions �?  �? study_rooms                   �?     �?  �?
-�? �? �?                �?  �? study_room_members            �?     �?  �?
-�? �? └─────────────────�?  └──────────────────────────────�?     �?  �?
-�? �? ┌─────────────────────────────────────────────────────�?     �?  �?
-�? �? �? user_points �?point_transactions (单数)           �?     �?  �?
-�? �? └─────────────────────────────────────────────────────�?     �?  �?
-�? �? ┌──────────────────�?  ┌──────────────────────────────�?     �?  �?
-�? �? �?achievements     �?  �?user_achievements           �?     �?  �?
-�? �? �?outfits          �?  �?user_outfits �?user_purch..  �?     �?  �?
-�? �? └──────────────────�?  └──────────────────────────────�?     �?  �?
-�? └─────────────────────────────────────────────────────────────────�?  �?
-�?                                                                         �?
-�? ┌─────────────────────────────────────────────────────────────────�?  �?
-�? �?                   Feature Tables                                 �?  �?
-�? �?                                                                  �?  �?
-�? �? ┌─────────────�? ┌─────────�? ┌──────�? ┌──────────�?     �?  �?
-�? �? │notifications�? �? mails  �? �?todos �? �?schedules �?     �?  �?
-�? �? └─────────────�? └─────────�? └───────�? └───────────�?     �?  �?
-�? �?                                                                  �?  �?
-�? �? ┌──────────────────�? ┌──────────────────────�? ┌────────�? �?  �?
-�? �? │pairings          �? �?  mall_items          �? │user_set�? �?  �?
-�? �? �?设备配对)         �? �?                     �? �?tings  �? �?  �?
-�? �? └──────────────────�? └──────────────────────�? └────────�? �?  �?
-�? └─────────────────────────────────────────────────────────────────�?  �?
-�?                                                                         �?
-└─────────────────────────────────────────────────────────────────────────�?
-```
+> `mallService.ts` 使用 `points_transactions`（复数）�?*代码 Bug**，实际数据库表名�?`point_transactions`（单数）�?
 
 ---
 
-## 2. 数据表清�?
+## 1. 数据库概�?
 
-### 2.1 核心�?
+```
+┌─────────────────────────────────────────────────────────────────────────�?
+�?                        Database Schema                                   �?
+├─────────────────────────────────────────────────────────────────────────�?
+�?                                                                         �?
+�? ┌─────────────────────────────────────────────────────────────────�?  �?
+�? �?                    Core Tables                                   �?  �?
+�? �?                                                                  �?  �?
+�? �? ┌─────────�?     ┌─────────�?     ┌──────────────�?          �?  �?
+�? �? �? users  │───▶─�?profiles│───▶─│user_sessions �?          �?  �?
+�? �? �?Auth)   �?     �?        �?     �?单设备登�?  �?          �?  �?
+�? �? └────┬────�?     └────┬────�?     └──────────────�?          �?  �?
+�? �?      �?               �?                                       �?  �?
+�? �?      �?               �?                                       �?  �?
+�? �? ┌─────────�?     ┌────────────────────────────────�?         �?  �?
+�? �? �?friends │◀─── �? friend_requests                 �?         �?  �?
+�? �? �?        �?     �? chat_messages │unread_counts  �?         �?  �?
+�? �? └─────────�?     └────────────────────────────────�?         �?  �?
+�? �?                                                                  �?  �?
+�? �? ┌─────────────────�?  ┌──────────────────────────────�?     �?  �?
+�? �? �? study_sessions �?  �? study_rooms                   �?     �?  �?
+�? �? �?                �?  �? study_room_members            �?     �?  �?
+�? �? └─────────────────�?  └──────────────────────────────�?     �?  �?
+�? �? ┌─────────────────────────────────────────────────────�?     �?  �?
+�? �? �? user_points �?point_transactions (单数)           �?     �?  �?
+�? �? └─────────────────────────────────────────────────────�?     �?  �?
+�? �? ┌──────────────────�?  ┌──────────────────────────────�?     �?  �?
+�? �? �?achievements     �?  �?user_achievements           �?     �?  �?
+�? �? �?outfits          �?  �?user_outfits �?user_purch..  �?     �?  �?
+�? �? └──────────────────�?  └──────────────────────────────�?     �?  �?
+�? └─────────────────────────────────────────────────────────────────�?  �?
+�?                                                                         �?
+�? ┌─────────────────────────────────────────────────────────────────�?  �?
+�? �?                   Feature Tables                                 �?  �?
+�? �?                                                                  �?  �?
+�? �? ┌─────────────�? ┌─────────�? ┌──────�? ┌──────────�?     �?  �?
+�? �? │notifications�? �? mails  �? �?todos �? �?schedules �?     �?  �?
+�? �? └─────────────�? └─────────�? └───────�? └───────────�?     �?  �?
+�? �?                                                                  �?  �?
+�? �? ┌──────────────────�? ┌──────────────────────�? ┌────────�? �?  �?
+�? �? │pairings          �? �?  mall_items          �? │user_set�? �?  �?
+�? �? �?设备配对)         �? �?                     �? �?tings  �? �?  �?
+�? �? └──────────────────�? └──────────────────────�? └────────�? �?  �?
+�? └─────────────────────────────────────────────────────────────────�?  �?
+�?                                                                         �?
+└─────────────────────────────────────────────────────────────────────────�?
+```
+
+---
+
+## 2. 数据表清�?
+
+### 2.1 核心�?
 
 | 表名 | 描述 | 主要字段 |
 |------|------|---------|
-| `users` | 用户账户（Supabase Auth�?| id, email |
+| `users` | 用户账户（Supabase Auth�?| id, email |
 | `profiles` | 用户资料扩展 | user_id, points, total_study_time, avatar_config, active_session_id |
-| `user_sessions` | 单设备登录会�?| id, user_id, platform, device_id, is_active, expires_at |
+| `user_sessions` | 单设备登录会�?| id, user_id, platform, device_id, is_active, expires_at |
 | `friends` | 好友关系 | user_id, friend_id, status, is_studying |
 | `friend_requests` | 好友请求 | id, from_user_id, to_user_id, status |
 | `chat_messages` | 聊天消息 | sender_id, receiver_id, content, message_type, created_at |
 | `unread_counts` | 未读计数 | user_id, friend_id, unread_count |
 | `study_sessions` | 学习记录 | user_id, duration, started_at, ended_at |
-| `study_rooms` | 学习�?| host_id, name, is_active |
-| `study_room_members` | 学习室成�?| room_id, user_id, status |
+| `study_rooms` | 学习�?| host_id, name, is_active |
+| `study_room_members` | 学习室成�?| room_id, user_id, status |
 
-### 2.2 功能�?
+### 2.2 功能�?
 
 | 表名 | 描述 | 主要字段 |
 |------|------|---------|
@@ -98,41 +98,41 @@
 | `todos` | 待办事项 | user_id, title, is_completed |
 | `schedules` | 日程 | user_id, title, start_time, end_time |
 | `user_points` | 用户积分余额 | user_id, balance, updated_at |
-| `point_transactions` | 积分变动流水（⚠�?单数，代�?Bug 写成了复数） | user_id, amount, type |
-| `achievements` | 成就列表（参考表�?| id, type, name, description, icon |
-| `user_achievements` | 用户已解锁成�?| user_id, achievement_id, unlocked_at |
-| `outfits` | 装扮目录（参考表�?| id, name, type, price, preview_url |
-| `user_outfits` | 用户已购买装�?| user_id, outfit_id, purchased_at |
+| `point_transactions` | 积分变动流水（⚠�?单数，代�?Bug 写成了复数） | user_id, amount, type |
+| `achievements` | 成就列表（参考表�?| id, type, name, description, icon |
+| `user_achievements` | 用户已解锁成�?| user_id, achievement_id, unlocked_at |
+| `outfits` | 装扮目录（参考表�?| id, name, type, price, preview_url |
+| `user_outfits` | 用户已购买装�?| user_id, outfit_id, purchased_at |
 | `mall_items` | 商城商品 | name, price, type, is_active |
 | `user_purchased_items` | 用户已购商品 | user_id, item_id, purchased_at |
 | `pairings` | 设备配对 | user_id, device_id, status, platform |
 | `user_settings` | 用户设置 | user_id, key, value |
 
-### 2.3 视图（Views�?
+### 2.3 视图（Views�?
 
-| 视图�?| 描述 | 代码引用 |
+| 视图�?| 描述 | 代码引用 |
 |--------|------|---------|
-| `friend_latest_messages` | 好友最新消�?| `friendService.ts` |
-| `user_points_overview` | 用户积分概览 | `pointsService.ts`（⚠�?�?Schema 未记录） |
+| `friend_latest_messages` | 好友最新消�?| `friendService.ts` |
+| `user_points_overview` | 用户积分概览 | `pointsService.ts`（⚠�?�?Schema 未记录） |
 
 ---
 
-## 3. 核心表结�?
+## 3. 核心表结�?
 
-### 3.1 用户�?(users)
+### 3.1 用户�?(users)
 
-Supabase Auth 表，�?Supabase 管理�?
+Supabase Auth 表，�?Supabase 管理�?
 
 **字段说明**:
 | 字段 | 类型 | 说明 |
 |------|------|------|
-| id | UUID | 主键，用�?ID |
+| id | UUID | 主键，用�?ID |
 | email | TEXT | 邮箱，唯一 |
 | created_at | TIMESTAMPTZ | 创建时间 |
 
 ---
 
-### 3.2 用户资料�?(profiles)
+### 3.2 用户资料�?(profiles)
 
 ```sql
 CREATE TABLE profiles (
@@ -161,22 +161,22 @@ CREATE INDEX idx_profiles_study_time ON profiles(total_study_time) WHERE total_s
 **字段说明**:
 | 字段 | 类型 | 说明 |
 |------|------|------|
-| id | UUID | 主键，关�?auth.users |
+| id | UUID | 主键，关�?auth.users |
 | username | TEXT | 用户名，唯一 |
 | full_name | TEXT | 显示名称 |
 | avatar_url | TEXT | 头像 URL |
 | avatar_config | JSONB | 头像配置 |
-| bio | TEXT | 个人简�?|
+| bio | TEXT | 个人简�?|
 | points | INTEGER | 积分余额 |
 | total_study_time | INTEGER | 累计学习时长(分钟) |
 | days_active | INTEGER | 活跃天数 |
 | interaction_count | INTEGER | 互动次数 |
 | is_studying | BOOLEAN | 是否正在学习 |
-| companion_id | UUID | 当前陪伴的好�?ID |
+| companion_id | UUID | 当前陪伴的好�?ID |
 
 ---
 
-### 3.3 好友�?(friends)
+### 3.3 好友�?(friends)
 
 ```sql
 CREATE TABLE friends (
@@ -202,13 +202,13 @@ CREATE INDEX idx_friends_status ON friends(status) WHERE status = 'pending';
 |------|------|------|
 | user_id | UUID | 当前用户 ID |
 | friend_id | UUID | 好友用户 ID |
-| status | TEXT | 好友关系状态（pending/accepted/rejected�?|
+| status | TEXT | 好友关系状态（pending/accepted/rejected�?|
 | study_time | INTEGER | 好友学习时长 |
 | is_studying | BOOLEAN | 好友是否正在学习 |
 
 ---
 
-### 3.4 聊天消息�?(chat_messages)
+### 3.4 聊天消息�?(chat_messages)
 
 ```sql
 CREATE TABLE chat_messages (
@@ -239,19 +239,19 @@ CREATE INDEX idx_messages_created ON chat_messages(created_at DESC);
 | 字段 | 类型 | 说明 |
 |------|------|------|
 | conversation_id | TEXT | 对话 ID (格式: userId_friendId) |
-| sender_id | UUID | 发送�?ID |
-| receiver_id | UUID | 接收�?ID（可�?NULL，支持群组消息） |
+| sender_id | UUID | 发送�?ID |
+| receiver_id | UUID | 接收�?ID（可�?NULL，支持群组消息） |
 | text | TEXT | 消息内容 |
 | message_type | TEXT | 消息类型 |
 | media_uri | TEXT | 媒体文件 URL |
 | media_type | TEXT | 媒体类型 |
 | media_size | INTEGER | 文件大小 |
-| media_metadata | JSONB | 媒体元数�?|
+| media_metadata | JSONB | 媒体元数�?|
 | is_read | BOOLEAN | 是否已读 |
 
 ---
 
-### 3.5 未读计数�?(unread_counts)
+### 3.5 未读计数�?(unread_counts)
 
 ```sql
 CREATE TABLE unread_counts (
@@ -270,7 +270,7 @@ CREATE INDEX idx_unread_user ON unread_counts(user_id);
 
 ---
 
-### 3.6 学习记录�?(study_sessions)
+### 3.6 学习记录�?(study_sessions)
 
 ```sql
 CREATE TABLE study_sessions (
@@ -295,7 +295,7 @@ CREATE INDEX idx_study_started ON study_sessions(started_at DESC);
 | user_id | UUID | 用户 ID |
 | subject | TEXT | 学习主题 |
 | duration | INTEGER | 学习时长(分钟) |
-| started_at | TIMESTAMPTZ | 开始时�?|
+| started_at | TIMESTAMPTZ | 开始时�?|
 | ended_at | TIMESTAMPTZ | 结束时间 |
 
 ---
@@ -326,11 +326,11 @@ CREATE INDEX idx_rooms_public ON study_rooms(is_public) WHERE is_public = true;
 | name | TEXT | 房间名称 |
 | description | TEXT | 房间描述 |
 | capacity | INTEGER | 容纳人数上限 |
-| current_members | INTEGER | 当前成员�?|
+| current_members | INTEGER | 当前成员�?|
 | is_public | BOOLEAN | 是否公开 |
-| created_by | UUID | 创建�?ID（关�?profiles�?|
+| created_by | UUID | 创建�?ID（关�?profiles�?|
 | room_code | TEXT | 房间码（唯一，用于加入） |
-| session_state | JSONB | 学习会话状�?|
+| session_state | JSONB | 学习会话状�?|
 
 ---
 
@@ -356,7 +356,7 @@ CREATE INDEX idx_members_user ON study_room_members(user_id);
 
 ---
 
-### 3.9 通知�?(notifications)
+### 3.9 通知�?(notifications)
 
 ```sql
 CREATE TABLE notifications (
@@ -376,9 +376,9 @@ CREATE INDEX idx_notifications_read ON notifications(is_read) WHERE is_read = fa
 
 ---
 
-### 3.10 积分交易�?(point_transactions)
+### 3.10 积分交易�?(point_transactions)
 
-> ⚠️ 实际数据库表名为 `point_transactions`（单数），`mallService.ts` 中使�?`points_transactions`（复数）为代�?Bug�?
+> ⚠️ 实际数据库表名为 `point_transactions`（单数），`mallService.ts` 中使�?`points_transactions`（复数）为代�?Bug�?
 
 ```sql
 CREATE TABLE point_transactions (
@@ -396,26 +396,26 @@ CREATE INDEX idx_points_created ON point_transactions(created_at DESC);
 
 ---
 
-## 视图（Views�?
+## 视图（Views�?
 
 ### friend_latest_messages
 
-获取每个好友的最新一条消息，用于聊天列表展示�?
+获取每个好友的最新一条消息，用于聊天列表展示�?
 
 ```sql
--- 存在�?init.sql，friendService.ts 中使�?
+-- 存在�?init.sql，friendService.ts 中使�?
 CREATE VIEW friend_latest_messages AS ...
 ```
 
 ### user_points_overview
 
-用户积分概览视图，`pointsService.ts` 中使用�?
+用户积分概览视图，`pointsService.ts` 中使用�?
 
-> 代码引用：`src/services/pointsService.ts` �?**�?Schema 未记录此视图**
+> 代码引用：`src/services/pointsService.ts` �?**�?Schema 未记录此视图**
 
 ---
 
-### 3.11 商城商品�?(mall_items)
+### 3.11 商城商品�?(mall_items)
 
 ```sql
 CREATE TABLE mall_items (
@@ -435,7 +435,7 @@ CREATE INDEX idx_mall_items_active ON mall_items(is_active) WHERE is_active = tr
 
 ---
 
-### 3.12 设备配对�?(pairings)
+### 3.12 设备配对�?(pairings)
 
 ```sql
 CREATE TABLE pairings (
@@ -454,7 +454,7 @@ CREATE INDEX idx_pairings_code ON pairings(pairing_code);
 
 ---
 
-### 3.13 待办事项�?(todos)
+### 3.13 待办事项�?(todos)
 
 ```sql
 CREATE TABLE todos (
@@ -477,7 +477,7 @@ CREATE INDEX idx_todos_completed ON todos(completed) WHERE completed = false;
 
 ---
 
-### 3.14 日程�?(schedules)
+### 3.14 日程�?(schedules)
 
 ```sql
 CREATE TABLE schedules (
@@ -501,7 +501,7 @@ CREATE INDEX idx_schedules_user ON schedules(user_id);
 CREATE INDEX idx_schedules_time ON schedules(start_time, end_time);
 ```
 
-### 3.15 用户设置�?(user_settings)
+### 3.15 用户设置�?(user_settings)
 
 ```sql
 CREATE TABLE user_settings (
@@ -519,11 +519,11 @@ CREATE INDEX idx_user_settings_user ON user_settings(user_id);
 
 ---
 
-## 4. 缺失表（代码引用�?SQL 未创建）
+## 4. 缺失表（代码引用�?SQL 未创建）
 
-> 以下 7 个表在代码中被引用，但尚未在 `schema-complete.sql` 中定义。需手动执行 SQL 创建�?
+> 以下 7 个表在代码中被引用，但尚未在 `schema-complete.sql` 中定义。需手动执行 SQL 创建�?
 
-### 4.1 地点�?(places)
+### 4.1 地点�?(places)
 
 ```sql
 -- 代码引用：locationService.ts
@@ -542,7 +542,7 @@ CREATE INDEX idx_places_location ON places(latitude, longitude);
 CREATE INDEX idx_places_category ON places(category);
 ```
 
-### 4.2 地点收藏�?(user_favorite_places)
+### 4.2 地点收藏�?(user_favorite_places)
 
 ```sql
 CREATE TABLE IF NOT EXISTS user_favorite_places (
@@ -554,7 +554,7 @@ CREATE TABLE IF NOT EXISTS user_favorite_places (
 );
 ```
 
-### 4.3 用户位置�?(user_locations)
+### 4.3 用户位置�?(user_locations)
 
 ```sql
 CREATE TABLE IF NOT EXISTS user_locations (
@@ -570,7 +570,7 @@ CREATE INDEX idx_user_locations_user ON user_locations(user_id);
 CREATE INDEX idx_user_locations_time ON user_locations(recorded_at DESC);
 ```
 
-### 4.4 用户位置设置�?(user_location_settings)
+### 4.4 用户位置设置�?(user_location_settings)
 
 ```sql
 CREATE TABLE IF NOT EXISTS user_location_settings (
@@ -582,10 +582,10 @@ CREATE TABLE IF NOT EXISTS user_location_settings (
 );
 ```
 
-### 4.5 用户会话�?(user_sessions)
+### 4.5 用户会话�?(user_sessions)
 
 ```sql
--- 注意：Supabase Auth 自带 sessions 管理，此表为应用层设备会�?
+-- 注意：Supabase Auth 自带 sessions 管理，此表为应用层设备会�?
 CREATE TABLE IF NOT EXISTS user_sessions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
@@ -602,23 +602,23 @@ CREATE INDEX idx_user_sessions_active ON user_sessions(is_active) WHERE is_activ
 
 ---
 
-## 5. 视图（Views�?
+## 5. 视图（Views�?
 
 ### friend_latest_messages
 
-获取每个好友的最新一条消息，用于聊天列表展示�?
+获取每个好友的最新一条消息，用于聊天列表展示�?
 
 ```sql
--- 存在�?init.sql，friendService.ts 中使�?
+-- 存在�?init.sql，friendService.ts 中使�?
 CREATE VIEW friend_latest_messages AS ...
 ```
 
 ### user_points_overview
 
-用户积分概览视图，`pointsService.ts` 中使用�?
+用户积分概览视图，`pointsService.ts` 中使用�?
 
 ```sql
--- 需�?Supabase 中手动执行创�?
+-- 需�?Supabase 中手动执行创�?
 CREATE OR REPLACE VIEW user_points_overview AS
 SELECT
   p.id AS user_id,
@@ -639,7 +639,7 @@ GROUP BY p.id, p.username, up.total_points, up.level, up.total_earned, up.total_
 
 ## 6. RLS 策略 (Row Level Security)
 
-### 6.1 profiles �?
+### 6.1 profiles �?
 
 ```sql
 -- 用户只能查看和修改自己的资料
@@ -652,10 +652,10 @@ ON profiles FOR UPDATE
 USING (auth.uid() = id);
 ```
 
-### 6.2 friends �?
+### 6.2 friends �?
 
 ```sql
--- 用户只能查看自己的好�?
+-- 用户只能查看自己的好�?
 CREATE POLICY "Users can view own friends"
 ON friends FOR SELECT
 USING (auth.uid() = user_id);
@@ -665,10 +665,10 @@ ON friends FOR INSERT
 WITH CHECK (auth.uid() = user_id);
 ```
 
-### 6.3 chat_messages �?
+### 6.3 chat_messages �?
 
 ```sql
--- 用户只能查看自己的消�?
+-- 用户只能查看自己的消�?
 CREATE POLICY "Users can view own messages"
 ON chat_messages FOR SELECT
 USING (auth.uid() = sender_id OR auth.uid() = receiver_id);
@@ -679,33 +679,33 @@ USING (auth.uid() = sender_id OR auth.uid() = receiver_id);
 ## 7. 数据库关系图
 
 ```
-┌─────────────�?
-�? auth.users �?(Supabase 管理)
-└──────┬──────�?
-       �?
-       �?1:1
-       �?
-┌──────────────�?    1:N     ┌────────────────�?
-�?  profiles   │─────────────▶│  study_sessions �?
-└──────┬───────�?            └────────────────�?
-       �?
-       �?1:N
-       �?
-┌──────────────�?    1:N     ┌────────────────�?
-�?  friends    │─────────────▶│ study_rooms     �?
-└──────────────�?            └────────┬────────�?
-       �?                             �?
-       �?1:N                          �?1:N
-       �?                             �?
-┌──────────────�?             ┌────────────────�?
-│chat_messages �?             │study_room_     �?
-└──────────────�?             �?   members     �?
-       �?                      └────────────────�?
-       �?1:N
-       �?
-┌──────────────�?
-│unread_counts �?
-└──────────────�?
+┌─────────────�?
+�? auth.users �?(Supabase 管理)
+└──────┬──────�?
+       �?
+       �?1:1
+       �?
+┌──────────────�?    1:N     ┌────────────────�?
+�?  profiles   │─────────────▶│  study_sessions �?
+└──────┬───────�?            └────────────────�?
+       �?
+       �?1:N
+       �?
+┌──────────────�?    1:N     ┌────────────────�?
+�?  friends    │─────────────▶│ study_rooms     �?
+└──────────────�?            └────────┬────────�?
+       �?                             �?
+       �?1:N                          �?1:N
+       �?                             �?
+┌──────────────�?             ┌────────────────�?
+│chat_messages �?             │study_room_     �?
+└──────────────�?             �?   members     �?
+       �?                      └────────────────�?
+       �?1:N
+       �?
+┌──────────────�?
+│unread_counts �?
+└──────────────�?
 ```
 
 ---
@@ -723,12 +723,12 @@ const channel = supabase
     table: 'chat_messages',
     filter: `receiver_id=eq.${userId}`
   }, (payload) => {
-    console.log('新消�?', payload.new);
+    console.log('新消�?', payload.new);
   })
   .subscribe();
 ```
 
-### 6.2 订阅好友状�?
+### 6.2 订阅好友状�?
 
 ```typescript
 supabase
@@ -739,7 +739,7 @@ supabase
     table: 'friends',
     filter: `user_id=eq.${userId}`
   }, (payload) => {
-    console.log('好友状态变�?', payload);
+    console.log('好友状态变�?', payload);
   })
   .subscribe();
 ```
@@ -798,9 +798,9 @@ WHERE points > 0;
 
 ---
 
-## 11. TRIX Native Server 本地状态存�?
+## 11. TRIX Native Server 本地状态存�?
 
-TRIX Native Server 使用 **JSON 文件存储**（`JsonStateStore`）进行本地持久化，不使用 SQLite�?
+TRIX Native Server 使用 **JSON 文件存储**（`JsonStateStore`）进行本地持久化，不使用 SQLite�?
 
 ### 9.1 存储位置
 
@@ -811,7 +811,7 @@ TRIX Native Server 使用 **JSON 文件存储**（`JsonStateStore`）进行本�
     └── <sha256>.ext   # 按哈希命名的附件文件
 ```
 
-- `storageDir` 默认�? `./.trix-native-channel`（可通过 `TRIX_NATIVE_STORAGE_DIR` 环境变量覆盖�?
+- `storageDir` 默认�? `./.trix-native-channel`（可通过 `TRIX_NATIVE_STORAGE_DIR` 环境变量覆盖�?
 - OpenClaw 插件附件存储: `<storageDir>/openclaw/attachments/`
 
 ### 9.2 state.json 结构
@@ -832,7 +832,7 @@ TRIX Native Server 使用 **JSON 文件存储**（`JsonStateStore`）进行本�
 ```typescript
 // 配对记录
 interface PairingRecord {
-  code: string;              // 配对�?(6-8位字母数�?
+  code: string;              // 配对�?(6-8位字母数�?
   secret: string;            // 配对密钥
   label?: string;
   createdAt: number;
@@ -879,8 +879,8 @@ interface MessageRecord {
 
 ### 9.4 Study Rooms（类型已定义，初始化待实现）
 
-`study_rooms` �?`study_room_members` 类型已在 `types.ts` 中定义，�?`DEFAULT_STATE` 中尚未初始化。详细类型见 `packages/trix-openclaw-native/src/types.ts`�?
+`study_rooms` �?`study_room_members` 类型已在 `types.ts` 中定义，�?`DEFAULT_STATE` 中尚未初始化。详细类型见 `packages/trix-openclaw-native/src/types.ts`�?
 
 ---
 
-**最后更�?*: 2026-03-29
+> **最后更新： 2026-04-03

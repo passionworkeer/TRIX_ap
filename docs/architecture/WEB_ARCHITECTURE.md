@@ -1,6 +1,6 @@
 # Web 架构
 
-> **最后更新**: 2026-04-02（补充 native channel 会话存储收敛：敏感会话状态优先 `sessionStorage`，仅保留设备标识等低敏字段在 `localStorage`）
+> **最后更新**: 2026-04-03
 > **技术栈**: React 19.2.4 + TypeScript 5.8.2 + Vite 6.2.0 + Tailwind CSS 4.2.0 + Supabase 2.94.0
 
 ---
@@ -317,4 +317,4 @@ src/
 
 ---
 
-**最后更新**: 2026-04-02（TrixNativeChannelClient 1597 行，iOS Swift 1064 文件，组件总数 45 个）
+**最后更新**: 2026-04-03

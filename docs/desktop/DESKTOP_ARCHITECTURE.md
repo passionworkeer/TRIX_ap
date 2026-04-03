@@ -1,7 +1,7 @@
 # Desktop 桌面端架构文档
 
 > **版本**: 2.1
-> **最后更新**: 2026-04-02（源码扫描确认 IPC 101 handlers，preload 79 unique methods；新增 Gateway WS RPC / Auth refresh / Image attachments）
+> **最后更新**: 2026-04-03（源码扫描确认 IPC 99 handlers，preload 79 unique methods）
 > **平台**: Windows (Electron 33.4.0)
 
 ---
@@ -21,7 +21,7 @@
 │  │  └──────────────┘  └──────────────┘  └──────────────────────┘ │   │
 │  │                                                                  │   │
 │  │  ┌──────────────────────────────────────────────────────────┐  │   │
-│  │  │                    IPC Handlers (101 handlers)              │  │   │
+│  │  │                    IPC Handlers (99 handlers)              │  │   │
 │  │  │  pairing · gateway · openclaw · auth · study · system*         │  │   │
 │  │  └──────────────────────────────────────────────────────────┘  │   │
 │  └─────────────────────────────────────────────────────────────────┘   │
@@ -360,7 +360,7 @@ async function ensureOpenclawInstalled(): Promise<void> {
 
 ### 3.5 IPC Handler (`ipc.ts`)
 
-**概况**：共 **101 个** `ipcMain.handle` 注册，无 `ipcMain.on` 事件。分为 15 个大类别：
+**概况**：共 **99 个** `ipcMain.handle` 注册，无 `ipcMain.on` 事件。分为 15 个大类别：
 
 **bot-state 事件**通过 `webContents.send`（位于 `window-state.ts`）主动推送，**不是** IPC handler：
 - `bot-state:push` → 渲染进程 → 主进程（handler）
@@ -369,7 +369,7 @@ async function ensureOpenclawInstalled(): Promise<void> {
 **openclaw:install-progress** 同理，由主进程通过 `event.sender.send` 主动推送。
 
 ```typescript
-// 全部 101 个 ipcMain.handle（15 个大类别；v2.1 含 Gateway WS RPC / Triple-layer Health / Diagnostic Engine / KB）
+// 全部 99 个 ipcMain.handle（15 个大类别；v2.1 含 Gateway WS RPC / Triple-layer Health / Diagnostic Engine / KB）
 
 // Window Management（11）
 'window:show-main'         → 显示主窗口
@@ -654,7 +654,7 @@ desktop/
     │   ├── tray.ts            # 系统托盘
     │   ├── gateway.ts         # Gateway 子进程（含 Triple-layer Health、Diagnostic Engine、KB、WS RPC）
     │   ├── openclaw.ts        # OpenClaw CLI 封装（ClawHub marketplace、Skill registry）
-    │   ├── ipc.ts             # IPC Handler（共 **101 个** ipcMain.handle）
+    │   ├── ipc.ts             # IPC Handler（共 **99 个** ipcMain.handle）
     │   └── float-window.ts    # Float 窗口工厂
     │
     ├── preload/
@@ -838,4 +838,4 @@ openclaw logs --follow
 
 ---
 
-**最后更新**: 2026-04-02（IPC 90→101；新增 Window Mgmt 8 / Gateway WS RPC 8 / Auth 3 / TrixNative 2 / Channel 1；Float 260×280；preload 79 methods；preferences/friends/notifications IPC 已实现；DESKTOP_ARCHITECTURE.md 图 IPC 90→101 修正）
+**最后更新**: 2026-04-03（IPC 90→99；preload 79 methods）

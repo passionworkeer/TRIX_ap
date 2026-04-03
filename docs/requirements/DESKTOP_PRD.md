@@ -1,7 +1,7 @@
 # TRIX 3D Companion - 产品需求文档 (PRD)
 
 > **文档版本**: 1.3
-> **最后更新**: 2026-03-31
+> **最后更新**: 2026-04-03
 > **产品**: TRIX Companion Desktop
 > **平台**: Windows (Electron 33.4.0)
 > **类型**: 桌面客户端
@@ -635,4 +635,4 @@ C:/Users/wang/Desktop/TRIX Companion 3/
 ---
 
 **文档维护**: TRIX 开发团队
-**最后更新**: 2026-03-23
+**最后更新**: 2026-04-03

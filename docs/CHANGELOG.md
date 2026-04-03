@@ -4,6 +4,31 @@
 
 ---
 
+## 📅 2026-04-03 — Canvas 暗色主题 + 文档整理
+
+### 完成内容
+
+1. **Canvas 暗色主题重设计** (`ded2b73`):
+   - 全套色板重设计（`#0c0d14` 深色调，`#10d9a0` 强调色）
+   - 字体切换 PingFang SC / Microsoft YaHei
+   - 新增 `packages/trix-canvas-service/public/canvas.js`（工作流预设工具）
+   - 新增 Canvas MiniMax API 模型检测和 payload 构建
+   - 新增 skill 脚本重定向跟随和安全警告
+
+2. **文档结构整理** (`dd11583`, `9f3f47e`):
+   - `SUPABASE_EMAIL_CONFIRMATION_SETUP.md` → `guides/`
+   - `issues/DESKTOP_TEST_REPORT.md` → `.archive/`（已过期）
+   - `database/README.md` 已删除（被 SCHEMA.md 覆盖）
+   - `docs/.archive/debug-pages/` 已删除（临时调试页）
+   - `.cursor/rules/` 加入 `.gitignore`
+   - INDEX 和子索引全部同步更新
+
+3. **依赖和配置** (`99e11ad`):
+   - `trix-openclaw-native` peerDependency 更新为 `>=2026.4.1 <2027`
+   - `.claude/settings.local.json` 加入 `.gitignore`
+
+---
+
 ## 📅 2026-04-02 — Web & iOS Launch Readiness Hardening
 
 ### 完成内容

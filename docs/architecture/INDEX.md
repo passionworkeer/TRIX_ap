@@ -1,7 +1,7 @@
 # 架构文档索引
 
 > TRIX 3D Companion 架构文档总览
-> **最后更新**: 2026-03-31
+> **最后更新**: 2026-04-03
 
 ---
 
@@ -9,8 +9,8 @@
 
 | 文档 | 说明 | 最后更新 |
 |------|------|----------|
-| [WEB_ARCHITECTURE.md](./WEB_ARCHITECTURE.md) | Web 端架构（20 路由 + 27 服务 + 45 组件 + 12 hooks + 10 utils + 22 E2E specs） | 2026-03-31 |
-| [BACKEND_ARCHITECTURE.md](./BACKEND_ARCHITECTURE.md) | 后端架构（Node.js HTTP/WebSocket + Supabase + TRIX Native Server） | 2026-03-31 |
+| [WEB_ARCHITECTURE.md](./WEB_ARCHITECTURE.md) | Web 端架构（20 路由 + 27 服务 + 45 组件 + 12 hooks + 10 utils + 22 E2E specs） | 2026-04-03 |
+| [BACKEND_ARCHITECTURE.md](./BACKEND_ARCHITECTURE.md) | 后端架构（Node.js HTTP/WebSocket + Supabase + TRIX Native Server） | 2026-04-03 |
 
 ---
 
@@ -64,4 +64,4 @@ Desktop 架构: desktop/DESKTOP_ARCHITECTURE.md（90 IPC · 80 preload API）
 
 ---
 
-**最后更新**: 2026-03-30
+**最后更新**: 2026-04-03

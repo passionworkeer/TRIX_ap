@@ -122,9 +122,9 @@ openclaw channels login --channel trix-native --account default --verbose
 ```
 trix-3d-companion/
 ├── src/                      # Web 端（React 19.2）
-│   ├── services/             # 27 个服务文件
+│   ├── services/             # 26 个服务文件
 │   ├── contexts/             # 4 个 React Context
-│   ├── components/          # 60+ 组件
+│   ├── components/          # ~45 个组件
 │   └── screens/             # 17 个页面
 │
 ├── desktop/                  # Desktop 端（Electron 33.4）
@@ -154,4 +154,4 @@ trix-3d-companion/
 
 ---
 
-**最后更新**: 2026-03-31
+**最后更新**: 2026-04-03

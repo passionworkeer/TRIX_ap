@@ -2,7 +2,7 @@
 
 > 📚 TRIX 3D Companion 后端服务架构
 > 🎯 基于 Node.js 原生 HTTP + WebSocket + Supabase
-> **最后更新**: 2026-03-31（代码扫描同步：Node.js 20+ 确认，Services 目录结构确认，trix-openclaw-native 包结构确认）
+> **最后更新**: 2026-04-03
 
 ---
 
@@ -528,7 +528,7 @@ curl http://TRIX_SERVER_HOST:8788/health
     "node-edge-tts": "^1.2.10"
   },
   "peerDependencies": {
-    "openclaw": ">=2026.3.8"
+    "openclaw": ">=2026.4.1 <2027"
   },
   "devDependencies": {
     "@types/node": "...",

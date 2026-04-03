@@ -1,6 +1,6 @@
 # iOS Documentation Index
 
-> Last updated: 2026-04-02
+> Last updated: 2026-04-03
 
 ## Core Documentation
 
