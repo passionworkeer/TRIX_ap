@@ -51,8 +51,6 @@ const AI_GENERATE_PATH = process.env.AI_GENERATE_PATH || '/generate';
 const AI_TASK_PATH_TEMPLATE = process.env.AI_TASK_PATH_TEMPLATE || '/tasks/:taskId';
 const AI_API_KEY = process.env.AI_API_KEY || '';
 const AI_EXTRA_HEADERS = parseHeaderLines(process.env.AI_EXTRA_HEADERS || '');
-const AI_MODEL = process.env.AI_MODEL || '';
-const IS_MINIMAX = /minimax/i.test(AI_API_BASE);
 const CANVAS_JSON_LIMIT = process.env.CANVAS_JSON_LIMIT || '50mb';
 const AI_REQUEST_TIMEOUT_MS = readPositiveNumber(process.env.CANVAS_AI_REQUEST_TIMEOUT_MS, 60_000);
 const CAPABILITY_REQUEST_TIMEOUT_MS = readPositiveNumber(
@@ -1157,16 +1155,6 @@ async function invokeAi(path, body, method = 'POST') {
 }
 
 function buildGeneratePayload(session) {
-  // MiniMax expects: model, prompt, aspect_ratio, response_format
-  if (IS_MINIMAX) {
-    return {
-      model: AI_MODEL || 'image-01',
-      prompt: session.message,
-      aspect_ratio: session.aspect || '1:1',
-      response_format: 'base64',
-    };
-  }
-
   const parentNode = session.parent_node_id
     ? readRecord(NODES_DIR, session.parent_node_id)
     : null;

@@ -80,6 +80,7 @@ function startProxyServer(
     maxTasks = 500,
     requestTimeoutMs = 120000,
     maxBodyBytes = 256 * 1024,
+    allowedOrigins = '',
   } = options;
 
   const workdir = mkdtempSync(join(tmpdir(), workdirPrefix));
@@ -101,6 +102,9 @@ function startProxyServer(
     PROXY_MAX_BODY_BYTES: String(maxBodyBytes),
     PROXY_TASK_TTL_MS: '3600000',
     PROXY_SESSION_TTL_MS: '3600000',
+    PROXY_ALLOWED_ORIGINS: allowedOrigins,
+    AI_IMAGE_TASK_PATH_TEMPLATE: '/tasks/{taskId}',
+    AI_VIDEO_TASK_PATH_TEMPLATE: '/tasks/{taskId}',
   };
   const proc = spawn('node', [PROXY_ENTRY], {
     env,
@@ -173,7 +177,7 @@ async function createProxyTestEnvironment(options = {}) {
   const proxyPort = options.proxyPort || await getFreePort(HOST);
   const upstreamPort = options.upstreamPort || await getFreePort(HOST);
   const proxyUrl = `http://${HOST}:${proxyPort}`;
-  const upstreamUrl = `http://${HOST}:${upstreamPort}`;
+  const upstreamUrl = options.upstreamUrl || `http://${HOST}:${upstreamPort}`;
 
   // Create mock upstream AI server
   const tasks = new Map();
@@ -282,6 +286,7 @@ async function createProxyTestEnvironment(options = {}) {
       maxTasks: options.maxTasks,
       requestTimeoutMs: options.requestTimeoutMs,
       maxBodyBytes: options.maxBodyBytes,
+      allowedOrigins: options.allowedOrigins || '',
     });
     await waitForOk(proxyUrl, '/health');
   } catch (error) {
@@ -462,7 +467,7 @@ test('TRIX Canvas AI Proxy - Comprehensive Tests', async (t) => {
         { Authorization: `Bearer ${env.apiKey}` },
       );
       assert.equal(response.status, 200);
-      assert.ok(payload?.resultUrls?.length > 0, 'should have result URLs');
+      assert.ok(payload?.data?.resultUrls?.length > 0, 'should have result URLs, got: ' + JSON.stringify(payload));
     } finally {
       await env.shutdown();
     }
@@ -525,18 +530,19 @@ test('TRIX Canvas AI Proxy - Comprehensive Tests', async (t) => {
 
   // Test 9: Request timeout when upstream is slow
   await t.test('request timeout when upstream is slow (> PROXY_REQUEST_TIMEOUT_MS)', async () => {
-    // Create mock upstream that hangs
-    const slowUpstreamPort = await getFreePort(HOST);
+    // Create mock upstream that hangs — use port 0 to let OS pick a guaranteed-free port
     const slowUpstream = createHttpServer((req, res) => {
       // Never respond - just hang
     });
-    await new Promise((resolvePromise) => slowUpstream.listen(slowUpstreamPort, HOST, resolvePromise));
+    await new Promise((resolvePromise) => slowUpstream.listen(0, HOST, resolvePromise));
+    const slowUpstreamPort = slowUpstream.address().port;
+    const slowUpstreamUrl = `http://${HOST}:${slowUpstreamPort}`;
 
     const shortTimeout = 1000; // 1 second timeout
     const env = await createProxyTestEnvironment({
       workdirPrefix: 'trix-proxy-timeout-',
       proxyPort: await getFreePort(HOST),
-      upstreamPort: slowUpstreamPort,
+      upstreamUrl: slowUpstreamUrl, // use our slow upstream, skip mock port allocation
       requestTimeoutMs: shortTimeout,
     });
 
@@ -720,8 +726,10 @@ test('TRIX Canvas AI Proxy - Comprehensive Tests', async (t) => {
       const body = await response.json();
 
       // With mock upstream configured, should be ready
+      // imageGenerate should be ready (always confirmed at startup when AI_API_KEY + AI_IMAGE_PATH are set)
       assert.equal(body?.imageGenerateStatus, 'ready', 'image generation should be ready');
-      assert.equal(body?.videoGenerateStatus, 'ready', 'video generation should be ready');
+      // videoGenerate starts as 'unknown' until first successful video request confirms capability
+      assert.equal(body?.videoGenerateStatus, 'unknown', 'video generation starts as unknown until first request');
       assert.ok(body?.models?.image, 'should have image model configured');
       assert.ok(body?.models?.video, 'should have video model configured');
       assert.ok(body?.paths?.image, 'should have image path configured');

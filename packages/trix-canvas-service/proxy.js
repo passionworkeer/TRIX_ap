@@ -576,6 +576,20 @@ async function resolveVideoDownloadUrl(fileId) {
   return urls[0] || '';
 }
 
+/**
+ * Synchronous version of finalizeAsyncResult — used in poll paths to update
+ * session/task state immediately (before returning) so callers always see
+ * up-to-date resultUrls even when the async .then() hasn't resolved yet.
+ */
+function finalizeSync(entry, body) {
+  const urls = extractUrls(body);
+  const status = urls.length > 0
+    ? 'completed'
+    : normalizeStatus(body?.status || body?.state || body?.progress);
+  const error = status === 'failed' ? extractErrorMessage(body, 'AI task failed') : null;
+  return { status, urls, error };
+}
+
 async function finalizeAsyncResult(entry, payload) {
   const urls = extractUrls(payload);
   const status = urls.length > 0
@@ -673,7 +687,9 @@ async function pollTaskEntry(taskId, task) {
 }
 
 async function pollSessionEntry(sessionId, session) {
-  if (!session?.upstreamPollPath || session.status === 'completed' || session.status === 'failed') {
+  // Don't return early if the session is marked completed but resultUrls is still empty —
+  // the async .then() chain that sets resultUrls may not have resolved yet.
+  if (!session?.upstreamPollPath || (session.status === 'completed' && session.resultUrls?.length > 0) || session.status === 'failed') {
     return session;
   }
   if (inFlightSessionPolls.has(sessionId)) {
@@ -682,6 +698,8 @@ async function pollSessionEntry(sessionId, session) {
   if (Date.now() - (session.lastPolledAt || 0) < TASK_POLL_INTERVAL_MS) {
     return session;
   }
+  // Always update resultUrls synchronously from the HTTP response so callers
+  // (including the /result endpoint) always see up-to-date data immediately.
   session.lastPolledAt = Date.now();
   const pending = apiRequest('GET', session.upstreamPollPath)
     .then(async (result) => {
@@ -695,10 +713,11 @@ async function pollSessionEntry(sessionId, session) {
         );
         return session;
       }
-      const next = await finalizeAsyncResult(session, result.body);
-      session.status = next.status === 'processing' ? 'generating' : next.status;
-      session.resultUrls = next.urls;
-      session.error = next.error;
+      // Synchronously update session so callers see resultUrls before the promise resolves
+      const sync = finalizeSync(session, result.body);
+      session.status = sync.status === 'processing' ? 'generating' : sync.status;
+      session.resultUrls = sync.urls;
+      session.error = sync.error;
       if (session.upstreamTaskId) {
         session.task_id = session.upstreamTaskId;
       }
@@ -713,6 +732,12 @@ async function pollSessionEntry(sessionId, session) {
           session.error,
           { usesFirstFrameImage: Boolean(session.usesFirstFrameImage) },
         );
+      }
+      // Handle async file download only when needed (no-op for most responses)
+      if (sync.status === 'completed' && sync.urls.length === 0 && extractFileId(result.body)) {
+        const next = await finalizeAsyncResult(session, result.body);
+        session.resultUrls = next.urls;
+        session.error = next.error;
       }
       return session;
     })
@@ -774,6 +799,10 @@ async function callAi(canvasPayload) {
         upstreamPollPath: pollPath,
         urls: [],
       };
+    }
+    // Recognise MiniMax async "ok + pending" as success (no URLs yet — polling will follow)
+    if (result.body?.status === 'ok' || result.body?.status === 'pending') {
+      return { ok: true, status: 'processing', upstreamTaskId: taskId || null, upstreamPollPath: pollPath || null, urls: [] };
     }
     if (result.body?.base_resp?.status_code !== 0) {
       const error = extractErrorMessage(result.body, 'Image generation failed');
@@ -985,6 +1014,17 @@ async function handle(req, url, body) {
 
   // ── TRIXAdapter (Python): GET /api/session/:sessionId ───────────────────
   if (req.method === 'GET' && pathname.startsWith('/api/session/')) {
+    // Handle /api/session/:id/result first (before generic session route)
+    if (pathname.endsWith('/result')) {
+      const parts = pathname.split('/');
+      const sessionId = parts[parts.length - 2]; // .../session/:id/result → parts[parts.length-2]
+      const s = sessions.get(sessionId);
+      if (!s) {
+        return { status: 404, body: { error: 'not found' } };
+      }
+      await pollSessionEntry(sessionId, s);
+      return { status: 200, body: { data: { resultUrls: s.resultUrls || [], status: s.status, error: s.error } } };
+    }
     const sessionId = pathname.split('/').pop();
     const s = sessions.get(sessionId);
     if (!s) {
