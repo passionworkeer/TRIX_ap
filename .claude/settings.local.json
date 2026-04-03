@@ -1,9 +1,10 @@
 {
   "permissions": {
-    "defaultMode": "bypassPermissions",
     "allow": [
-      "*"
+      "*",
+      "Bash(git remote:*)"
     ],
+    "defaultMode": "bypassPermissions",
     "additionalDirectories": [
       "e:\\desktop\\trix-3d-companion",
       "e:\\desktop\\openclaw-token-monitor",
@@ -24,8 +25,8 @@
           {
             "type": "command",
             "command": "bash .claude/hooks/check-lint-pass.sh",
-            "statusMessage": "Running lint check...",
-            "timeout": 30
+            "timeout": 30,
+            "statusMessage": "Running lint check..."
           }
         ]
       },
@@ -35,8 +36,8 @@
           {
             "type": "command",
             "command": "bash .claude/hooks/check-tests-pass.sh",
-            "statusMessage": "Running tests before commit...",
-            "timeout": 60
+            "timeout": 60,
+            "statusMessage": "Running tests before commit..."
           }
         ]
       }
@@ -48,8 +49,8 @@
           {
             "type": "command",
             "command": "bash .claude/hooks/check-build-pass.sh",
-            "statusMessage": "Running build check before push...",
-            "timeout": 120
+            "timeout": 120,
+            "statusMessage": "Running build check before push..."
           }
         ]
       }
@@ -61,9 +62,9 @@
           {
             "type": "command",
             "command": "bash .claude/hooks/smoke-test.sh",
+            "timeout": 60,
             "statusMessage": "Running deployment smoke test...",
-            "async": true,
-            "timeout": 60
+            "async": true
           }
         ]
       }
