@@ -28,7 +28,7 @@ function sha1(path) {
 
 async function runPythonAsync(args, options = {}) {
   return await new Promise((resolvePromise, rejectPromise) => {
-    const child = spawn('python3', args, options);
+    const child = spawn('D:/python/python.exe', args, options);
     let stdout = '';
     let stderr = '';
 

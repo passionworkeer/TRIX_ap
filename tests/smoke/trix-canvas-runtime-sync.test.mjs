@@ -11,7 +11,7 @@ const SYNC_SCRIPT = resolve(
 );
 
 test('packaged canvas runtime stays in sync with repo runtime', () => {
-  const result = spawnSync('python3', [SYNC_SCRIPT, '--check'], {
+  const result = spawnSync('D:/python/python.exe', [SYNC_SCRIPT, '--check'], {
     cwd: REPO_ROOT,
     encoding: 'utf-8',
   });

@@ -17,17 +17,19 @@ const FIXTURE_JPEG = Buffer.from(
 );
 
 function runPython(args, options = {}) {
-  return spawnSync('python3', args, {
+  return spawnSync('D:/python/python.exe', args, {
     cwd: REPO_ROOT,
     encoding: 'utf-8',
+    env: { ...process.env, PYTHONIOENCODING: 'utf-8', ...options.env },
     ...options,
   });
 }
 
 function runPythonAsync(args, options = {}) {
   return new Promise((resolvePromise, rejectPromise) => {
-    const child = spawn('python3', args, {
+    const child = spawn('D:/python/python.exe', args, {
       cwd: REPO_ROOT,
+      env: { ...process.env, PYTHONIOENCODING: 'utf-8' },
       ...options,
     });
     let stdout = '';

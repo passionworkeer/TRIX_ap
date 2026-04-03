@@ -66,7 +66,7 @@ result = workflow.run_workflow(
 print(json.dumps({"result": result, "create_calls": create_calls}, ensure_ascii=False))
 `;
 
-  const result = spawnSync('python3', ['-c', code], {
+  const result = spawnSync('D:/python/python.exe', ['-c', code], {
     cwd: REPO_ROOT,
     encoding: 'utf-8',
   });
@@ -156,7 +156,7 @@ result = workflow.run_workflow(
 print(json.dumps({"result": result, "create_calls": create_calls}, ensure_ascii=False))
 `;
 
-  const result = spawnSync('python3', ['-c', code], {
+  const result = spawnSync('D:/python/python.exe', ['-c', code], {
     cwd: REPO_ROOT,
     encoding: 'utf-8',
   });
@@ -223,7 +223,7 @@ result = workflow.run_workflow(
 print(json.dumps(result, ensure_ascii=False))
 `;
 
-  const result = spawnSync('python3', ['-c', code], {
+  const result = spawnSync('D:/python/python.exe', ['-c', code], {
     cwd: REPO_ROOT,
     encoding: 'utf-8',
   });
