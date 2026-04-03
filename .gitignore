@@ -168,3 +168,5 @@ packages/skills/
 .trix-local-e2e/
 ios/TRIX3DCompanion/docs_backup/
 .artifacts/
+.cursor/rules/
+.claude/settings.local.json
