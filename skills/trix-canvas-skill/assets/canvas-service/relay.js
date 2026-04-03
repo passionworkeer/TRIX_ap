@@ -350,6 +350,7 @@ const server = http.createServer(async (req, res) => {
     if (origin && !ALLOWED_ORIGINS.has(origin)) {
       return sendJson(res, 403, { error: "origin not allowed" });
     }
+    setCorsHeaders(req, res);
     res.writeHead(204);
     return res.end();
   }

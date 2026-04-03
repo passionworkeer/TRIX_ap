@@ -19,7 +19,7 @@ import { createServer as createHttpServer } from 'node:http';
 import { createServer as createNetServer } from 'node:net';
 import { spawn } from 'node:child_process';
 import { mkdtempSync, rmSync, existsSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 
@@ -77,6 +77,8 @@ function startRelayServer(
     requestTimeoutMs = 120000,
     taskTtlMs = 3600000,
     allowRemote = false,
+    allowedOrigins = '',
+    imageApiUrl = `${upstreamUrl}/image`,
   } = options;
 
   const workdir = mkdtempSync(join(tmpdir(), workdirPrefix));
@@ -84,11 +86,12 @@ function startRelayServer(
 
   const env = {
     ...process.env,
+    RELAY_ALLOWED_ORIGINS: allowedOrigins,
     RELAY_HOST: HOST,
     RELAY_PORT: String(relayPort),
     RELAY_ACCESS_TOKEN: apiKey,
     RELAY_ALLOW_REMOTE: allowRemote ? 'true' : 'false',
-    IMAGE_API_URL: `${upstreamUrl}/image`,
+    IMAGE_API_URL: imageApiUrl,
     IMAGE_API_METHOD: 'POST',
     IMAGE_API_KEY: 'mock-image-key',
     IMAGE_API_MODEL: 'test-image-model',
@@ -281,6 +284,7 @@ async function createRelayTestEnvironment(options = {}) {
       requestTimeoutMs: options.requestTimeoutMs,
       taskTtlMs: options.taskTtlMs,
       allowRemote: options.allowRemote,
+      allowedOrigins: options.allowedOrigins || '',
     });
     await waitForOk(relayUrl, '/health');
   } catch (error) {
@@ -446,17 +450,23 @@ test('TRIX Canvas Relay - Comprehensive Tests', async (t) => {
 
   // Test 5: Base64-encoded result storage
   await t.test('base64-encoded results are stored to disk and served', async () => {
-    // Create a mock upstream that returns base64 data
+    // Create a mock upstream that returns base64 data (no URL) so relay stores it.
     const upstreamPort = await getFreePort(HOST);
+    const upstreamUrl = `http://${HOST}:${upstreamPort}`;
     const base64Upstream = createHttpServer(async (req, res) => {
-      const url = new URL(req.url, `http://localhost:${upstreamPort}`);
+      const url = new URL(req.url, upstreamUrl);
       if (req.method === 'POST' && url.pathname === '/image') {
-        const taskId = `base64_task_${Date.now()}`;
+        // Return a task ID; relay will poll /poll to check completion.
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ task_id: 'base64_task', status: 'pending' }));
+        return;
+      }
+      if (req.method === 'POST' && url.pathname === '/poll') {
+        // Return base64 data — no URL — so relay stores it locally.
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({
-          task_id: taskId,
+          task_id: 'base64_task',
           status: 'completed',
-          // A tiny 1x1 red PNG in base64
           base64: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwADhQGAWjR9awAAAABJRU5ErkJggg==',
         }));
         return;
@@ -468,8 +478,11 @@ test('TRIX Canvas Relay - Comprehensive Tests', async (t) => {
 
     const relayPort = await getFreePort(HOST);
     const relayUrl = `http://${HOST}:${relayPort}`;
-    const relayRuntime = startRelayServer(relayPort, relayUrl, `http://localhost:${upstreamPort}`, {
+    // Use /poll as IMAGE_API_URL so the mock returns base64 directly.
+    const relayRuntime = startRelayServer(relayPort, relayUrl, upstreamUrl, {
       workdirPrefix: 'trix-relay-base64-',
+      allowedOrigins: '',
+      imageApiUrl: `${upstreamUrl}/poll`,
     });
 
     try {
@@ -484,8 +497,13 @@ test('TRIX Canvas Relay - Comprehensive Tests', async (t) => {
       const outputUrl = completed?.output?.url;
       assert.ok(outputUrl?.includes('/outputs/'), 'output URL should be in /outputs/');
 
-      // Verify file was stored on disk
-      const outputFilePath = join(relayRuntime.outputDir, `${task.task_id}.png`);
+      // Extract filename from relay's response URL — storeBase64 writes relative to
+      // relay.js's __dirname, not the test's temp workdir.
+      const filename = outputUrl.split('/').pop();
+      assert.ok(filename?.endsWith('.png'), 'output should be a PNG');
+
+      // Verify the file was stored on disk (relative to relay.js __dirname)
+      const outputFilePath = join(dirname(RELAY_ENTRY), 'outputs', filename);
       assert.ok(existsSync(outputFilePath), 'base64 result should be saved to disk');
 
       // Verify it's a valid PNG
