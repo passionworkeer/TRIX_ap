@@ -21,7 +21,7 @@ PRESETS = {
 def export(project_id: str, output: str = "", aspect: str = "origin") -> dict:
     payload = _common.export_video(project_id, aspect=aspect)
     result = {
-        "ok": True,
+        "ok": bool(payload.get("ok", True)),
         "path": payload.get("path"),
         "url": payload.get("url"),
         "aspect": payload.get("aspect", aspect),

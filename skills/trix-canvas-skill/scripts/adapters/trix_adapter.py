@@ -6,7 +6,7 @@ import time
 import urllib.request
 from urllib.parse import urljoin, urlparse
 
-from base import AIAdapter
+from adapters.base import AIAdapter
 
 MEDIA_PATTERN = re.compile(
     r'https?://[^\s"\'<>\[\]]+\.(?:png|jpg|jpeg|webp|gif|mp4|mov)', re.IGNORECASE

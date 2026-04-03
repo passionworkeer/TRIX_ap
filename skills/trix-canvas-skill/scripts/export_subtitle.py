@@ -33,7 +33,7 @@ def _materialize_file(source_path: str | None, source_url: str | None, output_di
 def export(project_id: str, output_dir: str = "") -> dict:
     payload = _common.export_subtitle(project_id)
     result = {
-        "ok": True,
+        "ok": bool(payload.get("ok", True)),
         "srt": payload.get("srt"),
         "script": payload.get("script"),
         "srt_url": payload.get("srt_url"),
