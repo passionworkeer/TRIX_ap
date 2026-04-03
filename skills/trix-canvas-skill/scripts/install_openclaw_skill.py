@@ -104,7 +104,7 @@ def install(
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Install TRIX Canvas skill into OpenClaw")
-    parser.add_argument("--agent-id", default="trix-native", help="OpenClaw agent id")
+    parser.add_argument("--agent-id", default="main", help="OpenClaw agent id")
     parser.add_argument("--workspace", default="", help="Override target workspace path")
     parser.add_argument(
         "--install-deps",

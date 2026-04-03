@@ -23,6 +23,15 @@ ALLOW_PRIVATE_REMOTE_URLS = os.environ.get("CANVAS_ALLOW_PRIVATE_REMOTE_URLS", "
     "true",
     "yes",
 }
+if ALLOW_PRIVATE_REMOTE_URLS:
+    import warnings
+    warnings.warn(
+        "[SECURITY WARNING] CANVAS_ALLOW_PRIVATE_REMOTE_URLS is set — "
+        "SSRF protection is DISABLED. Do NOT use in production or untrusted networks. "
+        "Only enable for local development with an air-gapped AI backend.",
+        RuntimeWarning,
+        stacklevel=2,
+    )
 _CANVAS_BASE_PARSED = urlparse(CANVAS_BASE)
 
 CANVAS_LOCAL_DIR = Path(
@@ -164,21 +173,47 @@ def _download_bytes(url: str, timeout: int = 120) -> bytes:
     token = get_canvas_access_token()
     if token and _is_same_canvas_origin(safe_url):
         headers["Authorization"] = f"Bearer {token}"
-    req = urllib.request.Request(safe_url, headers=headers)
-    with _DIRECT_OPENER.open(req, timeout=timeout) as resp:
-        chunks = []
-        downloaded = 0
-        while True:
-            chunk = resp.read(1024 * 1024)
-            if not chunk:
-                break
-            downloaded += len(chunk)
-            if downloaded > MAX_DOWNLOAD_SIZE:
-                raise ValueError(
-                    f"下载文件超过 {MAX_DOWNLOAD_SIZE // (1024 * 1024)}MB 上限: {url}"
-                )
-            chunks.append(chunk)
-        return b"".join(chunks)
+
+    current_url = safe_url
+    remaining_redirects = 10  # prevent redirect loops
+    while remaining_redirects >= 0:
+        req = urllib.request.Request(current_url, headers=headers)
+        try:
+            with _DIRECT_OPENER.open(req, timeout=timeout) as resp:
+                status = resp.status
+                if 300 <= status < 400 and status != 304:
+                    location = resp.headers.get("Location") or resp.headers.get("location")
+                    if not location:
+                        raise ValueError(f"服务器返回 {status} 重定向但未提供 Location 头")
+                    # Resolve relative redirects
+                    if not location.startswith(("http://", "https://")):
+                        parsed_base = urlparse(current_url)
+                        location = f"{parsed_base.scheme}://{parsed_base.netloc}{location}"
+                    # Re-validate every redirect target
+                    _assert_safe_download_url(location)
+                    current_url = location
+                    remaining_redirects -= 1
+                    continue
+                # Not a redirect — read the body
+                chunks = []
+                downloaded = 0
+                while True:
+                    chunk = resp.read(1024 * 1024)
+                    if not chunk:
+                        break
+                    downloaded += len(chunk)
+                    if downloaded > MAX_DOWNLOAD_SIZE:
+                        raise ValueError(
+                            f"下载文件超过 {MAX_DOWNLOAD_SIZE // (1024 * 1024)}MB 上限: {url}"
+                        )
+                    chunks.append(chunk)
+                return b"".join(chunks)
+        except urllib.error.HTTPError as exc:
+            if exc.code == 405:
+                raise
+            raise
+
+    raise ValueError(f"重定向次数超过上限（可能存在循环重定向）: {url}")
 
 
 # ---------- Canvas API 封装 ----------

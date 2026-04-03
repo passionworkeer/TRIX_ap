@@ -52,14 +52,26 @@ class TRIXAdapter(AIAdapter):
 
     def _poll(self, session_id: str) -> dict:
         url = f"{self.api_base}/api/session/{session_id}"
-        for _ in range(self._max_polls):
-            time.sleep(self._poll_interval)
+        for attempt in range(self._max_polls):
+            if attempt > 0:
+                time.sleep(self._poll_interval)
             req = urllib.request.Request(url, method="GET", headers=self._headers())
             try:
                 with DIRECT_OPENER.open(req, timeout=15) as resp:
                     data = json.loads(resp.read().decode("utf-8"))
                     data = data.get("data", data)
+            except urllib.error.HTTPError as exc:
+                if exc.code in (401, 403):
+                    return {"ok": False, "error": f"Canvas 鉴权失败: {exc.code}"}
+                if exc.code == 429:
+                    return {"ok": False, "error": f"Canvas 请求限流 (429)，请稍后重试"}
+                # 其他 HTTP 错误 → 继续轮询
+                continue
+            except urllib.error.URLError:
+                # 网络错误 → 继续轮询
+                continue
             except Exception:
+                # 未知错误 → 继续轮询，不静默吞掉
                 continue
 
             status = str(data.get("status", "")).lower()

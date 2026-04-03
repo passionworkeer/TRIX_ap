@@ -1,7 +1,27 @@
-# Shared Obsidian Memory Bus
+---
+description: Shared Obsidian memory overlay
+paths:
+  - "**"
+---
 
-- Before substantive work, read `E:\desktop\Obsidian Vault\02-KB\OBSIDIAN.md`, `E:\desktop\Obsidian Vault\02-KB\MEMORY.md`, `E:\desktop\Obsidian Vault\02-KB\WORKING.md`, `E:\desktop\Obsidian Vault\00-System\ai-memory\generated\GLOBAL-CONTEXT.md`, and `C:\Users\wang\.codex\OBSIDIAN-SHARED.md`.
-- Durable cross-project facts belong in `E:\desktop\Obsidian Vault\00-System\ai-memory\inbox\claude-code.md`.
-- Current-task progress belongs in `E:\desktop\Obsidian Vault\02-KB\WORKING.md`.
-- Prefer the shared `memory` MCP on `http://127.0.0.1:9338/mcp` for fuzzy recall and the Obsidian MCP for direct note reads and writes.
-- For tasks with 2 or more independent slices, prefer multi-agent decomposition over a single long-running thread.
+Before longer work, read:
+1. E:\desktop\Obsidian Vault\02-KB\OBSIDIAN.md
+2. E:\desktop\Obsidian Vault\02-KB\MEMORY.md
+3. E:\desktop\Obsidian Vault\02-KB\WORKING.md
+4. E:\desktop\Obsidian Vault\00-System\ai-memory\generated\GLOBAL-CONTEXT.md
+5. E:\desktop\Obsidian Vault\00-System\ai-memory\generated\SHARED-SKILLS.md
+
+Use the active tool's startup file from:
+- E:\desktop\Obsidian Vault\00-System\ai-memory\generated\tool-startup
+
+Write durable cross-project facts into the active tool's inbox under:
+- E:\desktop\Obsidian Vault\00-System\ai-memory\inbox
+
+Write current active task progress to:
+- E:\desktop\Obsidian Vault\02-KB\WORKING.md
+
+Defaults:
+- Prefer shorter work waves and subagents for independent slices.
+- Prefer shared portable skills from C:\Users\wang\.agents\skills and repo .agents/skills when available.
+- Reuse AGENTS.md and .github/copilot-instructions.md when present.
+- Never store secrets, raw tokens, or credentials in shared memory files.

@@ -1,25 +1,28 @@
 {
-  "mcpServers": {
-    "context7": {
-      "url": "http://127.0.0.1:9331/mcp"
-    },
-    "fetch": {
-      "url": "http://127.0.0.1:9332/mcp"
-    },
-    "time": {
-      "url": "http://127.0.0.1:9333/mcp"
-    },
-    "sequential-thinking": {
-      "url": "http://127.0.0.1:9334/mcp"
-    },
-    "obsidian": {
-      "url": "http://127.0.0.1:9335/mcp"
-    },
-    "MiniMax": {
-      "url": "http://127.0.0.1:9336/mcp"
-    },
-    "memory": {
-      "url": "http://127.0.0.1:9338/mcp"
-    }
-  }
+    "mcpServers":  {
+                       "context7":  {
+                                        "url":  "http://127.0.0.1:9331/mcp"
+                                    },
+                       "fetch":  {
+                                     "url":  "http://127.0.0.1:9332/mcp"
+                                 },
+                       "time":  {
+                                    "url":  "http://127.0.0.1:9333/mcp"
+                                },
+                       "sequential-thinking":  {
+                                                   "url":  "http://127.0.0.1:9334/mcp"
+                                               },
+                       "obsidian":  {
+                                        "url":  "http://127.0.0.1:9335/mcp"
+                                    },
+                       "MiniMax":  {
+                                       "url":  "http://127.0.0.1:9336/mcp"
+                                   },
+                       "memory":  {
+                                      "url":  "http://127.0.0.1:9338/mcp"
+                                  },
+                       "playwright":  {
+                                          "url":  "http://127.0.0.1:9337/mcp"
+                                      }
+                   }
 }

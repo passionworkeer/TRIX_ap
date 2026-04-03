@@ -47,6 +47,17 @@ def _should_retry_failure(failure: dict) -> bool:
         "does not support",
         "invalid params",
         "missing parent image node",
+        # 鉴权/权限/资源类错误
+        "unauthorized",
+        "authentication",
+        "credential",
+        "quota",
+        "rate limit",
+        "rate_limit",
+        "429",
+        "403",
+        "billing",
+        "insufficient",
     )
     return not any(marker in error for marker in non_retryable_markers)
 
@@ -414,7 +425,7 @@ def run_workflow(
     total_final_video_failures = 0
     for batch_index in range(batch):
         batch_name = (
-            f"{project_name or 'Short Drama'}#{batch_index + 1}"
+            f"{project_name or 'Short Drama'}-{batch_index + 1}"
             if batch > 1
             else (project_name or "Short Drama")
         )
