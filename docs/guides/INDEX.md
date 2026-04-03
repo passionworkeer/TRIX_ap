@@ -1,7 +1,7 @@
 # 操作指南索引
 
 > TRIX 3D Companion 操作指南总览
-> **最后更新**: 2026-03-31
+> **最后更新**: 2026-04-03
 
 ---
 
@@ -14,6 +14,7 @@
 | [SERVER_GUIDE.md](./SERVER_GUIDE.md) | 服务器连接和运维操作 | 2026-03-30 |
 | [IOS_TEST_DEPLOY_GUIDE.md](./IOS_TEST_DEPLOY_GUIDE.md) | iOS 测试、打包、上架完整方案（Windows 开发环境） | 2026-03-22 |
 | [MACOS_LAUNCHD.md](./MACOS_LAUNCHD.md) | macOS launchd 开机自启模板（OpenClaw Gateway） | — |
+| [SUPABASE_EMAIL_CONFIRMATION.md](./SUPABASE_EMAIL_CONFIRMATION.md) | Supabase 邮箱确认配置（iOS 已完成，Web/Desktop 待实现） | — |
 
 ---
 

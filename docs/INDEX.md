@@ -43,8 +43,7 @@ docs/
 │
 ├── 🗄️ 数据库 (database/)
 │   ├── DATABASE_SCHEMA.md
-│   ├── database-consistency-report.md
-│   └── README.md
+│   └── database-consistency-report.md
 │
 ├── 📡 API 文档 (api/)
 │   ├── API_DOCUMENTATION.md
@@ -84,10 +83,8 @@ docs/
 │   ├── DEPLOYMENT.md
 │   ├── SERVER_GUIDE.md
 │   ├── IOS_TEST_DEPLOY_GUIDE.md
-│   └── MACOS_LAUNCHD.md
-│
-├── 🗂️ 问题追踪 (issues/)
-│   └── DESKTOP_TEST_REPORT.md
+│   ├── MACOS_LAUNCHD.md
+│   └── SUPABASE_EMAIL_CONFIRMATION.md
 │
 ├── 🖼️ 截图资源 (screenshots/)
 │   └── 5 个 Desktop/Gateway PNG 截图
@@ -102,6 +99,7 @@ docs/
     ├── PROJECT_TASKS.md
     ├── DESKTOP_PHASE2_PLAN.md
     ├── TEST_COMPILE_ISSUES_20260324.md
+    ├── DESKTOP_TEST_REPORT.md
     └── debug-pages/
         ├── companion-check.html
         └── env-check.html
@@ -150,7 +148,7 @@ docs/
 | [project-reports/LAUNCH_READINESS_UPDATE_20260401.md](./project-reports/LAUNCH_READINESS_UPDATE_20260401.md) | 认证回归修复、Native/Canvas 安全加固与耦合扫描增补 |
 | [project-reports/OWASP_TOP10_AUDIT_20260331.md](./project-reports/OWASP_TOP10_AUDIT_20260331.md) | 三端 OWASP Top 10 审计与修复更新 |
 | [development/TESTING.md](./development/TESTING.md) | Web / iOS / Desktop 测试命令与约定 |
-| [issues/DESKTOP_TEST_REPORT.md](./issues/DESKTOP_TEST_REPORT.md) | Desktop 测试状态追踪 |
+| [project-reports/](../project-reports/) | 项目报告总索引（上线就绪、OWASP 审计） |
 
 ---
 
@@ -192,17 +190,16 @@ skills/trix-canvas-skill/SKILL.md → skills/trix-canvas-skill/scripts/create_se
 | 开发文档（`development/`） | 2 |
 | UI 文档（`ui/`） | 3 |
 | 架构文档（`architecture/`） | 3 |
-| 数据库文档（`database/`） | 3 |
+| 数据库文档（`database/`） | 2 |
 | API 文档（`api/`） | 2 |
 | iOS 文档（`ios/` 含 `security/`） | 17 |
 | 入门指南（`getting-started/`） | 2 |
 | Desktop 文档（`desktop/`） | 2 |
-| 操作指南（`guides/`） | 6 |
-| 问题追踪（`issues/`） | 1 |
-| 归档（`.archive/`） | 6 |
+| 操作指南（`guides/`） | 7 |
+| 归档（`.archive/`） | 7 |
 | Canvas Skill（`skills/trix-canvas-skill/`） | 1 套（`SKILL.md` + 16 脚本） |
 
-**活跃文档总计（仅 `docs/`，不含 `.archive/` / `screenshots/`）**: 52 个
+**活跃文档总计（仅 `docs/`，不含 `.archive/` / `screenshots/`）**: 50 个
 **额外交付资产**: Canvas Skill 1 套，截图 5 张
 
 ---
@@ -218,6 +215,8 @@ skills/trix-canvas-skill/SKILL.md → skills/trix-canvas-skill/scripts/create_se
 | `docs/.archive/DESKTOP_PHASE2_PLAN.md` | 历史阶段性计划 |
 | `docs/.archive/TEST_COMPILE_ISSUES_20260324.md` | 2026-03-24 iOS 编译问题归档 |
 | `docs/.archive/debug-pages/companion-check.html` | 旧数据库调试页，已移出生产静态资源目录 |
+| `docs/database/README.md` | 被 `DATABASE_SCHEMA.md` 覆盖，已删除 |
+| `docs/issues/DESKTOP_TEST_REPORT.md` | 2026-03-24 测试状态报告，已归档 |
 | `docs/.archive/debug-pages/env-check.html` | 旧环境检查页，已移出生产静态资源目录 |
 
 ---

@@ -11,7 +11,7 @@
 ## Related
 
 - [Desktop PRD](../requirements/DESKTOP_PRD.md) — Product requirements for desktop app
-- [Desktop Test Report](../issues/DESKTOP_TEST_REPORT.md) — Test status and coverage
+- [Project Reports](../project-reports/) — Launch readiness, OWASP audit, and project status
 - [Native Channel Protocol](../TRIX_NATIVE_CHANNEL.md) — TRIX Native messaging spec
 - [Changelog](../CHANGELOG.md) — Development iteration log
 
