@@ -100,9 +100,6 @@ docs/
     ├── DESKTOP_PHASE2_PLAN.md
     ├── TEST_COMPILE_ISSUES_20260324.md
     ├── DESKTOP_TEST_REPORT.md
-    └── debug-pages/
-        ├── companion-check.html
-        └── env-check.html
 ```
 
 > 注：`skills/trix-canvas-skill/` 位于仓库根目录，不在 `docs/` 目录树内，这里单列是为了让索引覆盖当前可交付文档和技能资产。
@@ -214,10 +211,9 @@ skills/trix-canvas-skill/SKILL.md → skills/trix-canvas-skill/scripts/create_se
 | `docs/.archive/PROJECT_TASKS.md` | 历史任务追踪，当前任务已完成 |
 | `docs/.archive/DESKTOP_PHASE2_PLAN.md` | 历史阶段性计划 |
 | `docs/.archive/TEST_COMPILE_ISSUES_20260324.md` | 2026-03-24 iOS 编译问题归档 |
-| `docs/.archive/debug-pages/companion-check.html` | 旧数据库调试页，已移出生产静态资源目录 |
 | `docs/database/README.md` | 被 `DATABASE_SCHEMA.md` 覆盖，已删除 |
 | `docs/issues/DESKTOP_TEST_REPORT.md` | 2026-03-24 测试状态报告，已归档 |
-| `docs/.archive/debug-pages/env-check.html` | 旧环境检查页，已移出生产静态资源目录 |
+| `docs/.archive/debug-pages/` | 旧调试页（companion-check / env-check），已删除 |
 
 ---
 
