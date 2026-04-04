@@ -9,7 +9,8 @@
 
 | 文档 | 说明 | 最后更新 |
 |------|------|----------|
-| [WEB_ARCHITECTURE.md](./WEB_ARCHITECTURE.md) | Web 端架构（20 路由 + 27 服务 + 45 组件 + 12 hooks + 10 utils + 22 E2E specs） | 2026-04-04 |
+| [CANVAS_ARCHITECTURE.md](./CANVAS_ARCHITECTURE.md) | Canvas 架构（节点图编排 + AI 生成 + Canvas Skill） | 2026-04-04 |
+| [WEB_ARCHITECTURE.md](./WEB_ARCHITECTURE.md) | Web 端架构（20 路由 + 26 服务 + 45 组件 + 12 hooks + 10 utils + 22 E2E specs） | 2026-04-04 |
 | [BACKEND_ARCHITECTURE.md](./BACKEND_ARCHITECTURE.md) | 后端架构（Node.js HTTP/WebSocket + Supabase + TRIX Native Server） | 2026-04-04 |
 
 ---
@@ -24,7 +25,11 @@ WEB_ARCHITECTURE.md     ← Supabase (PostgreSQL)
 BACKEND_ARCHITECTURE.md ← Supabase
                         ← TRIX Native Server
 
-iOS 架构: ios/IOS_ARCHITECTURE.md（988 Swift 文件 · 61 服务）
+CANVAS_ARCHITECTURE.md  ← Canvas Service (port 8789)
+                        ← Proxy (port 8790) → Relay (port 8788)
+                        ← Canvas Skill (skills/trix-canvas-skill/)
+
+iOS 架构: ios/IOS_ARCHITECTURE.md（1064 Swift 文件 · 61 服务）
 Desktop 架构: desktop/DESKTOP_ARCHITECTURE.md（90 IPC · 80 preload API）
 ```
 
@@ -58,6 +63,7 @@ Desktop 架构: desktop/DESKTOP_ARCHITECTURE.md（90 IPC · 80 preload API）
 ## 相关文档
 
 - [TRIX_NATIVE_CHANNEL.md](../TRIX_NATIVE_CHANNEL.md) — Native Channel 唯一权威协议文档
+- [Canvas Skill](../../skills/trix-canvas-skill/SKILL.md) — Canvas Skill 完整使用指南（脚本索引、环境变量、工作流）
 - [ui/COMPONENTS.md](../ui/COMPONENTS.md) — Web 组件详细文档
 - [ios/IOS_ARCHITECTURE.md](../ios/IOS_ARCHITECTURE.md) — iOS 架构
 - [desktop/DESKTOP_ARCHITECTURE.md](../desktop/DESKTOP_ARCHITECTURE.md) — Desktop 架构
