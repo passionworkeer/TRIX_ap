@@ -153,7 +153,7 @@ packages/trix-openclaw-native/          # TRIX Native Channel 插件
 │   │   ├── outbound.ts                # 消息出站（postReply）
 │   │   └── sdk.ts                     # SDK 辅助工具
 │   ├── server/                        # TRIX Native Server
-│   │   ├── TrixNativeServer.ts        # HTTP/WebSocket 服务器主入口 (2142 行)
+│   │   ├── TrixNativeServer.ts        # HTTP/WebSocket 服务器主入口 (2221 行)
 │   │   └── accessControl.ts           # Token 鉴权中间件
 │   ├── pairing/                       # 配对服务
 │   │   └── PairingService.ts         # 配对码生成、认领、状态管理

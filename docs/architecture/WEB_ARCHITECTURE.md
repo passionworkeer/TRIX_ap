@@ -147,7 +147,7 @@ React App
 
 ### 3.7 E2E 测试 (`src/e2e/`)
 
-22 个 Playwright 测试文件（不含 `helpers.ts` + `visual-regression.spec.ts-snapshots/` 目录）覆盖：a11y、Auth、chat-detail、Diagnostic、home、login-test、Map、Pairing、PointsMall、Profile、profile-user、QR Pairing、register、Snapshot、Social、study-room、study-timer、visual-regression、Wardrobe。
+21 个 Playwright 测试文件（不含 `helpers.ts` + `visual-regression.spec.ts-snapshots/` 目录）覆盖：a11y、Auth、chat-detail、Diagnostic、home、login-test、Map、Pairing、PointsMall、Profile、profile-user、QR Pairing、register、Snapshot、Social、study-room、study-timer、visual-regression、Wardrobe。
 
 ### 3.8 类型定义 (`src/types/`)
 
@@ -293,7 +293,7 @@ src/
 │   └── ThemeContext.tsx
 │
 ├── services/            # 26 个服务文件（9,200+ 行）
-│   ├── TrixNativeChannelClient.ts  # 主要通信层（1,347 行）
+│   ├── TrixNativeChannelClient.ts  # 主要通信层（1,597 行）
 │   ├── chatService.ts / friendService.ts / ...
 │   └── databaseService.ts          # barrel re-export
 │
@@ -311,7 +311,7 @@ src/
 ├── utils/               # 10 个工具文件
 ├── i18n/                # 4 语言国际化
 ├── three/               # Three.js 3D 组件（Zustand store）
-├── e2e/                 # 22 个 Playwright 测试（含 helpers.ts）
+├── e2e/                 # 21 个 Playwright 测试（含 helpers.ts）
 └── index.html
 ```
 

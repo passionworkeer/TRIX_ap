@@ -67,7 +67,7 @@ ios/TRIX3DCompanion/
 |
 +- App/                    # App entry point, global state, lifecycle
 +- Core/
-|   +- Services/           # 59 service implementations + protocols
+|   +- Services/           # 61 service implementations + protocols
 |   +- Network/            # APIClient, SSL pinning, retry, caching
 |   +- Storage/            # Keychain, SQLite, UserDefaults
 |   +- Analytics/          # Error tracking, performance monitoring
@@ -197,4 +197,4 @@ Security documentation is in the `security/` subdirectory.
 
 ---
 
-**Last Updated**: 2026-03-31
+**Last Updated**: 2026-04-04

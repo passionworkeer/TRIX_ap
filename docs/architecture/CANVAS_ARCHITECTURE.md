@@ -97,7 +97,7 @@ AI 请求代理，支持多 Provider（MiniMax、APIyi）。
 
 ## 5. Canvas Skill 脚本
 
-位于 `skills/trix-canvas-skill/scripts/`，共 19 个（18 Python + 1 JS）。
+位于 `skills/trix-canvas-skill/scripts/`，共 20 个（19 Python + 1 JS）。
 
 | 脚本 | 用途 |
 |------|------|

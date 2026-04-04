@@ -1018,10 +1018,10 @@ enum LocationError: Error {
 
 | Environment | URL | Protocol |
 |-------------|-----|----------|
-| Production | `https://api.trix3d.com` | HTTPS (Required) |
-| Development | `http://TRIX_SERVER_HOST:8788` | HTTP (Debug Only) |
-| WebSocket Production | `wss://api.trix3d.com` | WSS (Required) |
-| WebSocket Development | `ws://TRIX_SERVER_HOST:8788` | WS (Debug Only) |
+| Production | `https://trix.love` | HTTPS (Required) |
+| Development | `http://localhost:8788` | HTTP (Debug Only) |
+| WebSocket Production | `wss://trix.love` | WSS (Required) |
+| WebSocket Development | `ws://localhost:8788` | WS (Debug Only) |
 
 **Security Note**: Production builds ALWAYS enforce HTTPS/WSS protocols.
 

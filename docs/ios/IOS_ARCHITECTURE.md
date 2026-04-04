@@ -3,7 +3,7 @@
 > iOS TRIX 3D Companion Technical Architecture
 > Based on SwiftUI + Combine
 > **Last Updated**: 2026-04-04
-> **Version**: 1.6 (1064 Swift files, 59 services)
+> **Version**: 1.6 (340 Swift files, 61 services)
 
 ---
 
@@ -19,7 +19,8 @@
 - `AnalyticsService` exists at `Core/Analytics/`
 
 **v1.6 additions (since v1.5):**
-- Total Swift files corrected to **1064** (was incorrectly stated as 295; counted recursively including Test targets)
+- Total Swift files corrected to **340** (源码扫描确认递归计数)
+- Core/Services 服务数修正为 **61**
 
 ---
 

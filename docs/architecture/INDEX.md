@@ -29,8 +29,8 @@ CANVAS_ARCHITECTURE.md  ← Canvas Service (port 8789)
                         ← Proxy (port 8790) → Relay (port 8788)
                         ← Canvas Skill (skills/trix-canvas-skill/)
 
-iOS 架构: ios/IOS_ARCHITECTURE.md（1064 Swift 文件 · 61 服务）
-Desktop 架构: desktop/DESKTOP_ARCHITECTURE.md（90 IPC · 80 preload API）
+iOS 架构: ios/IOS_ARCHITECTURE.md（340 Swift 文件 · 61 服务）
+Desktop 架构: desktop/DESKTOP_ARCHITECTURE.md（99 IPC · 79 preload API）
 ```
 
 ---
