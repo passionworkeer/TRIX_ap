@@ -170,3 +170,7 @@ ios/TRIX3DCompanion/docs_backup/
 .artifacts/
 .cursor/rules/
 .claude/settings.local.json
+# Canvas demo/output files
+packages/trix-canvas-service/public/short-drama-she/
+skills/trix-canvas-skill/assets/canvas-service/public/short-drama-she/
+skills/trix-canvas-skill/docs/
