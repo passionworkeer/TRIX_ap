@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 /**
- * Local AI Proxy — bridges canvas service to MiniMax API.
+ * Local AI Proxy — bridges canvas service to AI providers.
+ *
+ * Supported providers: minimax (default), apiyi
  *
  * Handles two client patterns:
  *  A) Canvas service:        POST /generate  +  GET /tasks/:taskId
  *  B) TRIXAdapter (Python): POST /api/session  +  GET /api/session/:sessionId
- *
- * Both translate canvas-format prompts into MiniMax Anthropic API calls.
  */
 
 import http from 'node:http';
@@ -15,18 +15,33 @@ import { timingSafeEqual } from 'node:crypto';
 
 const PORT = Number(process.env.PROXY_PORT || 8790);
 const HOST = process.env.PROXY_HOST || '127.0.0.1';
-const AI_API_BASE          = process.env.AI_API_BASE          || 'https://api.minimaxi.com';
-const AI_API_KEY           = process.env.AI_API_KEY           || '';
+// Provider: 'minimax' (default) or 'apiyi'
+const PROVIDER = process.env.AI_PROVIDER || 'minimax';
+const IS_APIYI = PROVIDER === 'apiyi';
+// APIyi uses a different base
+const APIYI_BASE = 'https://api.apiyi.com';
+const AI_API_BASE = IS_APIYI
+  ? APIYI_BASE
+  : (process.env.AI_API_BASE || 'https://api.minimaxi.com');
+const AI_API_KEY = process.env.AI_API_KEY || '';
 const AI_GENERATE_PATH = process.env.AI_GENERATE_PATH || '/anthropic/v1/messages';
-const AI_IMAGE_PATH = process.env.AI_IMAGE_PATH || '/v1/image_generation';
-const AI_VIDEO_PATH = process.env.AI_VIDEO_PATH || process.env.PROXY_VIDEO_PATH || '';
+const AI_IMAGE_MODEL = IS_APIYI
+  ? (process.env.AI_IMAGE_MODEL || 'gemini-3.1-flash-image-preview')
+  : (process.env.AI_IMAGE_MODEL || 'image-01');
+const AI_IMAGE_PATH = IS_APIYI
+  ? `/v1beta/models/${AI_IMAGE_MODEL}:generateContent`
+  : (process.env.AI_IMAGE_PATH || '/v1/image_generation');
+const AI_VIDEO_PATH = IS_APIYI
+  ? '/v1/video/generations'
+  : (process.env.AI_VIDEO_PATH || process.env.PROXY_VIDEO_PATH || '');
 const AI_MODEL = process.env.AI_MODEL || 'MiniMax-M2.7';
-const AI_IMAGE_MODEL = process.env.AI_IMAGE_MODEL || 'image-01';
-const AI_VIDEO_MODEL = process.env.AI_VIDEO_MODEL || process.env.PROXY_VIDEO_MODEL || 'video-01';
+const AI_VIDEO_MODEL = IS_APIYI
+  ? (process.env.AI_VIDEO_MODEL || 'veo-3.1')
+  : (process.env.AI_VIDEO_MODEL || process.env.PROXY_VIDEO_MODEL || 'video-01');
 const AI_VIDEO_I2V_MODEL =
   process.env.AI_VIDEO_I2V_MODEL
   || process.env.PROXY_VIDEO_I2V_MODEL
-  || 'MiniMax-Hailuo-2.3-Fast';
+  || (IS_APIYI ? 'veo-3.1' : 'MiniMax-Hailuo-2.3-Fast');
 const AI_VIDEO_DURATION = Number(process.env.AI_VIDEO_DURATION || process.env.PROXY_VIDEO_DURATION || 6);
 const AI_VIDEO_RESOLUTION =
   process.env.AI_VIDEO_RESOLUTION
@@ -36,10 +51,11 @@ const AI_IMAGE_TASK_PATH_TEMPLATE =
   process.env.AI_IMAGE_TASK_PATH_TEMPLATE
   || process.env.PROXY_IMAGE_TASK_PATH_TEMPLATE
   || '';
+// APIyi uses /v1/video/generations/{taskId} for polling
 const AI_VIDEO_TASK_PATH_TEMPLATE =
-  process.env.AI_VIDEO_TASK_PATH_TEMPLATE
-  || process.env.PROXY_VIDEO_TASK_PATH_TEMPLATE
-  || '';
+  IS_APIYI
+    ? '/v1/video/generations/{taskId}'
+    : (process.env.AI_VIDEO_TASK_PATH_TEMPLATE || process.env.PROXY_VIDEO_TASK_PATH_TEMPLATE || '');
 const MAX_BODY_BYTES = Number(process.env.PROXY_MAX_BODY_BYTES || 256 * 1024);
 const REQUEST_TIMEOUT_MS = Number(process.env.PROXY_REQUEST_TIMEOUT_MS || 120000);
 const TASK_TTL_MS = Number(process.env.PROXY_TASK_TTL_MS || 60 * 60 * 1000);
@@ -479,6 +495,8 @@ function extractUrls(body) {
   const candidates = [
     body?.url,
     body?.urls,
+    body?.result_url,
+    body?.video_url,
     body?.data?.url,
     body?.data?.urls,
     body?.data?.image_urls,
@@ -773,6 +791,52 @@ async function callAi(canvasPayload) {
   const capabilityContext = { usesFirstFrameImage: Boolean(firstFrameImage) };
 
   if (mediaType === 'image') {
+    // ── APIyi image format (Google Gemini-compatible) ──
+    if (IS_APIYI) {
+      const result = await apiRequest('POST', AI_IMAGE_PATH, {
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: {
+          responseModalities: ['IMAGE'],
+          imageConfig: {
+            aspectRatio: aspect || '1:1',
+            imageSize: '1K',
+          },
+        },
+      });
+      if (!result.ok) {
+        const error = extractErrorMessage(result.body, `HTTP ${result.status}`);
+        updateMediaCapabilityFromFailure(mediaType, error, capabilityContext);
+        return { ok: false, error };
+      }
+      // Extract base64 image from Gemini-style response
+      const body = result.body;
+      let b64 = null;
+      try {
+        const parts = body?.candidates?.[0]?.content?.parts || [];
+        for (const part of parts) {
+          if (part?.inlineData?.data) {
+            b64 = part.inlineData.data;
+            break;
+          }
+        }
+      } catch (_) {}
+      if (b64) {
+        // Decode and upload — for now return as data URL
+        const mimeType = body?.candidates?.[0]?.content?.parts?.[0]?.inlineData?.mimeType || 'image/png';
+        const dataUrl = `data:${mimeType};base64,${b64}`;
+        updateMediaCapabilityFromSuccess(mediaType, capabilityContext);
+        return { ok: true, status: 'completed', urls: [dataUrl] };
+      }
+      const finishReason = body?.candidates?.[0]?.finishReason;
+      if (finishReason && finishReason !== 'STOP') {
+        const error = `Image generation blocked: ${finishReason}`;
+        updateMediaCapabilityFromFailure(mediaType, error, capabilityContext);
+        return { ok: false, error };
+      }
+      updateMediaCapabilityFromFailure(mediaType, 'No image in response', capabilityContext);
+      return { ok: false, error: 'No image in APIyi response' };
+    }
+    // ── MiniMax / standard image format ──
     const result = await apiRequest('POST', AI_IMAGE_PATH, {
       model: AI_IMAGE_MODEL,
       prompt,
@@ -815,6 +879,51 @@ async function callAi(canvasPayload) {
   }
 
   if (AI_VIDEO_PATH) {
+    // ── APIyi video format ──
+    if (IS_APIYI) {
+      const videoModel = firstFrameImage ? AI_VIDEO_I2V_MODEL : AI_VIDEO_MODEL;
+      const payload = {
+        model: videoModel,
+        prompt,
+        ...(firstFrameImage ? { image_url: firstFrameImage } : {}),
+      };
+      const result = await apiRequest('POST', AI_VIDEO_PATH, payload);
+      if (!result.ok) {
+        const error = extractErrorMessage(result.body, `HTTP ${result.status}`);
+        updateMediaCapabilityFromFailure(mediaType, error, capabilityContext);
+        return { ok: false, error };
+      }
+      const body = result.body;
+      // Sync completion (rare for video)
+      if (body?.status === 'completed' || body?.status === 'success') {
+        const videoUrl = body?.url || body?.result_url || body?.video_url;
+        if (videoUrl) {
+          updateMediaCapabilityFromSuccess(mediaType, capabilityContext);
+          return { ok: true, status: 'completed', urls: [videoUrl] };
+        }
+      }
+      // Async — extract task id from response
+      const taskId = body?.id || extractTaskId(body);
+      if (taskId) {
+        const pollPath = buildTaskPath(AI_VIDEO_TASK_PATH_TEMPLATE, taskId);
+        return {
+          ok: true,
+          status: 'processing',
+          upstreamTaskId: taskId,
+          upstreamPollPath: pollPath,
+          urls: [],
+        };
+      }
+      // Fallback: check for direct URL
+      const urls = extractUrls(body);
+      if (urls.length > 0) {
+        updateMediaCapabilityFromSuccess(mediaType, capabilityContext);
+        return { ok: true, status: 'completed', urls };
+      }
+      updateMediaCapabilityFromFailure(mediaType, 'No video URL or task ID in APIyi response', capabilityContext);
+      return { ok: false, error: 'No video URL or task ID in APIyi response' };
+    }
+    // ── MiniMax / standard video format ──
     const videoModel = firstFrameImage ? AI_VIDEO_I2V_MODEL : AI_VIDEO_MODEL;
     const result = await apiRequest('POST', AI_VIDEO_PATH, {
       model: videoModel,
@@ -1078,11 +1187,12 @@ srv.listen(PORT, HOST, () => {
   console.log(`TRIX Canvas AI Proxy  →  ${HOST}:${PORT}`);
   console.log(`  Upstream: ${AI_API_BASE}${AI_GENERATE_PATH}`);
   if (AI_VIDEO_PATH) {
-    // Show the effective video URL — if path starts with https?:// it's already absolute
     const videoUrl = /https?:\/\//i.test(AI_VIDEO_PATH) ? AI_VIDEO_PATH : `${AI_API_BASE}${AI_VIDEO_PATH}`;
     console.log(`  Video:    ${videoUrl}`);
   }
-  console.log(`  Model:    ${AI_MODEL}`);
+  console.log(`  Provider: ${IS_APIYI ? 'apiyi' : 'minimax'}  (${describeProvider(AI_API_BASE)})`);
+  console.log(`  Image:    ${AI_IMAGE_MODEL}`);
+  console.log(`  Video:    ${AI_VIDEO_MODEL}`);
   console.log(`  Key:      ${AI_API_KEY ? '✓' : '✗'}`);
   if (!isLoopbackHost(HOST)) {
     console.warn('⚠ Proxy remote exposure enabled via PROXY_ALLOW_REMOTE=true');
