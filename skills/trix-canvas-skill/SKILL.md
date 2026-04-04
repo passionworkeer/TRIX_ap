@@ -71,9 +71,12 @@ python3 skills/trix-canvas-skill/scripts/start_canvas.py \
 | `change_project.py` | 切换到一个新的项目 UUID | 无参数 |
 | `upload_file.py` | 上传本地图片/视频作为参考素材 | `project_id`, `file`, `--type`, `--prompt` |
 | `download_results.py` | 批量下载项目的 `files` | `project_id`, `--dest`, `--media-types` |
+| `upload_result.py` | 上传本地生成的视频/图片到项目 files | `project_id`, `file`, `--node-id`, `--caption` |
 | `check_env.py` | 端口、ffmpeg、目录自检 | 无参数 |
 | `sync_canvas_runtime.py` | 将 repo 下 `packages/trix-canvas-service` 同步回 skill 内嵌 runtime，或做一致性检查 | `--check` |
+| `install_openclaw_skill.py` | 将 skill 安装到 OpenClaw workspace | `--agent-id`, `--install-deps`, `--update-agents-md` |
 | `start_all.js` | 兼容入口：自动补 runtime 目录、缺失依赖后，再转发到 skill runtime 的 `assets/canvas-service/start-all.js` | 透传 Node 参数 |
+| `start_canvas.py` | 启动 Canvas 服务（含可选 proxy） | `--host`, `--port`, `--base-url`, `--with-proxy`, `--open` |
 | `parse_script.py` | 将剧本拆解成按镜头排序的 JSON | `script` 文本或文件路径 |
 | `workflow.py` | 一条命令自动完成解析、按镜头顺序生成、失败重试、轮询、字幕导出、最终视频导出 | `script`, `--project-name`, `--concurrent`, `--retries`, `--skip-final-video` |
 | `generate.py` | 调用 AI Adapter 生成单个 media（image/video） | `--prompt`, `--type` |

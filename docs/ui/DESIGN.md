@@ -1,6 +1,6 @@
 # Design System Document
 
-> **最后更新**: 2026-04-03
+> **最后更新**: 2026-04-04
 
 ## 1. Overview & Creative North Star: "The Digital Architect"
 

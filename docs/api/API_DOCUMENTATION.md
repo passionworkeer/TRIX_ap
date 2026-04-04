@@ -1,7 +1,7 @@
 # TRIX3D 后端 API 文档
 
 > 版本: 1.4.0
-> **最后更新**: 2026-04-03（内容已审阅；精简 TRIX Native Server API，完整文档见 `../TRIX_NATIVE_CHANNEL.md`）
+> **最后更新**: 2026-04-04（内容已审阅；精简 TRIX Native Server API，完整文档见 `../TRIX_NATIVE_CHANNEL.md`）
 
 ---
 
@@ -113,12 +113,30 @@ export const supabase = createClient(supabaseUrl, supabaseKey, {
 | 聊天 | `chatService.ts` | getChatHistory, sendMessage, sendMessageWithMedia, markMessagesAsRead |
 | 通知 | `notificationService.ts` | getNotifications, markNotificationAsRead, subscribeToNotifications |
 | 学习会话 | `studySessionService.ts` | getStudySessions, createStudySession, getTodayStudyTime |
+| 学习历史 | `studyHistoryService.ts` | getStudyHistory, getStudyStats, exportStudyData |
 | 成就 | `achievementService.ts` | checkAndUnlockAchievements, getUserAchievements |
 | 积分 | `pointsService.ts` | getUserPointsStats, addUserPoints, getPointsHistory, rewardStudyCompletion |
+| 用户统计 | `userStatsService.ts` | getUserStats, updateUserStats |
 | 商城 | `mallService.ts` | getMallItems, purchaseItem, getPurchaseHistory |
 | 日程 | `scheduleService.ts` | getSchedules, createSchedule, updateSchedule, deleteSchedule |
 | 待办 | `todoService.ts` | getTodos, createTodo, updateTodo, toggleTodoComplete |
 | 衣橱 | `wardrobeService.ts` | getUserOutfits, equipOutfit, unequipOutfit |
+| TRIX Native 客户端 | `TrixNativeChannelClient.ts` | connect, disconnect, sendMessage, subscribeToMessages, uploadAttachment |
+| WebSocket 连接管理 | `ConnectionManager.ts` | connect, disconnect, send, subscribe, getStatus |
+| TTS 语音合成 | `ttsService.ts` | synthesize, cancel, getVoices |
+| 语音播放 | `voicePlaybackService.ts` | play, pause, stop, setVolume, onAudioUnlocked |
+| 本地存储 | `storageService.ts` | get, set, remove, clear, has |
+| 地点服务 | `placeService.ts` | getNearbyPlaces, searchPlaces, getPlaceDetails |
+| 位置服务 | `locationService.ts` | getFriendsLocations, updateLocation, getLocationHistory |
+| 百度地图 | `baiduMapService.ts` | getLocation, geocode, searchNearby |
+| 文件上传 | `uploadService.ts` | upload, uploadWithProgress, cancel |
+| OSS 上传 | `serverOssUploadService.ts` | uploadToOss, getSignedUrl |
+| 数据库服务 | `databaseService.ts` | query, insert, update, delete, transaction |
+| 会话服务 | `sessionService.ts` | createSession, getSession, updateSession |
+| 项目服务 | `projectService.ts` | getProjects, createProject, updateProject |
+| 爪牙历史 | `clawbotHistoryService.ts` | getHistory, saveHistory, exportHistory |
+
+> 注：认证（登录/注册/登出）直接使用 Supabase Auth API (`supabase.auth.*`)，无需独立 service 文件。
 
 ### 辅助函数
 
@@ -188,7 +206,66 @@ x-trix-client-token: <client_token>  (部分端点)
 
 ---
 
-## 六、Desktop Electron IPC API
+## 六、Canvas Service API
+
+> 独立 AI 画布服务，位于 `packages/trix-canvas-service/`。端口 8791，通过本地 relay (8788) 连接 MiniMax/apivyi 等生成服务。
+
+### 服务地址
+
+| 环境 | 地址 |
+|------|------|
+| 开发环境 | `http://localhost:8791` |
+| Canvas UI | `http://localhost:8791/canvas?projectId=...` |
+
+### 认证
+
+默认只允许本机访问（回环地址）。如需外部访问，需设置 `CANVAS_REQUIRE_AUTH=true` 并配置 `CANVAS_ACCESS_TOKEN`。
+
+### 端点列表
+
+| 方法 | 端点 | 描述 |
+|------|------|------|
+| POST | `/api/session` | 创建会话 / 提交 AI 生成任务 |
+| GET | `/api/session/:id` | 查询会话状态和结果 |
+| POST | `/api/session/change-project` | 创建或切换项目 |
+| POST | `/api/file/upload` | 上传 base64 或 OSS 文件 |
+| POST | `/api/projects` | 创建项目（供 Canvas Skill 调用）|
+| GET | `/api/projects` | 获取项目列表 |
+| GET | `/api/projects/:projectId` | 获取项目详情（含 nodes/edges/files/sessions）|
+| GET | `/api/projects/:projectId/export/subtitle` | 导出 SRT + 脚本 |
+| GET | `/api/projects/:projectId/export/video` | 拼接视频（需 FFmpeg）|
+| GET | `/media/files/:filename` | 下载存储的图片/视频 |
+| GET | `/health` | 健康检查 |
+
+### 响应格式
+
+```json
+// GET /api/session/:id
+{
+  "data": {
+    "sessionId": "uuid",
+    "projectId": "uuid",
+    "status": "completed" | "generating" | "error" | "pending",
+    "taskId": "ai-task-id",
+    "messages": [{ "role": "user"|"assistant", "content": "...", "timestamp": "..." }],
+    "resultUrls": ["https://..."]
+  }
+}
+
+// POST /api/session
+{
+  "data": {
+    "projectUuid": "uuid",
+    "sessionId": "uuid",
+    "taskId": "ai-task-id",
+    "projectUrl": "http://localhost:8791/canvas?projectId=..."
+  }
+}
+```
+
+---
+
+## 七、Desktop Electron IPC API
 
 > 适用于桌面端，通过 `window.electronAPI.*()` 调用主进程。详见 `desktop/src/types/electron.d.ts`。
 

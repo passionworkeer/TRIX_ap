@@ -1,6 +1,6 @@
 # Web 架构
 
-> **最后更新**: 2026-04-03
+> **最后更新**: 2026-04-04
 > **技术栈**: React 19.2.4 + TypeScript 5.8.2 + Vite 6.2.0 + Tailwind CSS 4.2.0 + Supabase 2.94.0
 
 ---
@@ -292,7 +292,7 @@ src/
 │   ├── VoiceSettingsContext.tsx
 │   └── ThemeContext.tsx
 │
-├── services/            # 27 个服务文件（9,200+ 行）
+├── services/            # 26 个服务文件（9,200+ 行）
 │   ├── TrixNativeChannelClient.ts  # 主要通信层（1,347 行）
 │   ├── chatService.ts / friendService.ts / ...
 │   └── databaseService.ts          # barrel re-export
@@ -317,4 +317,4 @@ src/
 
 ---
 
-**最后更新**: 2026-04-03
+**最后更新**: 2026-04-04

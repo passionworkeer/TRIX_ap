@@ -2,7 +2,7 @@
 
 > [emoji] TRIX 3D Companion 数据库架�?
 > 🎯 基于 Supabase (PostgreSQL) + JSON 文件存储（TRIX Native Server�?
-> **最后更�?*: 2026-04-03
+> **最后更�?*: 2026-04-04
 
 ---
 
@@ -16,7 +16,6 @@
 | `friends` | `friendships` | `locationService.ts` 曾错误引�?`friendships` |
 | `user_points_overview`（视图） | �?| 存在于代码中但旧 Schema 未记�?|
 
-> `mallService.ts` 使用 `points_transactions`（复数）�?*代码 Bug**，实际数据库表名�?`point_transactions`（单数）�?
 
 ---
 
@@ -97,8 +96,8 @@
 | `mails` | 系统邮件 | user_id, from_name, subject, is_read |
 | `todos` | 待办事项 | user_id, title, is_completed |
 | `schedules` | 日程 | user_id, title, start_time, end_time |
-| `user_points` | 用户积分余额 | user_id, balance, updated_at |
-| `point_transactions` | 积分变动流水（⚠�?单数，代�?Bug 写成了复数） | user_id, amount, type |
+| `user_points` | 用户积分余额 | user_id, total_points, level |
+| `point_transactions` | 积分变动流水 | user_id, amount, type |
 | `achievements` | 成就列表（参考表�?| id, type, name, description, icon |
 | `user_achievements` | 用户已解锁成�?| user_id, achievement_id, unlocked_at |
 | `outfits` | 装扮目录（参考表�?| id, name, type, price, preview_url |
@@ -376,9 +375,31 @@ CREATE INDEX idx_notifications_read ON notifications(is_read) WHERE is_read = fa
 
 ---
 
-### 3.10 积分交易�?(point_transactions)
+### 3.10 用户积分余额 (user_points)
 
-> ⚠️ 实际数据库表名为 `point_transactions`（单数），`mallService.ts` 中使�?`points_transactions`（复数）为代�?Bug�?
+> pointsService.ts 使用 RPC 调用（get_user_points_stats, add_user_points）操作此表
+
+```sql
+CREATE TABLE user_points (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID UNIQUE NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  total_points INTEGER DEFAULT 0,
+  level INTEGER DEFAULT 1,
+  total_earned INTEGER DEFAULT 0,
+  total_spent INTEGER DEFAULT 0,
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_user_points_user ON user_points(user_id);
+CREATE INDEX idx_user_points_total ON user_points(total_points) WHERE total_points > 0;
+```
+
+---
+
+
+### 3.11 积分交易表 (point_transactions)
+
+
 
 ```sql
 CREATE TABLE point_transactions (
@@ -883,4 +904,4 @@ interface MessageRecord {
 
 ---
 
-> **最后更新： 2026-04-03
+> **最后更新： 2026-04-04

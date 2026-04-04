@@ -2,12 +2,12 @@
 
 > iOS TRIX 3D Companion Technical Architecture
 > Based on SwiftUI + Combine
-> **Last Updated**: 2026-04-03
+> **Last Updated**: 2026-04-04
 > **Version**: 1.6 (1064 Swift files, 59 services)
 
 ---
 
-## Accuracy Notes (as of 2026-04-03)
+## Accuracy Notes (as of 2026-04-04)
 
 **Known discrepancies in prior versions:**
 - `AppDelegate.swift` does not exist — lifecycle managed by `TRIXApplicationDelegate` + `TRIX3DCompanionApp`
@@ -441,9 +441,9 @@ dependencies: [
 | 1.4 | 2026-03-29 | Accuracy fix: AnalyticsService, UIRenderingOptimizer, InputValidator all exist; total Swift corrected to 231; added Core/Design, Core/Video, Features/Data to directory structure; removed duplicate Video/ entry |
 | 1.5 | 2026-03-31 | Total Swift corrected to 295; added SupabaseService, AppleSignInService, OAuthManager, MallService, MapSearchService, NetworkMonitor, SessionService, DataSyncService, ToastManager, ClawbotHistoryService, UserStatsService, VoicePlaybackService; added TRIXApplicationDelegate; updated Features counts; added OpenClawControlPanel |
 | 1.6 | 2026-04-02 | Total Swift corrected to 1064 (recursive count including Test targets); version bump only |
-| 1.7 | 2026-04-03 | Core/Utils/CoordinateConverter.swift 和 Core/Config/SupabaseConfig.swift 已确认存在；修正目录注释 |
+| 1.7 | 2026-04-04 | Core/Utils/CoordinateConverter.swift 和 Core/Config/SupabaseConfig.swift 已确认存在；修正目录注释 |
 
 ---
 
-**Last Updated**: 2026-04-03
+**Last Updated**: 2026-04-04
 **Version**: 1.6

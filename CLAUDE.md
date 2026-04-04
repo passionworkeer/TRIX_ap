@@ -11,7 +11,7 @@
 - **核心架构**: Supabase（后端）+ OpenClaw Gateway（实时通信）+ TRIX Native Channel（跨端同步）
 - **三端**: Web (React 19.2.4 + TypeScript 5.8.2 + Vite 6.2 + Tailwind CSS 4.2), iOS (SwiftUI + MVVM), Desktop (Electron 33.4)
 - **包管理**: npm workspaces（根目录 `packages/*`）
-- **最后更新**: 2026-04-03
+- **最后更新**: 2026-04-04
 
 ---
 
@@ -203,4 +203,4 @@ docs/<范围>           # 文档更新
 
 ---
 
-**最后更新**: 2026-04-02
+**最后更新**: 2026-04-04

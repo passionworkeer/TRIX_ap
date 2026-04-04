@@ -1,6 +1,6 @@
 # TRIX 3D Companion — 文档索引
 
-> **版本**: v2.9（2026-04-03：docs 全面同步、Canvas 暗色主题、MiniMax API 支持）
+> **版本**: v2.9（2026-04-04：docs 全面同步、Canvas 暗色主题、MiniMax API 支持）
 > **维护者**: TRIX 3D Companion 开发团队
 
 ---
@@ -92,7 +92,7 @@ docs/
 ├── 🎯 Canvas Skill (skills/)
 │   └── trix-canvas-skill/
 │       ├── SKILL.md
-│       └── scripts/           # 16 个 Python 脚本，含 session / upload / download 工具
+│       └── scripts/           # 19 个脚本（14 Python + 1 JS + 3 helpers + _adapters/）
 │
 └── 🗂️ 归档 (.archive/)
     ├── INSTALLATION_GUIDE.md
@@ -100,6 +100,8 @@ docs/
     ├── DESKTOP_PHASE2_PLAN.md
     ├── TEST_COMPILE_ISSUES_20260324.md
     ├── DESKTOP_TEST_REPORT.md
+    ├── DELIVERY.md
+    └── VERIFICATION_REPORT.md
 ```
 
 > 注：`skills/trix-canvas-skill/` 位于仓库根目录，不在 `docs/` 目录树内，这里单列是为了让索引覆盖当前可交付文档和技能资产。
@@ -194,9 +196,9 @@ skills/trix-canvas-skill/SKILL.md → skills/trix-canvas-skill/scripts/create_se
 | Desktop 文档（`desktop/`） | 2 |
 | 操作指南（`guides/`） | 7 |
 | 归档（`.archive/`） | 7 |
-| Canvas Skill（`skills/trix-canvas-skill/`） | 1 套（`SKILL.md` + 16 脚本） |
+| Canvas Skill（`skills/trix-canvas-skill/`） | 1 套（`SKILL.md` + 19 脚本） |
 
-**活跃文档总计（仅 `docs/`，不含 `.archive/` / `screenshots/`）**: 50 个
+**活跃文档总计（仅 `docs/`，不含 `.archive/` / `screenshots/`）**: 58 个
 **额外交付资产**: Canvas Skill 1 套，截图 5 张
 
 ---
@@ -217,4 +219,4 @@ skills/trix-canvas-skill/SKILL.md → skills/trix-canvas-skill/scripts/create_se
 
 ---
 
-**最后更新**: 2026-04-02
+**最后更新**: 2026-04-04

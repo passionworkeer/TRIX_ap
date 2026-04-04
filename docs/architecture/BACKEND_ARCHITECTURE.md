@@ -2,7 +2,7 @@
 
 > 📚 TRIX 3D Companion 后端服务架构
 > 🎯 基于 Node.js 原生 HTTP + WebSocket + Supabase
-> **最后更新**: 2026-04-03
+> **最后更新**: 2026-04-04
 
 ---
 
@@ -569,5 +569,5 @@ curl http://TRIX_SERVER_HOST:8788/health
 
 ---
 
-**最后更新**: 2026-03-31
+**最后更新**: 2026-04-04
 **版本**: 3.5

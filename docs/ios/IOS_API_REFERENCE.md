@@ -3,7 +3,7 @@
 > Generated: 2026-02-27
 > Version: 1.3
 > Project: TRIX3DCompanion iOS App
-> **最后更新**: 2026-04-03
+> **最后更新**: 2026-04-04
 > Last Updated: 2026-03-25
 
 ---
@@ -1005,7 +1005,7 @@ enum LocationError: Error {
 
 | Version | Date | Changes |
 |---------|------|---------|
-| 1.3 | 2026-04-03 | VoiceRecordingService 章节已移除（代码中不存在）；版本更新至 1.3 |
+| 1.3 | 2026-04-04 | VoiceRecordingService 章节已移除（代码中不存在）；版本更新至 1.3 |
 | 1.2 | 2026-03-25 | Removed non-existent WebSocketManager and PairingService; replaced with ClawbotChannelService; updated ChatService description |
 | 1.1 | 2026-02-27 | Updated test coverage (89%), added BatteryPerformanceBenchmark, updated API endpoints |
 | 1.0 | 2026-02-27 | Initial API Reference |

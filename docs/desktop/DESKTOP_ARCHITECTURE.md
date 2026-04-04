@@ -1,7 +1,7 @@
 # Desktop 桌面端架构文档
 
 > **版本**: 2.1
-> **最后更新**: 2026-04-03（源码扫描确认 IPC 99 handlers，preload 79 unique methods）
+> **最后更新**: 2026-04-04（源码扫描确认 IPC 99 handlers，preload 79 unique methods）
 > **平台**: Windows (Electron 33.4.0)
 
 ---
@@ -219,7 +219,7 @@ window.electronAPI = {
 
 **文件**: `desktop/src/preload/index.js`
 
-> **注意**: `preferencesGet`/`preferencesSet`、`friendsList`/`friendsAdd`/`friendsAccept`/`friendsRemove`、`notificationsList`/`notificationsMarkRead`/`notificationsMarkAllRead` 在 preload 中已声明但主进程 IPC handler **尚未实现**，调用将返回 unhandled promise rejection。
+> **注意**: `authRefreshSession`/`authSetSession`/`profileUpdate`, `preferencesGet`/`preferencesSet`, `friendsList`/`friendsAdd`/`friendsAccept`/`friendsRemove`, `notificationsList`/`notificationsMarkRead`/`notificationsMarkAllRead` 在 preload 中已声明但主进程 IPC handler **尚未实现**，调用将返回 unhandled promise rejection。
 
 ### 2.3 渲染进程（Renderer Process）
 
@@ -406,14 +406,11 @@ async function ensureOpenclawInstalled(): Promise<void> {
 'openclaw:backup-restore'  → 恢复 Backup
 'openclaw:pairing-create'  → 创建配对码
 
-// Supabase Auth（7）— v2.1 新增 refresh / setSession / profileUpdate
+// Supabase Auth（4）
 'auth:get-session'         → 获取当前会话
 'auth:sign-in'             → 邮箱密码登录
 'auth:sign-up'             → 邮箱注册
 'auth:sign-out'            → 登出
-'auth:refresh-session'     → 刷新 Session（v2.1 新增）
-'auth:set-session'         → 手动设置 Session（v2.1 新增）
-'profile:update'           → 更新用户资料（v2.1 新增）
 
 // Study Data（5）
 'study:list-todos'          → 列出学习待办
@@ -838,4 +835,4 @@ openclaw logs --follow
 
 ---
 
-**最后更新**: 2026-04-03（IPC 90→99；preload 79 methods）
+**最后更新**: 2026-04-04（IPC 99 handlers）

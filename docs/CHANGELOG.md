@@ -4,7 +4,26 @@
 
 ---
 
-## 📅 2026-04-03 — Canvas 暗色主题 + 文档整理
+## [Unreleased] — Canvas Skill 完善与 APIyi 支持
+
+### 完成内容
+
+1. **Canvas APIyi Provider 支持** (`477f5ed`):
+   - 新增 VEO 3.1 和 Nano Banana 模型支持
+   - 完善 Canvas Skill 脚本的 provider 适配
+
+2. **Canvas 脚本修复与测试** (`ac1e32c`, `f2a3770`, `2ee3553`, `c9f8606`):
+   - 修复代理 URL 路径问题
+   - 修复视频模型默认值
+   - 解决代理 `/result` 竞态条件
+   - 添加 adapters 初始化
+   - 修复 3 个 relay 测试失败
+   - 添加缺失的环境变量选项
+   - 添加综合冒烟测试
+
+---
+
+## 📅 2026-04-04 — Canvas 暗色主题 + 文档整理
 
 ### 完成内容
 

@@ -1,6 +1,6 @@
 # Lumina Design System — Desktop UI
 
-> **最后更新**: 2026-04-03
+> **最后更新**: 2026-04-04
 > **Theme**: Light / Social-facing pages (Chat, Study, Snapshot, Profile)
 > **Background**: `#f7f9fb` (content), `#f2f4f6` (sidebar/frame)
 > **Creative North Star**: "The Digital Atheneum" — warm minimalist light mode

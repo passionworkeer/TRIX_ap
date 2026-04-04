@@ -1,6 +1,6 @@
 # Desktop Documentation Index
 
-> Last updated: 2026-04-03
+> Last updated: 2026-04-04
 
 ## Core Documentation
 

@@ -1,6 +1,6 @@
 # TRIX 3D Companion - 测试指南
 
-> **最后更新**: 2026-04-03
+> **最后更新**: 2026-04-04
 > **测试框架**: Vitest + Node.js Test Runner + Playwright
 
 ---
