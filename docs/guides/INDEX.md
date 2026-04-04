@@ -14,7 +14,7 @@
 | [SERVER_GUIDE.md](./SERVER_GUIDE.md) | 服务器连接和运维操作 | 2026-04-04 |
 | [IOS_TEST_DEPLOY_GUIDE.md](./IOS_TEST_DEPLOY_GUIDE.md) | iOS 测试、打包、上架完整方案（Windows 开发环境） | 2026-04-04 |
 | [MACOS_LAUNCHD.md](./MACOS_LAUNCHD.md) | macOS launchd 开机自启模板（OpenClaw Gateway） | — |
-| [SUPABASE_EMAIL_CONFIRMATION.md](./SUPABASE_EMAIL_CONFIRMATION.md) | Supabase 邮箱确认配置（iOS 已完成，Web/Desktop 待实现） | — |
+| [SUPABASE_EMAIL_CONFIRMATION.md](./SUPABASE_EMAIL_CONFIRMATION.md) | Supabase 邮箱确认配置（iOS/Web/Desktop 三端均已完成） | 2026-04-04 |
 
 ---
 

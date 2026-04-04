@@ -1,6 +1,6 @@
 # Supabase Email Confirmation — 三端需要做的事
 
-> iOS 端已实现（commit `d831731`）。Web 和 Desktop 需要同等处理。
+> iOS/Web/Desktop 三端均已实现（iOS commit `d831731`，Web commit `70aeca0`，Desktop commit `da8b19a`）。
 
 ---
 
@@ -184,9 +184,9 @@ protocols:
 注册页输入邮箱/密码/用户名
   → 收到 Supabase 确认邮件
   → 邮件里链接格式确认：
-      Web:  https://trix.love/#/auth/v1/callback?token=XXX  ✅
+      Web:  https://trix.love/#/auth/v1/callback?token=XXX  ✅（已实现）
       iOS:  trix3dcompanion://auth/v1/callback?token=XXX  ✅（已实现）
-      Desktop: trix3dcompanion://auth/v1/callback?token=XXX ✅（待实现）
+      Desktop: trix3dcompanion://auth/v1/callback?token=XXX ✅（已实现）
   → 点链接 → App/页面打开 → 自动进入已登录状态
 ```
 

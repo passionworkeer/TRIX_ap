@@ -328,7 +328,7 @@ Float 窗口 (renderer/float.tsx)
 │  │          └────────────────────┼─────────────────────┘            │  │
 │  │                               ▼                                  │  │
 │  │              ┌────────────────────────────────────┐             │  │
-│  │              │         IPC Handler (101 handlers)   │             │  │
+│  │              │         IPC Handler (99 handlers)   │             │  │
 │  │              │  · pairing:createQr  · gateway:*    │             │  │
 │  │              │  · openclaw:*      · bot-state:*    │             │  │
 │  │              └────────────────────────────────────┘             │  │
@@ -367,7 +367,7 @@ Float 窗口 (renderer/float.tsx)
 
 ### 5.2 IPC 通信矩阵
 
-共 **101 个** IPC handler，分为 13 大类别。
+共 **99 个** IPC handler，分为 13 大类别。
 
 | IPC 通道 | 方向 | 类型 | 描述 |
 |---------|------|------|------|
@@ -482,7 +482,7 @@ desktop/
     │   ├── tray.ts            # 系统托盘（程序生成图标）
     │   ├── gateway.ts         # Gateway 子进程管理
     │   ├── openclaw.ts        # OpenClaw CLI 封装（本地优先）
-    │   ├── ipc.ts             # IPC Handler（101 handlers + 2 events）
+    │   ├── ipc.ts             # IPC Handler（99 handlers + 2 events）
     │   └── float-window.ts    # Float 窗口工厂
     │
     ├── preload/
@@ -596,7 +596,7 @@ C:/Users/wang/Desktop/TRIX Companion 3/
 - [x] 系统托盘（程序生成图标、菜单、事件处理）
 - [x] 主窗口关闭隐藏到托盘（不退出应用）
 - [x] 可折叠侧边栏导航
-- [x] contextBridge 安全 IPC 通信（101 handlers + 2 events）
+- [x] contextBridge 安全 IPC 通信（99 handlers + 2 events）
 - [x] 命令白名单安全机制
 - [x] `loadFile()` 替代 `loadURL()` 解决 asar 兼容
 - [x] React RenderErrorBoundary 错误边界

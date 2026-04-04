@@ -3,7 +3,7 @@
 > iOS TRIX 3D Companion Technical Architecture
 > Based on SwiftUI + Combine
 > **Last Updated**: 2026-04-04
-> **Version**: 1.6 (340 Swift files, 61 services)
+> **Version**: 1.7 (340 Swift files, 61 services)
 
 ---
 
@@ -447,4 +447,4 @@ dependencies: [
 ---
 
 **Last Updated**: 2026-04-04
-**Version**: 1.6
+**Version**: 1.7

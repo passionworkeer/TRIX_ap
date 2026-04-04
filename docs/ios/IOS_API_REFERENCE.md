@@ -4,7 +4,7 @@
 > Version: 1.3
 > Project: TRIX3DCompanion iOS App
 > **最后更新**: 2026-04-04
-> Last Updated: 2026-03-25
+> **Last Updated**: 2026-04-04
 
 ---
 
