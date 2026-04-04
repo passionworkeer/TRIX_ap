@@ -158,6 +158,10 @@ skills/trix-canvas-skill/scripts/__pycache__/
 skills/trix-canvas-skill/scripts/adapters/__pycache__/
 skills/trix-canvas-skill/assets/canvas-service/data/
 skills/trix-canvas-skill/assets/canvas-service/exports/
+skills/trix-canvas-skill/runtime/
+packages/trix-canvas-service/data/
+packages/trix-canvas-service/exports/
+packages/trix-canvas-service/outputs/
 
 # TRIX Native test temp
 packages/trix-openclaw-native/.tmp/
