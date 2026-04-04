@@ -22,7 +22,7 @@ const AI_IMAGE_PATH = process.env.AI_IMAGE_PATH || '/v1/image_generation';
 const AI_VIDEO_PATH = process.env.AI_VIDEO_PATH || process.env.PROXY_VIDEO_PATH || '';
 const AI_MODEL = process.env.AI_MODEL || 'MiniMax-M2.7';
 const AI_IMAGE_MODEL = process.env.AI_IMAGE_MODEL || 'image-01';
-const AI_VIDEO_MODEL = process.env.AI_VIDEO_MODEL || process.env.PROXY_VIDEO_MODEL || AI_MODEL;
+const AI_VIDEO_MODEL = process.env.AI_VIDEO_MODEL || process.env.PROXY_VIDEO_MODEL || 'video-01';
 const AI_VIDEO_I2V_MODEL =
   process.env.AI_VIDEO_I2V_MODEL
   || process.env.PROXY_VIDEO_I2V_MODEL
@@ -405,14 +405,15 @@ function apiRequest(method, pathOrUrl, body) {
         data += chunk;
       });
       res.on('end', () => {
-        try {
-          resolve({ ok: (res.statusCode || 500) < 400, status: res.statusCode || 500, body: data ? JSON.parse(data) : {} });
-        } catch {
-          resolve({ ok: (res.statusCode || 500) < 400, status: res.statusCode || 500, body: data });
-        }
+        const parsed = (() => { try { return JSON.parse(data); } catch { return data; } })();
+        const ok = (res.statusCode || 500) < 400;
+        resolve({ ok, status: res.statusCode || 500, body: parsed });
       });
     });
-    req.on('error', reject);
+    req.on('error', (err) => {
+      console.error(`[apiRequest ERROR] ${method} ${pathOrUrl} → ${err.message}`);
+      reject(err);
+    });
     req.setTimeout(REQUEST_TIMEOUT_MS, () => {
       req.destroy();
       reject(new Error('timeout'));
@@ -1077,7 +1078,9 @@ srv.listen(PORT, HOST, () => {
   console.log(`TRIX Canvas AI Proxy  →  ${HOST}:${PORT}`);
   console.log(`  Upstream: ${AI_API_BASE}${AI_GENERATE_PATH}`);
   if (AI_VIDEO_PATH) {
-    console.log(`  Video:    ${AI_API_BASE}${AI_VIDEO_PATH}`);
+    // Show the effective video URL — if path starts with https?:// it's already absolute
+    const videoUrl = /https?:\/\//i.test(AI_VIDEO_PATH) ? AI_VIDEO_PATH : `${AI_API_BASE}${AI_VIDEO_PATH}`;
+    console.log(`  Video:    ${videoUrl}`);
   }
   console.log(`  Model:    ${AI_MODEL}`);
   console.log(`  Key:      ${AI_API_KEY ? '✓' : '✗'}`);

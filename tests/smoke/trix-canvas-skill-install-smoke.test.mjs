@@ -19,8 +19,9 @@ test('trix-canvas skill install smoke', async (t) => {
   const workspace = mkdtempSync(join(tmpdir(), 'trix-openclaw-workspace-'));
 
   try {
+    const PY = 'D:/python/python.exe';
     const install = spawnSync(
-      'python3',
+      PY,
       [INSTALL_SCRIPT, '--workspace', workspace],
       { cwd: REPO_ROOT, encoding: 'utf-8' },
     );
@@ -49,7 +50,7 @@ test('trix-canvas skill install smoke', async (t) => {
     );
 
     const help = spawnSync(
-      'python3',
+      PY,
       [resolve(skillDir, 'scripts/start_canvas.py'), '--help'],
       { cwd: REPO_ROOT, encoding: 'utf-8' },
     );

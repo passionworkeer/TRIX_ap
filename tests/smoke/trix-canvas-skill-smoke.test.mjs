@@ -67,10 +67,11 @@ async function getFreePort() {
 test('Canvas skill install sync + generate flow', async () => {
   const tempRoot = mkdtempSync(join(tmpdir(), 'trix-canvas-skill-smoke-'));
   const workspace = join(tempRoot, 'workspace');
+  const PY = 'D:/python/python.exe';
   const outputPath = join(tempRoot, 'generated.png');
 
   const installProc = spawnSync(
-    'python3',
+    PY,
     [INSTALL_SCRIPT, '--workspace', workspace],
     { encoding: 'utf-8' },
   );
