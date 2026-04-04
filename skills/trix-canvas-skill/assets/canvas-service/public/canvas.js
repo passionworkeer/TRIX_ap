@@ -106,7 +106,7 @@ const state = {
     authenticated: true,
     pending: false,
   },
-  viewport: { scale: 0.6, tx: 80, ty: 80 },
+  viewport: { scale: 1, tx: 120, ty: 120 },
   dragging: null,
   linking: null,
   panning: null,
@@ -676,6 +676,7 @@ function normalizeNode(raw) {
     scene_id: raw.scene_id ?? raw.sceneId ?? null,
     style: raw.style || '',
     preview_url: raw.preview_url || raw.previewUrl || raw.result_url || raw.resultUrl || raw.file?.url || null,
+    result_url: raw.result_url || raw.resultUrl || raw.file?.url || null,
     parent_node_id: raw.parent_node_id || raw.parentNodeId || null,
     status: raw.status || 'pending',
     prompt: raw.prompt || '',
@@ -1129,7 +1130,7 @@ function fitCanvas() {
   const padding = 120;
   const scaleX = (rect.width - padding) / Math.max(bounds.width, 1);
   const scaleY = (rect.height - padding) / Math.max(bounds.height, 1);
-  state.viewport.scale = Math.max(0.05, Math.min(1.25, Math.min(scaleX, scaleY)));
+  state.viewport.scale = Math.max(0.35, Math.min(1.25, Math.min(scaleX, scaleY)));
   state.viewport.tx = rect.width / 2 - (bounds.minX + bounds.width / 2) * state.viewport.scale;
   state.viewport.ty = rect.height / 2 - (bounds.minY + bounds.height / 2) * state.viewport.scale;
   updateZoomLabel();
@@ -1539,8 +1540,6 @@ async function loadProject(projectId, { preserveSelection = true } = {}) {
   updateDraftHint();
   updateBatchHint();
   renderCanvas();
-  // Auto-fit so imported projects are immediately visible
-  fitCanvas();
 }
 
 async function selectProject(projectId) {
@@ -1905,22 +1904,6 @@ async function exportVideo() {
 
 async function autoArrangeNodes() {
   if (!state.project?.nodes.length) return;
-
-  // Detect if nodes already form a horizontal pipeline (most share the same y)
-  const yCounts = new Map();
-  state.project.nodes.forEach((n) => yCounts.set(n.y, (yCounts.get(n.y) || 0) + 1));
-  const [dominantY, dominantCount] = [...yCounts.entries()].reduce(
-    (best, cur) => (cur[1] > best[1] ? cur : best), [0, 0]);
-  const isHorizontalPipeline = dominantCount >= Math.ceil(state.project.nodes.length * 0.5);
-
-  if (isHorizontalPipeline) {
-    // Preserve horizontal pipeline layout — just call fitCanvas to frame it
-    fitCanvas();
-    showToast('已是流水线布局，已自动适配视角');
-    return;
-  }
-
-  // Default vertical scene-stack layout
   const sorted = [...state.project.nodes].sort((left, right) => {
     const leftScene = Number(left.scene_id || 0);
     const rightScene = Number(right.scene_id || 0);
@@ -2196,7 +2179,7 @@ elements.zoomInButton.addEventListener('click', () => {
   renderCanvas();
 });
 elements.zoomOutButton.addEventListener('click', () => {
-  state.viewport.scale = Math.max(0.05, state.viewport.scale / 1.12);
+  state.viewport.scale = Math.max(0.35, state.viewport.scale / 1.12);
   updateZoomLabel();
   renderCanvas();
 });
@@ -2416,7 +2399,7 @@ elements.canvas.addEventListener('dblclick', (event) => {
 elements.canvas.addEventListener('wheel', (event) => {
   event.preventDefault();
   const delta = event.deltaY > 0 ? 0.9 : 1.1;
-  state.viewport.scale = Math.max(0.05, Math.min(3.5, state.viewport.scale * delta));
+  state.viewport.scale = Math.max(0.35, Math.min(3.5, state.viewport.scale * delta));
   updateZoomLabel();
   renderCanvas();
 }, { passive: false });
