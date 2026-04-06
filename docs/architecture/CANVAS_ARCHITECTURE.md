@@ -61,7 +61,7 @@ Express 服务，管理项目、节点、边、文件。
 | `canvas8791.js` | Canvas HTTP API 处理器（项目/节点/边） |
 | `canvasSecurity.js` | 鉴权、CORS、安全检查 |
 | `public/` | 静态资源，Canvas UI 前端 |
-| `data/` | 项目数据（SQLite 或 JSON 文件存储）|
+| `data/` | 项目数据（SQLite 数据库 `canvas.sqlite` + 导出任务 JSON）|
 | `outputs/` | AI 生成的图片/视频文件 |
 | `scripts/` | 辅助脚本（导出、字幕等）|
 

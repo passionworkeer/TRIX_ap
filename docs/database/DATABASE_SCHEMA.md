@@ -905,3 +905,139 @@ interface MessageRecord {
 ---
 
 > **最后更新： 2026-04-04
+
+---
+
+## 12. Canvas Service SQLite (canvas.sqlite)
+
+Canvas Service 使用 `better-sqlite3` 进行本地数据持久化。
+
+### 12.1 存储位置
+
+```
+<CANVAS_DATA_DIR>/canvas.sqlite  # 默认: ./data/canvas.sqlite
+```
+
+### 12.2 数据库配置
+
+- **WAL 模式**：已启用，提高并发读写性能
+- **外键约束**：已启用 (`foreign_keys = ON`)
+- **用户隔离**：通过 `AsyncLocalStorage` 在请求上下文中注入 `user_id`
+
+### 12.3 表结构
+
+#### projects（项目表）
+
+```sql
+CREATE TABLE projects (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  name TEXT NOT NULL,
+  script_text TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+CREATE INDEX idx_projects_user_id ON projects(user_id);
+```
+
+#### nodes（节点表）
+
+```sql
+CREATE TABLE nodes (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  project_id TEXT NOT NULL,
+  session_id TEXT,
+  file_id TEXT,
+  parent_node_id TEXT,
+  scene_id INTEGER,
+  media_type TEXT,
+  x REAL,
+  y REAL,
+  prompt TEXT,
+  status TEXT,
+  aspect TEXT,
+  style TEXT,
+  task_id TEXT,
+  result_url TEXT,
+  error TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE
+);
+CREATE INDEX idx_nodes_lookup ON nodes(user_id, project_id);
+```
+
+#### edges（边表）
+
+```sql
+CREATE TABLE edges (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  project_id TEXT NOT NULL,
+  source_node_id TEXT NOT NULL,
+  target_node_id TEXT NOT NULL,
+  edge_type TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE,
+  FOREIGN KEY(source_node_id) REFERENCES nodes(id) ON DELETE CASCADE,
+  FOREIGN KEY(target_node_id) REFERENCES nodes(id) ON DELETE CASCADE
+);
+```
+
+#### files（文件表）
+
+```sql
+CREATE TABLE files (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  project_id TEXT NOT NULL,
+  node_id TEXT,
+  filename TEXT,
+  stored_filename TEXT,
+  mime_type TEXT,
+  media_type TEXT,
+  prompt TEXT,
+  scene_id INTEGER,
+  size INTEGER,
+  source_url TEXT,
+  url TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE
+);
+```
+
+#### sessions（会话表）
+
+```sql
+CREATE TABLE sessions (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  project_id TEXT NOT NULL,
+  node_id TEXT,
+  parent_node_id TEXT,
+  message TEXT,
+  media_type TEXT,
+  aspect TEXT,
+  style TEXT,
+  status TEXT,
+  task_id TEXT,
+  upstream_status TEXT,
+  result_urls TEXT,  -- JSON array
+  messages TEXT,    -- JSON array
+  error TEXT,
+  last_polled_at TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE
+);
+```
+
+### 12.4 JSON 文件保留场景
+
+以下场景仍使用 JSON 文件存储：
+- 导出任务元数据 (`exports/` 目录)
+- Blob 文件存储 (`blobs/` 目录)
+- 临时调试数据
