@@ -70,7 +70,7 @@ git commit -m "WIP"                  # 未完成
 - **安全**: 无 SQL 注入、XSS、硬编码凭证
 - **类型**: 无 `any` 类型残留（已消除 47 处）
 - **资源路径**: Electron 中使用 `app.getPath('userData')`，不用 `process.cwd()`
-- **配对协议**: 三端统一使用 URL 格式 `http://host/pair?code=XXX&secret=YYY`
+- **配对协议**: 三端统一使用 URL 格式 `http://host/pair?code=XXX&secret=YYY&accountId=ZZZ`
 
 ---
 
@@ -93,7 +93,7 @@ git commit -m "WIP"                  # 未完成
 
 ### 4.3 TRIX Native Channel
 
-- QR 码格式: `http://host/pair?code=XXX&secret=YYY`
+- QR 码格式: `http://host/pair?code=XXX&secret=YYY&accountId=ZZZ`
 - 三端（Web/iOS/Desktop）均支持此格式
 - 唯一权威文档: `docs/TRIX_NATIVE_CHANNEL.md`
 

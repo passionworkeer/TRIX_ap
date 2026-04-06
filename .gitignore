@@ -137,6 +137,8 @@ scripts/
 .codex-ios-build-verification/
 tmp-*.log
 .tmp/
+.vscode/mcp.json
+.vscode/settings.local.json
 
 # Playwright CLI tool
 .playwright-cli/
@@ -174,7 +176,13 @@ ios/TRIX3DCompanion/docs_backup/
 .artifacts/
 .cursor/rules/
 .claude/settings.local.json
+
 # Canvas demo/output files
 packages/trix-canvas-service/public/short-drama-she/
 skills/trix-canvas-skill/assets/canvas-service/public/short-drama-she/
 skills/trix-canvas-skill/docs/
+
+# Local data and logs
+data/
+server*.log
+patch_server.js
