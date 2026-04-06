@@ -38,6 +38,7 @@ docs/
 │
 ├── 🌐 架构文档 (architecture/)
 │   ├── INDEX.md
+│   ├── CANVAS_ARCHITECTURE.md
 │   ├── WEB_ARCHITECTURE.md
 │   └── BACKEND_ARCHITECTURE.md
 │
