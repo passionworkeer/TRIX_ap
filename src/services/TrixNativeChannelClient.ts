@@ -436,6 +436,51 @@ async function readErrorPayload(response: Response, fallbackMessage: string): Pr
   return typeof payload.error === 'string' ? payload.error : fallbackMessage;
 }
 
+function normalizeErrorText(message: string | undefined | null): string {
+  return String(message || '').trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
+function isInvalidClientTokenMessage(message: string | undefined | null): boolean {
+  const normalized = normalizeErrorText(message);
+  if (!normalized) {
+    return false;
+  }
+
+  return normalized.includes('invalid client token')
+    || normalized.includes('invalid token')
+    || normalized.includes('illegal token')
+    || normalized.includes('非法 token')
+    || normalized.includes('非法的token')
+    || normalized.includes('非法token')
+    || normalized.includes('无效 token')
+    || normalized.includes('无效token')
+    || normalized.includes('token 无效')
+    || normalized.includes('token已失效');
+}
+
+function createInvalidClientTokenError(message = 'Invalid client token'): Error {
+  const error = new Error(message);
+  error.name = 'InvalidClientTokenError';
+  return error;
+}
+
+function isInvalidClientTokenError(error: unknown): boolean {
+  if (error instanceof Error) {
+    return error.name === 'InvalidClientTokenError'
+      || isInvalidClientTokenMessage(error.message);
+  }
+
+  if (typeof error === 'object' && error !== null && 'message' in error) {
+    return isInvalidClientTokenMessage(String((error as { message?: unknown }).message));
+  }
+
+  if (typeof error === 'string') {
+    return isInvalidClientTokenMessage(error);
+  }
+
+  return false;
+}
+
 async function wait(ms: number): Promise<void> {
   await new Promise((resolve) => window.setTimeout(resolve, ms));
 }
@@ -450,6 +495,7 @@ class TrixNativeChannelClient {
   private agentOnline = false;
   private currentAuthUserId: string | null = null;
   private currentAuthEmail: string | null = null;
+  private sessionRecoveryPromise: Promise<StoredSession> | null = null;
 
   private buildSocketSessionKey(session: StoredSession): string {
     return [
@@ -972,7 +1018,120 @@ class TrixNativeChannelClient {
     return Boolean(this.getSession());
   }
 
-  async connect(): Promise<void> {
+  private async withSessionRecovery<T>(
+    operation: (session: StoredSession) => Promise<T>,
+    options: { ensureConnected?: boolean } = {},
+  ): Promise<T> {
+    let didRecoverInvalidSession = false;
+
+    while (true) {
+      if (options.ensureConnected) {
+        await this.connect();
+      }
+
+      const session = this.requireSession();
+
+      try {
+        return await operation(session);
+      } catch (error) {
+        if (didRecoverInvalidSession || !isInvalidClientTokenError(error)) {
+          throw error;
+        }
+
+        await this.recoverInvalidSession(session, error);
+        didRecoverInvalidSession = true;
+      }
+    }
+  }
+
+  private async recoverInvalidSession(staleSession: StoredSession, cause: unknown): Promise<StoredSession> {
+    if (this.sessionRecoveryPromise) {
+      return this.sessionRecoveryPromise;
+    }
+
+    const reason = cause instanceof Error ? cause.message : String(cause);
+    this.sessionRecoveryPromise = (async () => {
+      logger.clawbot.warn('[TrixNative] native session token rejected; attempting restore', {
+        accountId: staleSession.accountId,
+        conversationId: staleSession.conversationId,
+        clientId: staleSession.clientId,
+        reason,
+      });
+
+      if (this.reconnectTimer) {
+        window.clearTimeout(this.reconnectTimer);
+        this.reconnectTimer = null;
+      }
+
+      this.manualDisconnect = true;
+      this.disposeSocket(this.socket);
+      this.manualDisconnect = false;
+
+      const restored = await this.restoreSession(
+        undefined,
+        staleSession.deviceName ?? defaultDeviceName(),
+        staleSession.serverUrl,
+      );
+
+      if (restored) {
+        return restored;
+      }
+
+      this.clearSession(staleSession.accountId);
+      this.agentOnline = false;
+      this.emit('unpaired', undefined);
+      throw new Error('当前配对会话已失效，请重新配对');
+    })().finally(() => {
+      this.sessionRecoveryPromise = null;
+    });
+
+    return this.sessionRecoveryPromise;
+  }
+
+  private async fetchHistoryOnce(session: StoredSession): Promise<ClawbotChannelMessage[]> {
+    const response = await fetch(`${session.serverUrl}/api/conversations/${encodeURIComponent(session.conversationId)}/messages`, {
+      headers: {
+        'x-trix-client-token': session.clientToken,
+      },
+    });
+    const payload = await response.json().catch(() => null) as (ConversationMessagesResponse & { error?: string }) | null;
+
+    if (!response.ok) {
+      if (response.status === 401 && isInvalidClientTokenMessage(payload?.error)) {
+        throw createInvalidClientTokenError(payload?.error);
+      }
+      throw new Error(typeof payload?.error === 'string' ? payload.error : '加载消息历史失败');
+    }
+
+    this.agentOnline = Boolean(payload?.agentOnline);
+    return (payload?.messages ?? []).map((message) => mapServerMessage(message));
+  }
+
+  private async requestJsonOnce<T>(
+    session: StoredSession,
+    path: string,
+    init?: RequestInit,
+    fallbackMessage = '请求失败',
+  ): Promise<T> {
+    const headers = new Headers(init?.headers);
+    headers.set('x-trix-client-token', session.clientToken);
+    headers.set('x-trix-conversation-id', session.conversationId);
+
+    const response = await fetch(`${session.serverUrl}${path}`, {
+      ...init,
+      headers,
+    });
+    const payload = await response.json().catch(() => null) as { error?: string } | null;
+    if (!response.ok) {
+      if (response.status === 401 && isInvalidClientTokenMessage(payload?.error)) {
+        throw createInvalidClientTokenError(payload?.error);
+      }
+      throw new Error(typeof payload?.error === 'string' ? payload.error : fallbackMessage);
+    }
+    return (payload ?? {}) as T;
+  }
+
+  async connect(allowRecovery = true): Promise<void> {
     const session = this.getSession();
     if (!session) {
       this.socketSessionKey = null;
@@ -996,62 +1155,97 @@ class TrixNativeChannelClient {
 
     this.emit('connecting', undefined);
 
-    await new Promise<void>((resolve, reject) => {
-      const socket = new WebSocket(
-        `${session.websocketUrl}?role=user&conversationId=${encodeURIComponent(session.conversationId)}&clientId=${encodeURIComponent(session.clientId)}`,
-        buildUserWebSocketProtocols(session),
-      );
-      this.socket = socket;
-      this.socketSessionKey = nextSocketSessionKey;
-
-      socket.onopen = () => {
-        if (this.socket !== socket) {
-          return;
-        }
-        this.reconnectAttempts = 0;
-        resolve();
-      };
-
-      socket.onerror = () => {
-        if (this.socket !== socket) {
-          return;
-        }
-        reject(new Error('无法连接到 TRIX Native Channel 服务器'));
-      };
-
-      socket.onclose = () => {
-        if (this.socket !== socket) {
-          return;
-        }
-        this.socket = null;
-        this.socketSessionKey = null;
-        this.emit('disconnected', undefined);
-        if (!this.manualDisconnect && this.getSession()) {
-          this.reconnectAttempts += 1;
-          this.emit('reconnecting', { attempt: this.reconnectAttempts });
-          this.reconnectTimer = window.setTimeout(() => {
-            void this.connect().catch((error: unknown) => {
-              this.emit('error', { message: error instanceof Error ? error.message : '重连失败' });
-            });
-          }, Math.min(5000, 1000 * this.reconnectAttempts));
-        }
-      };
-
-      socket.onmessage = (event) => {
-        if (this.socket !== socket) {
-          return;
-        }
-        this.handleSocketMessage(event.data);
-      };
-    });
-
     try {
-      const history = await this.fetchHistory();
+      await new Promise<void>((resolve, reject) => {
+        let settled = false;
+        const rejectOnce = (error: Error) => {
+          if (settled) {
+            return;
+          }
+          settled = true;
+          reject(error);
+        };
+        const resolveOnce = () => {
+          if (settled) {
+            return;
+          }
+          settled = true;
+          resolve();
+        };
+
+        const socket = new WebSocket(
+          `${session.websocketUrl}?role=user&conversationId=${encodeURIComponent(session.conversationId)}&clientId=${encodeURIComponent(session.clientId)}`,
+          buildUserWebSocketProtocols(session),
+        );
+        this.socket = socket;
+        this.socketSessionKey = nextSocketSessionKey;
+
+        socket.onopen = () => {
+          if (this.socket !== socket) {
+            return;
+          }
+          this.reconnectAttempts = 0;
+          resolveOnce();
+        };
+
+        socket.onerror = () => {
+          if (this.socket !== socket) {
+            return;
+          }
+          rejectOnce(new Error('无法连接到 TRIX Native Channel 服务器'));
+        };
+
+        socket.onclose = (event) => {
+          if (this.socket !== socket) {
+            return;
+          }
+
+          const closeError = event.code === 1008 && isInvalidClientTokenMessage(event.reason)
+            ? createInvalidClientTokenError(event.reason || 'Invalid client token')
+            : new Error(event.reason || '无法连接到 TRIX Native Channel 服务器');
+
+          if (!settled) {
+            this.socket = null;
+            this.socketSessionKey = null;
+            rejectOnce(closeError);
+            return;
+          }
+
+          this.socket = null;
+          this.socketSessionKey = null;
+          this.emit('disconnected', undefined);
+          if (!this.manualDisconnect && this.getSession()) {
+            this.reconnectAttempts += 1;
+            this.emit('reconnecting', { attempt: this.reconnectAttempts });
+            this.reconnectTimer = window.setTimeout(() => {
+              void this.connect().catch((error: unknown) => {
+                this.emit('error', { message: error instanceof Error ? error.message : '重连失败' });
+              });
+            }, Math.min(5000, 1000 * this.reconnectAttempts));
+          }
+        };
+
+        socket.onmessage = (event) => {
+          if (this.socket !== socket) {
+            return;
+          }
+          this.handleSocketMessage(event.data);
+        };
+      });
+
+      const history = await this.fetchHistoryOnce(session);
       this.emit('history', history);
     } catch (error) {
+      if (allowRecovery && isInvalidClientTokenError(error)) {
+        await this.recoverInvalidSession(session, error);
+        await this.connect(false);
+        return;
+      }
+
       this.emit('error', {
         message: error instanceof Error ? error.message : '加载消息历史失败',
       });
+      throw error instanceof Error ? error : new Error('无法连接到 TRIX Native Channel 服务器');
     }
   }
 
@@ -1145,7 +1339,11 @@ class TrixNativeChannelClient {
     return true;
   }
 
-  async restoreSession(accountId?: string, deviceName: string = defaultDeviceName()): Promise<StoredSession | null> {
+  async restoreSession(
+    accountId?: string,
+    deviceName: string = defaultDeviceName(),
+    serverUrlHint?: string,
+  ): Promise<StoredSession | null> {
     const authUserId = this.currentAuthUserId ?? this.readAuthStateFromStorage().userId;
     if (!authUserId) {
       return null;
@@ -1156,7 +1354,12 @@ class TrixNativeChannelClient {
       return null;
     }
 
-    const serverUrl = normalizeServerUrl(resolveConfiguredNativeBaseUrl() || this.getStoredSession(accountId)?.serverUrl || '');
+    const serverUrl = normalizeServerUrl(
+      resolveConfiguredNativeBaseUrl()
+      || serverUrlHint
+      || this.getStoredSession(accountId)?.serverUrl
+      || '',
+    );
     if (!serverUrl) {
       return null;
     }
@@ -1290,18 +1493,7 @@ class TrixNativeChannelClient {
   }
 
   async fetchHistory(): Promise<ClawbotChannelMessage[]> {
-    const session = this.requireSession();
-    const response = await fetch(`${session.serverUrl}/api/conversations/${encodeURIComponent(session.conversationId)}/messages`, {
-      headers: {
-        'x-trix-client-token': session.clientToken,
-      },
-    });
-    if (!response.ok) {
-      throw new Error('加载消息历史失败');
-    }
-    const payload = await response.json() as ConversationMessagesResponse;
-    this.agentOnline = Boolean(payload.agentOnline);
-    return payload.messages.map((message) => mapServerMessage(message));
+    return this.withSessionRecovery((session) => this.fetchHistoryOnce(session));
   }
 
   async createStudyRoom(params: {
@@ -1451,44 +1643,48 @@ class TrixNativeChannelClient {
       throw new Error(`文件大小超过限制 (最大 ${isImage ? '10' : '50'} MB)`);
     }
 
-    const session = this.requireSession();
-    const serverUrl = normalizeServerUrl(session.serverUrl);
-    if (!serverUrl) {
-      throw new Error('未配置 TRIX Native Server 地址');
-    }
-
     const derivedFileName = options.fileName || (file instanceof File ? file.name : `attachment-${Date.now()}`);
     const mimeType = file.type || 'application/octet-stream';
     const kind = options.kind || inferAttachmentKind(mimeType, derivedFileName);
 
-    const response = await fetch(`${serverUrl}/api/uploads`, {
-      method: 'POST',
-      headers: {
-        'x-file-name': encodeURIComponent(derivedFileName),
-        'x-mime-type': mimeType,
-        'x-attachment-kind': kind,
-        'x-trix-conversation-id': session.conversationId,
-        'x-trix-client-token': session.clientToken,
-      },
-      body: file,
+    return this.withSessionRecovery(async (session) => {
+      const serverUrl = normalizeServerUrl(session.serverUrl);
+      if (!serverUrl) {
+        throw new Error('未配置 TRIX Native Server 地址');
+      }
+
+      const response = await fetch(`${serverUrl}/api/uploads`, {
+        method: 'POST',
+        headers: {
+          'x-file-name': encodeURIComponent(derivedFileName),
+          'x-mime-type': mimeType,
+          'x-attachment-kind': kind,
+          'x-trix-conversation-id': session.conversationId,
+          'x-trix-client-token': session.clientToken,
+        },
+        body: file,
+      });
+      const payload = await response.json().catch(() => null) as (UploadResponse & { error?: string }) | null;
+
+      if (!response.ok) {
+        if (response.status === 401 && isInvalidClientTokenMessage(payload?.error)) {
+          throw createInvalidClientTokenError(payload?.error);
+        }
+        throw new Error(typeof payload?.error === 'string' ? payload.error : '上传附件失败');
+      }
+
+      return {
+        attachmentId: payload!.attachment.id,
+        url: payload!.attachment.publicUrl || '',
+        kind: payload!.attachment.kind,
+        mimeType: payload!.attachment.mimeType,
+        fileName: payload!.attachment.fileName,
+        size: payload!.attachment.sizeBytes,
+        width: payload!.attachment.width,
+        height: payload!.attachment.height,
+        duration: payload!.attachment.durationMs,
+      };
     });
-
-    if (!response.ok) {
-      throw new Error('上传附件失败');
-    }
-
-    const payload = await response.json() as UploadResponse;
-    return {
-      attachmentId: payload.attachment.id,
-      url: payload.attachment.publicUrl || '',
-      kind: payload.attachment.kind,
-      mimeType: payload.attachment.mimeType,
-      fileName: payload.attachment.fileName,
-      size: payload.attachment.sizeBytes,
-      width: payload.attachment.width,
-      height: payload.attachment.height,
-      duration: payload.attachment.durationMs,
-    };
   }
 
   async uploadMedia(file: File | Blob): Promise<string> {
@@ -1505,11 +1701,6 @@ class TrixNativeChannelClient {
     attachments?: NativeMessageAttachmentInput[];
     clientMessageId?: string;
   }): Promise<string> {
-    const session = this.requireSession();
-    if (!this.isConnected()) {
-      await this.connect();
-    }
-
     const uploadedAttachmentIds: string[] = [];
     const inlineAttachments: Array<{
       kind?: NativeUploadAttachment['kind'];
@@ -1555,31 +1746,36 @@ class TrixNativeChannelClient {
     }
 
     const clientMessageId = params.clientMessageId || `msg_${generateSecureRandomString(18)}`;
-    const response = await fetch(`${session.serverUrl}/api/messages`, {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-      },
-      body: JSON.stringify({
-        conversationId: session.conversationId,
-        clientToken: session.clientToken,
-        text: params.text,
-        localId: clientMessageId,
-        attachments: inlineAttachments,
-        uploadedAttachmentIds,
-        metadata: {
-          clientMessageId,
-          declaredContentType: params.contentType,
+    return this.withSessionRecovery(async (activeSession) => {
+      const response = await fetch(`${activeSession.serverUrl}/api/messages`, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
         },
-      }),
-    });
+        body: JSON.stringify({
+          conversationId: activeSession.conversationId,
+          clientToken: activeSession.clientToken,
+          text: params.text,
+          localId: clientMessageId,
+          attachments: inlineAttachments,
+          uploadedAttachmentIds,
+          metadata: {
+            clientMessageId,
+            declaredContentType: params.contentType,
+          },
+        }),
+      });
+      const payload = await response.json().catch(() => ({ error: '发送消息失败' })) as { error?: string };
 
-    if (!response.ok) {
-      const payload = await response.json().catch(() => ({ error: '发送消息失败' }));
-      throw new Error(typeof payload.error === 'string' ? payload.error : '发送消息失败');
-    }
+      if (!response.ok) {
+        if (response.status === 401 && isInvalidClientTokenMessage(payload.error)) {
+          throw createInvalidClientTokenError(payload.error);
+        }
+        throw new Error(typeof payload.error === 'string' ? payload.error : '发送消息失败');
+      }
 
-    return clientMessageId;
+      return clientMessageId;
+    }, { ensureConnected: true });
   }
 
   unpair(): void {
@@ -1609,20 +1805,7 @@ class TrixNativeChannelClient {
   }
 
   private async requestJson<T>(path: string, init?: RequestInit, fallbackMessage = '请求失败'): Promise<T> {
-    const session = this.requireSession();
-    const headers = new Headers(init?.headers);
-    headers.set('x-trix-client-token', session.clientToken);
-    headers.set('x-trix-conversation-id', session.conversationId);
-
-    const response = await fetch(`${session.serverUrl}${path}`, {
-      ...init,
-      headers,
-    });
-    const payload = await response.json().catch(() => null) as { error?: string } | null;
-    if (!response.ok) {
-      throw new Error(typeof payload?.error === 'string' ? payload.error : fallbackMessage);
-    }
-    return (payload ?? {}) as T;
+    return this.withSessionRecovery((session) => this.requestJsonOnce<T>(session, path, init, fallbackMessage));
   }
 
   private handleSocketMessage(rawData: string): void {

@@ -349,4 +349,89 @@ describe('TrixNativeChannelClient session switching', () => {
       }),
     );
   });
+
+  it('restores the native session and reconnects when history loading rejects a stale client token', async () => {
+    mockFetch.mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.endsWith('/api/conversations/conv_old/messages')) {
+        return Promise.resolve(jsonResponse({ error: 'Invalid client token' }, 401));
+      }
+      if (url.endsWith('/api/client/session/restore')) {
+        expect(JSON.parse(String(init?.body))).toMatchObject({
+          accountId: 'david',
+          clientId: 'web_client_1',
+        });
+        return Promise.resolve(jsonResponse({
+          accountId: 'david',
+          conversationId: 'conv_recovered',
+          clientToken: 'token_recovered',
+          websocketUrl: 'wss://trix.love/ws',
+          pairingCode: 'DAVID4',
+          serverUrl: 'https://trix.love',
+          agentOnline: true,
+        }));
+      }
+      if (url.endsWith('/api/conversations/conv_recovered/messages')) {
+        return Promise.resolve(jsonResponse({ messages: [], agentOnline: true }));
+      }
+      throw new Error(`Unexpected fetch: ${url}`);
+    });
+
+    const { default: client } = await import('./TrixNativeChannelClient');
+    client.setAuthUser('user-123', 'david@trix.app');
+
+    await client.connect();
+    await flushMicrotasks();
+
+    expect(MockWebSocket.instances).toHaveLength(2);
+    expect(MockWebSocket.instances[0]?.close).toHaveBeenCalledTimes(1);
+    expect(MockWebSocket.instances[1]?.url).toContain('conversationId=conv_recovered');
+    expect(sessionStorageStore.trix_native_channel_sessions_v2).toContain('conv_recovered');
+    expect(sessionStorageStore['trix_native_channel_token:david:conv_recovered:web_client_1']).toBe('token_recovered');
+  });
+
+  it('sends messages with the restored client token after connect recovers from a stale session', async () => {
+    mockFetch.mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.endsWith('/api/conversations/conv_old/messages')) {
+        return Promise.resolve(jsonResponse({ error: 'Invalid client token' }, 401));
+      }
+      if (url.endsWith('/api/client/session/restore')) {
+        return Promise.resolve(jsonResponse({
+          accountId: 'david',
+          conversationId: 'conv_recovered_send',
+          clientToken: 'token_recovered_send',
+          websocketUrl: 'wss://trix.love/ws',
+          pairingCode: 'DAVID5',
+          serverUrl: 'https://trix.love',
+          agentOnline: true,
+        }));
+      }
+      if (url.endsWith('/api/conversations/conv_recovered_send/messages')) {
+        return Promise.resolve(jsonResponse({ messages: [], agentOnline: true }));
+      }
+      if (url.endsWith('/api/messages')) {
+        expect(JSON.parse(String(init?.body))).toMatchObject({
+          conversationId: 'conv_recovered_send',
+          clientToken: 'token_recovered_send',
+          text: 'hello after restore',
+          localId: 'client-msg-1',
+        });
+        return Promise.resolve(jsonResponse({ message: { id: 'msg_server_1' } }, 201));
+      }
+      throw new Error(`Unexpected fetch: ${url}`);
+    });
+
+    const { default: client } = await import('./TrixNativeChannelClient');
+    client.setAuthUser('user-123', 'david@trix.app');
+
+    const localId = await client.sendMessage({
+      text: 'hello after restore',
+      clientMessageId: 'client-msg-1',
+    });
+
+    expect(localId).toBe('client-msg-1');
+    expect(MockWebSocket.instances).toHaveLength(2);
+    expect(MockWebSocket.instances[1]?.url).toContain('conversationId=conv_recovered_send');
+  });
 });
