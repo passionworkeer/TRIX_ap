@@ -131,15 +131,23 @@ class StorageService {
   }
 
   /**
-   * 清空所有数据
+   * 清空所有数据（仅清除应用自己的数据，保留第三方库如 Supabase 的认证数据）
    */
   async clear(): Promise<void> {
     // 清空缓存
     this.cache.clear();
 
-    // 清空 localStorage
+    // 选择性清空 localStorage - 只清除应用自己的数据
+    // 保留所有非 trix_ 前缀的键（如 Supabase auth tokens）
     try {
-      localStorage.clear();
+      const keysToRemove: string[] = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && (key.startsWith('trix_') || key.startsWith('clawbot_'))) {
+          keysToRemove.push(key);
+        }
+      }
+      keysToRemove.forEach(key => localStorage.removeItem(key));
     } catch (error) {
       logger.database.error('[StorageService] 清空失败', error);
     }

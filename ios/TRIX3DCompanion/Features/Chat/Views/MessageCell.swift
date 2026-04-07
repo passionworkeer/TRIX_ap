@@ -45,22 +45,25 @@ struct MessageCell: View {
             }
 
             // 消息内容
-            VStack(alignment: isCurrentUser ? .trailing : .leading, spacing: 4) {
-                // 发送者名称 (仅对方消息显示)
-                if !isCurrentUser {
-                    Text(avatarUsername)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                        .padding(.leading, 4)
+            GeometryReader { geo in
+                VStack(alignment: isCurrentUser ? .trailing : .leading, spacing: 4) {
+                    // 发送者名称 (仅对方消息显示)
+                    if !isCurrentUser {
+                        Text(avatarUsername)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .padding(.leading, 4)
+                    }
+
+                    // 消息气泡 (带上下文菜单)
+                    messageBubbleWithContextMenu
+
+                    // 时间
+                    timestampView
                 }
-
-                // 消息气泡 (带上下文菜单)
-                messageBubbleWithContextMenu
-
-                // 时间
-                timestampView
+                .frame(maxWidth: geo.size.width * 0.7, alignment: isCurrentUser ? .trailing : .leading)
             }
-            .frame(maxWidth: UIScreen.main.bounds.width * 0.7, alignment: isCurrentUser ? .trailing : .leading)
+            .frame(maxWidth: .infinity, alignment: isCurrentUser ? .trailing : .leading)
 
             // 右侧头像 - 自己消息（靠右）
             if isCurrentUser {

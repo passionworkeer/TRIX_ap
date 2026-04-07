@@ -59,7 +59,7 @@ struct CameraView: View {
             }
         }
         .background(.black)
-        .statusBar(hidden: true)
+        .persistentSystemOverlays(.hidden)
         .task {
             await viewModel.startCamera()
         }

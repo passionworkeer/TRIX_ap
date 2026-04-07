@@ -351,7 +351,9 @@ try {
   if (typeof window !== 'undefined' && (window as any).React) {
     reactHooksAvailable = true;
   }
-} catch {}
+} catch (error) {
+  logger.warn('FeatureFlags', 'React hooks availability check failed:', error);
+}
 
 // ============================================
 // Direct Export

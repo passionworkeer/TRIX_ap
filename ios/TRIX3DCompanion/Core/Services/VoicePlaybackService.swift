@@ -17,6 +17,10 @@ final class VoicePlaybackService: NSObject, VoicePlaybackServiceProtocol {
 
     static let shared = VoicePlaybackService()
 
+    deinit {
+        progressTimer?.invalidate()
+    }
+
     // MARK: - Published Properties
 
     @Published private(set) var isPlaying: Bool = false

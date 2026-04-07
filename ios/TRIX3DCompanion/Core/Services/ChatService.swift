@@ -114,6 +114,11 @@ final class ChatService: ObservableObject, ChatServiceProtocol {
 
     static let shared = ChatService()
 
+    deinit {
+        messagePollingTimer?.invalidate()
+        messagePollingTimer = nil
+    }
+
     // MARK: - Constants
 
     private static let localRoomPrefix = "local:"

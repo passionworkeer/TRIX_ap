@@ -24,6 +24,7 @@ struct CelebrationAnimationView: View {
     @State private var confettiPieces: [ConfettiPiece] = []
     @State private var showTrophy = false
     @State private var showContent = false
+    @State private var screenSize: CGSize = CGSize(width: 400, height: 800)
 
     // MARK: - Properties
 
@@ -36,66 +37,71 @@ struct CelebrationAnimationView: View {
     // MARK: - Body
 
     var body: some View {
-        ZStack {
-            // 背景遮罩
-            Color.black.opacity(0.7)
-                .ignoresSafeArea()
-                .onTapGesture {
-                    onDismiss()
+        GeometryReader { geo in
+            ZStack {
+                // 背景遮罩
+                Color.black.opacity(0.7)
+                    .ignoresSafeArea()
+                    .onTapGesture {
+                        onDismiss()
+                    }
+
+                // 撒花动画
+                ForEach(confettiPieces) { piece in
+                    ConfettiPieceView(piece: piece)
                 }
 
-            // 撒花动画
-            ForEach(confettiPieces) { piece in
-                ConfettiPieceView(piece: piece)
+                // 内容
+                if showContent {
+                    VStack(spacing: 24) {
+                        // 奖杯图标
+                        if showTrophy {
+                            trophyView
+                        }
+
+                        // 标题
+                        VStack(spacing: 8) {
+                            Text(studyDuration >= 25 ? L("study.celebration.complete") : L("study.celebration.end"))
+                                .font(.title)
+                                .fontWeight(.bold)
+                                .foregroundColor(.white)
+
+                            Text(studyDuration >= 25 ? L("study.celebration.great") : L("study.celebration.progress"))
+                                .font(.subheadline)
+                                .foregroundColor(.pink)
+                        }
+
+                        // 数据卡片
+                        dataCard
+
+                        // 好友信息
+                        if hasCompanion, let name = companionName {
+                            companionView(name: name)
+                        }
+
+                        // 积分
+                        if earnedPoints > 0 {
+                            pointsView
+                        }
+
+                        // 关闭按钮
+                        Button(action: onDismiss) {
+                            Text(L("study.celebration.return"))
+                                .font(.headline)
+                                .foregroundColor(.brandPurple)
+                                .frame(maxWidth: .infinity)
+                                .padding()
+                                .background(Color.white)
+                                .cornerRadius(30)
+                        }
+                        .padding(.horizontal, 40)
+                        .padding(.top, 16)
+                    }
+                    .transition(.scale.combined(with: .opacity))
+                }
             }
-
-            // 内容
-            if showContent {
-                VStack(spacing: 24) {
-                    // 奖杯图标
-                    if showTrophy {
-                        trophyView
-                    }
-
-                    // 标题
-                    VStack(spacing: 8) {
-                        Text(studyDuration >= 25 ? L("study.celebration.complete") : L("study.celebration.end"))
-                            .font(.title)
-                            .fontWeight(.bold)
-                            .foregroundColor(.white)
-
-                        Text(studyDuration >= 25 ? L("study.celebration.great") : L("study.celebration.progress"))
-                            .font(.subheadline)
-                            .foregroundColor(.pink)
-                    }
-
-                    // 数据卡片
-                    dataCard
-
-                    // 好友信息
-                    if hasCompanion, let name = companionName {
-                        companionView(name: name)
-                    }
-
-                    // 积分
-                    if earnedPoints > 0 {
-                        pointsView
-                    }
-
-                    // 关闭按钮
-                    Button(action: onDismiss) {
-                        Text(L("study.celebration.return"))
-                            .font(.headline)
-                            .foregroundColor(.brandPurple)
-                            .frame(maxWidth: .infinity)
-                            .padding()
-                            .background(Color.white)
-                            .cornerRadius(30)
-                    }
-                    .padding(.horizontal, 40)
-                    .padding(.top, 16)
-                }
-                .transition(.scale.combined(with: .opacity))
+            .onAppear {
+                screenSize = geo.size
             }
         }
         .onAppear {
@@ -189,7 +195,7 @@ struct CelebrationAnimationView: View {
         confettiPieces = (0..<50).map { _ in
             ConfettiPiece(
                 id: UUID(),
-                x: CGFloat.random(in: 0...UIScreen.main.bounds.width),
+                x: CGFloat.random(in: 0...screenSize.width),
                 y: -50,
                 rotation: Double.random(in: 0...360),
                 color: [Color.pink, Color.yellow, Color.blue, Color.purple, Color.orange].randomElement()!,
@@ -238,7 +244,7 @@ struct ConfettiPieceView: View {
                     .easeIn(duration: 4)
                     .delay(piece.delay)
                 ) {
-                    yOffset = UIScreen.main.bounds.height + 50
+                    yOffset = screenSize.height + 50
                 }
             }
     }

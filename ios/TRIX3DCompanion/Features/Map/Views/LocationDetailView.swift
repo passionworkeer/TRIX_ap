@@ -317,19 +317,14 @@ struct MapPreview: View {
     let coordinate: CLLocationCoordinate2D
 
     var body: some View {
-        Map(
-            coordinateRegion: .constant(MKCoordinateRegion(
-                center: coordinate,
-                span: MKCoordinateSpan(latitudeDelta: 0.005, longitudeDelta: 0.005)
-            )),
-            annotationItems: [PreviewAnnotation(coordinate: coordinate)]
-        ) { annotation in
-            MapAnnotation(coordinate: annotation.coordinate) {
+        Map {
+            Annotation("", coordinate: coordinate) {
                 Image(systemName: "mappin.circle.fill")
                     .font(.title)
                     .foregroundColor(.brandPurple)
             }
         }
+        .mapStyle(.standard)
         .disabled(true)
     }
 }
