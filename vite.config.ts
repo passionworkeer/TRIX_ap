@@ -54,6 +54,7 @@ export default defineConfig(({ mode }: ConfigEnv) => {
     resolve: {
       alias: {
         '@': path.resolve(__dirname, './src'),
+        'use-sync-external-store/shim': path.resolve(__dirname, './src/shims/use-sync-external-store/shim'),
       },
     },
     optimizeDeps: {
@@ -63,6 +64,7 @@ export default defineConfig(({ mode }: ConfigEnv) => {
         'react-router-dom',
         '@supabase/supabase-js',
         'i18next',
+        'use-sync-external-store/shim',
       ],
       exclude: ['html5-qrcode', 'framer-motion'],
     },
