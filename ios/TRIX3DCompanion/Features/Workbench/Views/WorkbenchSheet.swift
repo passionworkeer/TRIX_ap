@@ -22,7 +22,7 @@ struct WorkbenchLocationPicker: View {
     var showAsSheet: Bool = true
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             VStack(spacing: 20) {
                 Image(systemName: "location.fill")
                     .font(.system(size: 60))
@@ -72,7 +72,7 @@ struct WorkbenchSheet: View {
     // MARK: - Body
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             VStack(spacing: 0) {
                 // Header
                 headerSection
@@ -312,7 +312,7 @@ struct SnapshotViewWrapper: View {
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             CameraView()
                 .ignoresSafeArea()
                 .toolbar {

@@ -8,17 +8,34 @@
 import Foundation
 import AVFoundation
 import UIKit
+import Combine
 @testable import TRIX3DCompanion
 
 /// Mock implementation of CameraServiceProtocol for unit testing
+@MainActor
 final class MockCameraService: CameraServiceProtocol {
 
     // MARK: - Mock Properties
 
-    var isSessionRunning: Bool = false
-    var flashMode: AVCaptureDevice.FlashMode = .off
-    var cameraPosition: AVCaptureDevice.Position = .back
+    var isSessionRunning: Bool = false {
+        didSet { isSessionRunningSubject.send(isSessionRunning) }
+    }
+    var flashMode: AVCaptureDevice.FlashMode = .off {
+        didSet { flashModeSubject.send(flashMode) }
+    }
+    var cameraPosition: AVCaptureDevice.Position = .back {
+        didSet { cameraPositionSubject.send(cameraPosition) }
+    }
     var lastError: CameraError?
+    var flashModePublisher: AnyPublisher<AVCaptureDevice.FlashMode, Never> {
+        flashModeSubject.eraseToAnyPublisher()
+    }
+    var cameraPositionPublisher: AnyPublisher<AVCaptureDevice.Position, Never> {
+        cameraPositionSubject.eraseToAnyPublisher()
+    }
+    var isSessionRunningPublisher: AnyPublisher<Bool, Never> {
+        isSessionRunningSubject.eraseToAnyPublisher()
+    }
 
     // Mock configuration
     var mockPermissionResult: Bool = true
@@ -40,6 +57,9 @@ final class MockCameraService: CameraServiceProtocol {
 
     // Camera position cycling
     private var cameraPositionIndex: Int = 0
+    private let flashModeSubject = CurrentValueSubject<AVCaptureDevice.FlashMode, Never>(.off)
+    private let cameraPositionSubject = CurrentValueSubject<AVCaptureDevice.Position, Never>(.back)
+    private let isSessionRunningSubject = CurrentValueSubject<Bool, Never>(false)
 
     // MARK: - Initialization
 
@@ -64,6 +84,7 @@ final class MockCameraService: CameraServiceProtocol {
 
         cameraPositionIndex = (cameraPositionIndex + 1) % mockCameraPositions.count
         cameraPosition = mockCameraPositions[cameraPositionIndex]
+        cameraPositionSubject.send(cameraPosition)
     }
 
     func toggleFlash() {
@@ -73,17 +94,23 @@ final class MockCameraService: CameraServiceProtocol {
 
         flashModeIndex = (flashModeIndex + 1) % mockFlashModes.count
         flashMode = mockFlashModes[flashModeIndex]
+        flashModeSubject.send(flashMode)
     }
 
     func startCameraSession() async -> Result<Void, CameraError> {
         startCameraSessionCallCount += 1
-        isSessionRunning = true
-        return mockStartSessionResult ?? .success(())
+        let result = mockStartSessionResult ?? .success(())
+        if case .success = result {
+            isSessionRunning = true
+            isSessionRunningSubject.send(true)
+        }
+        return result
     }
 
     func stopCameraSession() {
         stopCameraSessionCallCount += 1
         isSessionRunning = false
+        isSessionRunningSubject.send(false)
     }
 
     // MARK: - Helper Methods

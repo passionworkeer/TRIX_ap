@@ -407,6 +407,17 @@
 // MARK: - Chat
 "chat.load.earlier" = "載入更早的訊息";
 "chat.attach.media" = "附加媒體";
+"chat.context.copy" = "複製";
+"chat.context.forward" = "轉傳";
+"chat.context.delete" = "刪除";
+"chat.context.saveImage" = "儲存圖片";
+"chat.context.saveVideo" = "儲存影片";
+"chat.context.saveFile" = "儲存檔案";
+"chat.context.copyTranscript" = "複製轉錄文字";
+"chat.delete.confirm.title" = "刪除訊息";
+"chat.delete.confirm.message" = "確定要刪除這則訊息嗎？";
+"chat.delete.confirm.cancel" = "取消";
+"chat.delete.confirm.delete" = "刪除";
 "chat.photo.library" = "相簿";
 
 // MARK: - Voice / TTS
@@ -902,6 +913,46 @@
 "study.room.code" = "房間代碼";
 "study.room.max.members" = "最大人數";
 "study.room.current.state" = "目前狀態";
+"chat.attach.error.title" = "附件錯誤";
+"chat.attach.error.message" = "目前無法附加這張圖片，請稍後再試。";
+"profile.logout.confirm.title" = "確認登出？";
+"profile.logout.confirm.message" = "登出後需要重新登入才能繼續使用。";
+"profile.logout.confirm.action" = "登出";
+"profile.logout.loading" = "正在登出...";
+"location.info.address" = "地址";
+"location.info.description" = "描述";
+"location.info.coordinates" = "座標";
+"location.info.added" = "加入時間";
+"location.check.in.failed.title" = "簽到失敗";
+"location.check.in.failed.message" = "這次簽到沒有成功，請再試一次。";
+"study.room.error.title" = "自習室錯誤";
+"study.room.connecting" = "正在連接自習室服務...";
+"study.room.duration.minutes" = "%d 分鐘";
+"study.room.start.self" = "開始自己自習";
+"study.room.join.by.code.description" = "輸入房間代碼加入，或建立新房間";
+"study.room.code.placeholder" = "房間號";
+"study.room.create" = "建立";
+"study.room.friend.rooms" = "好友房間";
+"study.room.no.available.friends" = "暫無可用好友";
+"study.room.action.start" = "開始";
+"study.room.action.pause" = "暫停";
+"study.room.action.end" = "結束";
+"study.room.friend.room.summary" = "房間 %@ · %d 人";
+"study.room.friend.status.studying" = "學習中（非多人房）";
+"study.room.friend.status.idle" = "未在多人房間";
+"study.room.members" = "成員數";
+"study.room.finish" = "完成";
+"study.room.member.status.online" = "在線";
+"study.room.member.status.focusing" = "專注中";
+"study.room.member.status.resting" = "休息中";
+"study.room.entry.self" = "自己自習";
+"study.room.entry.friend" = "加入好友";
+"study.room.entry.code" = "房間號加入";
+"study.room.default.name" = "學習房間";
+"study.room.error.login.required" = "請先登入";
+"study.room.error.state.sync" = "房間已建立，但狀態同步失敗";
+"study.room.error.invalid.code" = "請輸入 6 位房間號";
+"study.room.error.friend.room.unavailable" = "這位好友目前沒有可加入的房間";
 
 // MARK: - Study Statistics Additional
 "study.stats.today" = "今天";

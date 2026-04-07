@@ -62,7 +62,7 @@ extension RecommendedUser {
 // MARK: - Attachment Type
 
 /// Types of attachments that can be sent
-enum AttachmentType {
+enum AttachmentType: Equatable {
     case photo
     case camera
     case video
@@ -88,4 +88,9 @@ enum AttachmentType {
         case .location: return "Location"
         }
     }
+}
+
+struct ResolvedChatAttachment: Equatable {
+    let type: AttachmentType
+    let url: String
 }

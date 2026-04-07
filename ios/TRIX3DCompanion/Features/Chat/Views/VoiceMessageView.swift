@@ -347,6 +347,14 @@ struct VoiceMessageView: View {
                 }
             }
             .frame(height: 30)
+            .contentShape(Rectangle())
+            .gesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { value in
+                        let progress = max(0, min(1, value.location.x / geometry.size.width))
+                        viewModel.seekToProgress(progress)
+                    }
+            )
         }
         .frame(height: 30)
     }

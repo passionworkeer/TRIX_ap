@@ -27,7 +27,7 @@ struct MusicSelectorView: View {
     // MARK: - Body
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ZStack {
                 // Background
                 Color.gray900

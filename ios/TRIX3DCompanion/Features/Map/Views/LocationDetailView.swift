@@ -10,11 +10,11 @@ import MapKit
 
 // MARK: - Localization Helper
 private func L(_ key: String) -> String {
-    NSLocalizedString(key, comment: "")
+    key.localized
 }
 
 private func L(_ key: String, _ value: String) -> String {
-    String(format: NSLocalizedString(key, comment: ""), value)
+    key.localized(value)
 }
 
 // MARK: - Location Detail View
@@ -37,7 +37,7 @@ struct LocationDetailView: View {
 
     @State private var showShareConfirmation = false
     @State private var showCheckInConfirmation = false
-    @State private var isCheckingIn = false
+    @StateObject private var checkInViewModel = LocationCheckInViewModel()
 
     // MARK: - Body
 
@@ -90,6 +90,19 @@ struct LocationDetailView: View {
         } message: {
             Text(L("location.check.in.question", location.name))
         }
+        .alert(L("location.check.in.failed.title"), isPresented: Binding(
+            get: { checkInViewModel.errorMessage != nil },
+            set: { if !$0 { checkInViewModel.clearError() } }
+        )) {
+            Button(L("action.retry")) {
+                performCheckIn()
+            }
+            Button(L("action.cancel"), role: .cancel) {
+                checkInViewModel.clearError()
+            }
+        } message: {
+            Text(checkInViewModel.errorMessage ?? L("location.check.in.failed.message"))
+        }
     }
 
     // MARK: - View Components
@@ -141,7 +154,7 @@ struct LocationDetailView: View {
             if let address = location.address {
                 LocationInfoRow(
                     icon: "location.fill",
-                    label: "Address",
+                    label: L("location.info.address"),
                     value: address
                 )
             }
@@ -150,7 +163,7 @@ struct LocationDetailView: View {
             if let description = location.description {
                 LocationInfoRow(
                     icon: "text.alignleft",
-                    label: "Description",
+                    label: L("location.info.description"),
                     value: description
                 )
             }
@@ -158,14 +171,14 @@ struct LocationDetailView: View {
             // Coordinates
             LocationInfoRow(
                 icon: "globe",
-                label: "Coordinates",
+                label: L("location.info.coordinates"),
                 value: String(format: "%.4f, %.4f", location.latitude, location.longitude)
             )
 
             // Created date
             LocationInfoRow(
                 icon: "calendar",
-                label: "Added",
+                label: L("location.info.added"),
                 value: location.createdAt.formatted(date: .abbreviated, time: .shortened)
             )
         }
@@ -203,7 +216,7 @@ struct LocationDetailView: View {
             // Check in button
             Button(action: { showCheckInConfirmation = true }) {
                 HStack {
-                    if isCheckingIn {
+                    if checkInViewModel.isCheckingIn {
                         ProgressView()
                             .progressViewStyle(CircularProgressViewStyle(tint: .brandPurple))
                     } else {
@@ -220,7 +233,7 @@ struct LocationDetailView: View {
                 .background(Color.brandPurple.opacity(0.1))
                 .clipShape(RoundedRectangle(cornerRadius: 12))
             }
-            .disabled(isCheckingIn)
+            .disabled(checkInViewModel.isCheckingIn)
         }
     }
 
@@ -260,23 +273,10 @@ struct LocationDetailView: View {
 
     /// Perform check-in
     private func performCheckIn() {
-        isCheckingIn = true
-
         Task {
-            do {
-                // Call backend API for check-in
-                let _: EmptyResponse = try await APIClient.shared.post(.placeCheckIn(placeId: location.id))
-
-                await MainActor.run {
-                    isCheckingIn = false
-                    dismiss()
-                }
-            } catch {
-                // API call failed, still dismiss for now (graceful degradation)
-                await MainActor.run {
-                    isCheckingIn = false
-                    dismiss()
-                }
+            let succeeded = await checkInViewModel.checkIn(placeId: location.id)
+            if succeeded {
+                dismiss()
             }
         }
     }

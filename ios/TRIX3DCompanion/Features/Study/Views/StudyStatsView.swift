@@ -40,7 +40,7 @@ struct StudyStatsView: View {
     // MARK: - Body
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ZStack {
                 // Background gradient
                 backgroundGradient

@@ -33,7 +33,7 @@ struct ScheduleListView: View {
     // MARK: - Body
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             VStack(spacing: 0) {
                 // Filter Bar
                 filterBar
@@ -156,6 +156,9 @@ struct ScheduleListView: View {
                     }
                 }
                 .listStyle(.insetGrouped)
+                .refreshable {
+                    await viewModel.loadSchedules()
+                }
             }
         }
     }

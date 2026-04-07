@@ -35,7 +35,7 @@ struct NewProfileView: View {
     // MARK: - Body
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ZStack {
                 // Background
                 Color(.systemGroupedBackground)
@@ -456,7 +456,7 @@ struct EditProfileSheet: View {
     @State private var bio: String = ""
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             Form {
                 Section(L("profile.display.name")) {
                     TextField(L("profile.display.name.placeholder"), text: $displayName)

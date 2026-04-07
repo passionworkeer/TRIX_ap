@@ -49,7 +49,7 @@ struct SnapshotListView: View {
     // MARK: - Body
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ZStack {
                 // Background
                 Color(.systemGroupedBackground)
@@ -290,7 +290,7 @@ struct SnapshotDetailView: View {
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ScrollView {
                 VStack(spacing: 20) {
                     // Image

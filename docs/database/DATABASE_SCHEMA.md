@@ -106,6 +106,7 @@
 | `user_purchased_items` | 用户已购商品 | user_id, item_id, purchased_at |
 | `pairings` | 设备配对 | user_id, device_id, status, platform |
 | `user_settings` | 用户设置 | user_id, key, value |
+| `feature_flags` | 功能开关 | key, enabled, environment, rollout_percentage |
 
 ### 2.3 视图（Views�?
 
@@ -536,6 +537,73 @@ CREATE TABLE user_settings (
 );
 
 CREATE INDEX idx_user_settings_user ON user_settings(user_id);
+```
+
+---
+
+### 3.16 Feature Flags (feature_flags)
+
+Remote configuration system for feature flags and gradual rollouts.
+
+```sql
+CREATE TABLE feature_flags (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  key TEXT UNIQUE NOT NULL,
+  enabled BOOLEAN DEFAULT false,
+  value JSONB,                          -- Optional typed value (string, number, boolean)
+  description TEXT,
+  environment TEXT NOT NULL DEFAULT 'production'
+    CHECK (environment IN ('development', 'staging', 'production')),
+  rollout_percentage INTEGER DEFAULT 100 CHECK (rollout_percentage >= 0 AND rollout_percentage <= 100),
+  target_user_ids UUID[] DEFAULT '{}',  -- Specific users to always enable
+  target_groups TEXT[] DEFAULT '{}',    -- User groups to target
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_feature_flags_env ON feature_flags(environment);
+CREATE INDEX idx_feature_flags_enabled ON feature_flags(enabled) WHERE enabled = true;
+
+-- RLS: Allow read for authenticated users, write for admin only
+ALTER TABLE feature_flags ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Allow read all authenticated"
+  ON feature_flags FOR SELECT
+  TO authenticated
+  USING (true);
+
+CREATE POLICY "Allow update admin only"
+  ON feature_flags FOR UPDATE
+  TO authenticated
+  USING (true)
+  WITH CHECK (true);
+```
+
+**字段说明**:
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| key | TEXT | 功能开关唯一标识 |
+| enabled | BOOLEAN | 全局启用状态 |
+| value | JSONB | 功能值（可选，用于配置型开关） |
+| environment | TEXT | 环境（development/staging/production） |
+| rollout_percentage | INTEGER | 灰度发布百分比（0-100） |
+| target_user_ids | UUID[] | 指定用户白名单 |
+| target_groups | TEXT[] | 用户组白名单 |
+
+**示例数据**:
+```sql
+-- 启用新聊天 UI，灰度 20%
+INSERT INTO feature_flags (key, enabled, description, environment, rollout_percentage) VALUES
+  ('new-chat-ui', true, 'Enable new chat interface', 'production', 20);
+
+-- 启用语音消息，全部用户
+INSERT INTO feature_flags (key, enabled, description, environment, rollout_percentage) VALUES
+  ('voice-messages', true, 'Enable voice messages', 'production', 100);
+
+-- 启用 AI 伴侣，特定用户
+INSERT INTO feature_flags (key, enabled, description, environment, target_user_ids) VALUES
+  ('ai-companion-beta', true, 'AI Companion beta features', 'production',
+   ARRAY['uuid-1', 'uuid-2', 'uuid-3']::UUID[]);
 ```
 
 ---

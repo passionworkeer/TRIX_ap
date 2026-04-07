@@ -6,7 +6,7 @@ struct ThemePreviewView: View {
     @State private var themeManager = ThemeManager.preview
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ScrollView {
                 VStack(spacing: 24) {
                     // Theme picker

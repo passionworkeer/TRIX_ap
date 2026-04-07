@@ -210,7 +210,7 @@ struct MapView: View {
 
             // Heat zone overlays - with hit testing disabled
             ForEach(viewModel.heatZones) { heatZone in
-                HeatZoneOverlay(heatZone: heatZone, region: viewModel.region)
+                HeatZoneOverlay(heatZone: heatZone, region: viewModel.region, containerSize: proxy.size)
             }
         }
     }
@@ -1317,6 +1317,7 @@ private struct FriendMapPin: View {
 struct HeatZoneOverlay: View {
     let heatZone: HeatZone
     let region: MKCoordinateRegion
+    let containerSize: CGSize
 
     var body: some View {
         Circle()
@@ -1336,7 +1337,7 @@ struct HeatZoneOverlay: View {
             .allowsHitTesting(false)
     }
 
-    /// Convert coordinate to view position (simplified)
+    /// Convert coordinate to view position using actual container size
     private func coordinateToPosition(_ coordinate: CLLocationCoordinate2D) -> CGPoint {
         let span = region.span
         let center = region.center
@@ -1345,13 +1346,9 @@ struct HeatZoneOverlay: View {
         let latDiff = (coordinate.latitude - center.latitude) / span.latitudeDelta
         let lngDiff = (coordinate.longitude - center.longitude) / span.longitudeDelta
 
-        // Assume screen size (will be adjusted by parent view)
-        let screenWidth: CGFloat = 400
-        let screenHeight: CGFloat = 600
-
         return CGPoint(
-            x: (0.5 + lngDiff) * screenWidth,
-            y: (0.5 - latDiff) * screenHeight
+            x: (0.5 + lngDiff) * containerSize.width,
+            y: (0.5 - latDiff) * containerSize.height
         )
     }
 }

@@ -128,6 +128,9 @@ struct MailPanelView: View {
             .padding(.horizontal, 16)
             .padding(.bottom, 20)
         }
+        .refreshable {
+            await loadMessagesAsync()
+        }
     }
 
     // MARK: - Empty State
@@ -148,30 +151,34 @@ struct MailPanelView: View {
     // MARK: - Actions
 
     private func loadMessages() {
+        Task {
+            await loadMessagesAsync()
+        }
+    }
+
+    private func loadMessagesAsync() async {
         isLoading = true
         errorMessage = nil
 
-        Task {
-            do {
-                // Fetch notifications from backend API
-                let notifications: [APIAppNotification] = try await apiClient.get(.notificationList)
+        do {
+            // Fetch notifications from backend API
+            let notifications: [APIAppNotification] = try await apiClient.get(.notificationList)
 
-                // Map API notifications to mail messages
-                messages = notifications.map { notification in
-                    MailMessage(
-                        id: UUID(uuidString: notification.id) ?? UUID(),
-                        sender: notification.title,
-                        title: notification.title,
-                        content: notification.body,
-                        time: formatTime(notification.createdAt),
-                        isRead: notification.isRead
-                    )
-                }
-                isLoading = false
-            } catch {
-                isLoading = false
-                errorMessage = L("mail.load.failed").replacingOccurrences(of: "%@", with: error.localizedDescription)
+            // Map API notifications to mail messages
+            messages = notifications.map { notification in
+                MailMessage(
+                    id: UUID(uuidString: notification.id) ?? UUID(),
+                    sender: notification.title,
+                    title: notification.title,
+                    content: notification.body,
+                    time: formatTime(notification.createdAt),
+                    isRead: notification.isRead
+                )
             }
+            isLoading = false
+        } catch {
+            isLoading = false
+            errorMessage = L("mail.load.failed").replacingOccurrences(of: "%@", with: error.localizedDescription)
         }
     }
 

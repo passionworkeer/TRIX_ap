@@ -23,6 +23,15 @@ struct MessageCell: View {
     let message: ChatMessage
     let isCurrentUser: Bool
 
+    // MARK: - Callbacks
+
+    var onCopy: ((ChatMessage) -> Void)?
+    var onForward: ((ChatMessage) -> Void)?
+    var onDelete: ((ChatMessage) -> Void)?
+    var onSaveImage: ((String) -> Void)?
+    var onSaveVideo: ((String) -> Void)?
+    var onSaveFile: ((String, String?) -> Void)?
+
     // MARK: - Body
 
     var body: some View {
@@ -45,8 +54,8 @@ struct MessageCell: View {
                         .padding(.leading, 4)
                 }
 
-                // 消息气泡
-                messageBubble
+                // 消息气泡 (带上下文菜单)
+                messageBubbleWithContextMenu
 
                 // 时间
                 timestampView
@@ -104,6 +113,100 @@ struct MessageCell: View {
     /// Whether sender is online (simplified - always false for messages)
     private var senderIsOnline: Bool {
         message.sender == .bot
+    }
+
+    /// Message bubble with context menu
+    @ViewBuilder
+    private var messageBubbleWithContextMenu: some View {
+        messageBubble
+            .contextMenu {
+                contextMenuItems
+            }
+    }
+
+    /// Context menu items based on message type and sender
+    @ViewBuilder
+    private var contextMenuItems: some View {
+        // 转发选项 - 所有消息类型都支持
+        Button {
+            onForward?(message)
+        } label: {
+            Label(L("chat.context.forward"), systemImage: "arrowshape.turn.up.right")
+        }
+
+        // 根据消息类型显示特定选项
+        switch message.messageType {
+        case .text:
+            // 复制文本
+            Button {
+                copyTextToClipboard()
+            } label: {
+                Label(L("chat.context.copy"), systemImage: "doc.on.doc")
+            }
+
+        case .image:
+            // 保存图片
+            if let mediaUrl = message.mediaUrl, !mediaUrl.isEmpty {
+                Button {
+                    onSaveImage?(mediaUrl)
+                } label: {
+                    Label(L("chat.context.saveImage"), systemImage: "square.and.arrow.down")
+                }
+            }
+
+        case .video:
+            // 保存视频
+            if let mediaUrl = message.mediaUrl, !mediaUrl.isEmpty {
+                Button {
+                    onSaveVideo?(mediaUrl)
+                } label: {
+                    Label(L("chat.context.saveVideo"), systemImage: "square.and.arrow.down")
+                }
+            }
+
+        case .voice:
+            // 复制语音转录文本
+            if let transcript = message.voiceTranscript, !transcript.isEmpty {
+                Button {
+                    copyTextToClipboard(transcript)
+                } label: {
+                    Label(L("chat.context.copyTranscript"), systemImage: "doc.on.doc")
+                }
+            }
+
+        case .file:
+            // 保存文件
+            if let mediaUrl = message.mediaUrl, !mediaUrl.isEmpty {
+                Button {
+                    onSaveFile?(mediaUrl, message.mediaMimeType)
+                } label: {
+                    Label(L("chat.context.saveFile"), systemImage: "square.and.arrow.down")
+                }
+            }
+        }
+
+        // 删除选项 - 仅当前用户消息可删除
+        if isCurrentUser {
+            Divider()
+
+            Button(role: .destructive) {
+                confirmDelete()
+            } label: {
+                Label(L("chat.context.delete"), systemImage: "trash")
+            }
+        }
+    }
+
+    /// Copy text to clipboard
+    private func copyTextToClipboard(_ text: String? = nil) {
+        let textToCopy = text ?? message.content
+        UIPasteboard.general.string = textToCopy
+        onCopy?(message)
+    }
+
+    /// Confirm and delete message
+    private func confirmDelete() {
+        onDelete?(message)
     }
 
     /// Message bubble

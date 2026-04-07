@@ -94,6 +94,9 @@ struct ChatListView: View {
                 }
                 .padding(.bottom, 20)
             }
+            .refreshable {
+                await loadFriends()
+            }
 
         }
         .navigationTitle(L("chat.title"))
@@ -476,19 +479,21 @@ struct ChatListView: View {
                 .padding(.top, 16)
                 .padding(.bottom, 8)
 
-            ForEach(Array(filteredConversations.enumerated()), id: \.element.id) { index, conversation in
-                Button {
-                    SecureLogger.shared.debug("ChatListView: Tapped conversation \(conversation.name)")
-                    onNavigateToChat?(conversation)
-                } label: {
-                    ConversationRow(conversation: conversation)
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
+            LazyVStack(alignment: .leading, spacing: 0) {
+                ForEach(Array(filteredConversations.enumerated()), id: \.element.id) { index, conversation in
+                    Button {
+                        SecureLogger.shared.debug("ChatListView: Tapped conversation \(conversation.name)")
+                        onNavigateToChat?(conversation)
+                    } label: {
+                        ConversationRow(conversation: conversation)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
 
-                if index < filteredConversations.count - 1 {
-                    Divider()
-                        .padding(.leading, 84)
+                    if index < filteredConversations.count - 1 {
+                        Divider()
+                            .padding(.leading, 84)
+                    }
                 }
             }
         }

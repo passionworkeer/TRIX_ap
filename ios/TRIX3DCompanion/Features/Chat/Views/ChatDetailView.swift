@@ -7,10 +7,11 @@
 
 import SwiftUI
 import ActivityIndicatorView
+import UIKit
 
 // MARK: - Localization Helper
 private func L(_ key: String) -> String {
-    NSLocalizedString(key, comment: "")
+    key.localized
 }
 
 // MARK: - Chat Detail View
@@ -25,12 +26,15 @@ struct ChatDetailView: View {
 
     // MARK: - State
 
+    @StateObject private var attachmentViewModel = ChatMediaAttachmentViewModel()
     @State private var messageText: String = ""
     @State private var showingImagePicker = false
     @State private var showingAttachmentOptions = false
     @State private var showingCamera = false
     @State private var previousMessageCount: Int = 0
     @State private var shouldScrollToBottom: Bool = false
+    @State private var searchText: String = ""
+    @State private var isSearching: Bool = false
 
     @FocusState private var isInputFocused: Bool
 
@@ -48,6 +52,11 @@ struct ChatDetailView: View {
                 connectionStatusBar
             }
 
+            // Search bar
+            if isSearching {
+                searchBar
+            }
+
             // Messages list
             messagesList
         }
@@ -58,6 +67,13 @@ struct ChatDetailView: View {
         .gesture(TapGesture().onEnded { _ in dismissKeyboard() })
         .navigationTitle(conversation.name)
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button(action: { isSearching.toggle() }) {
+                    Image(systemName: isSearching ? "xmark" : "magnifyingglass")
+                }
+            }
+        }
         .onAppear {
             Task { await loadConversation() }
         }
@@ -65,9 +81,19 @@ struct ChatDetailView: View {
             chatService.disconnectWebSocket()
         }
         .sheet(isPresented: $showingImagePicker) {
-            ChatDetailViewImagePicker { imageURL in
-                Task { _ = await chatService.sendMessage(roomId: conversation.id, content: imageURL, type: .image) }
-            }
+            SystemPhotoLibraryPicker(
+                onImagePicked: { image in
+                    showingImagePicker = false
+                    Task { await sendPickedImage(image) }
+                },
+                onCancel: {
+                    showingImagePicker = false
+                },
+                onFailure: { error in
+                    showingImagePicker = false
+                    attachmentViewModel.errorMessage = error?.localizedDescription ?? L("chat.attach.error.message")
+                }
+            )
         }
         .confirmationDialog(L("chat.attach.media"), isPresented: $showingAttachmentOptions) {
             Button(L("chat.photo.library")) { showingImagePicker = true }
@@ -80,6 +106,16 @@ struct ChatDetailView: View {
                     Task { _ = await chatService.sendMessage(roomId: conversation.id, content: url, type: .image) }
                 }
             }
+        }
+        .alert(L("chat.attach.error.title"), isPresented: Binding(
+            get: { attachmentViewModel.errorMessage != nil },
+            set: { if !$0 { attachmentViewModel.clearError() } }
+        )) {
+            Button(L("action.confirm"), role: .cancel) {
+                attachmentViewModel.clearError()
+            }
+        } message: {
+            Text(attachmentViewModel.errorMessage ?? L("chat.attach.error.message"))
         }
     }
 
@@ -112,7 +148,42 @@ struct ChatDetailView: View {
         .padding(.top, 8)
     }
 
+    // MARK: - Search Bar
+
+    private var searchBar: some View {
+        HStack {
+            Image(systemName: "magnifyingglass")
+                .foregroundColor(.secondary)
+
+            TextField(L("chat.search.placeholder"), text: $searchText)
+                .textFieldStyle(.plain)
+                .autocorrectionDisabled()
+
+            if !searchText.isEmpty {
+                Button(action: { searchText = "" }) {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundColor(.secondary)
+                }
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(Color(.systemGray6))
+        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .padding(.horizontal, 12)
+        .padding(.vertical, 4)
+    }
+
     // MARK: - Messages List
+
+    private var filteredMessages: [ChatMessage] {
+        if searchText.isEmpty {
+            return chatService.currentMessages
+        }
+        return chatService.currentMessages.filter { message in
+            message.text.localizedCaseInsensitiveContains(searchText)
+        }
+    }
 
     private var messagesList: some View {
         ScrollViewReader { proxy in
@@ -121,7 +192,7 @@ struct ChatDetailView: View {
                     if chatService.hasMoreMessages && !chatService.currentMessages.isEmpty {
                         loadMoreButton
                     }
-                    ForEach(chatService.currentMessages) { message in
+                    ForEach(filteredMessages) { message in
                         MessageCell(message: message, isCurrentUser: message.sender == .user).id(message.id)
                     }
                 }
@@ -149,7 +220,7 @@ struct ChatDetailView: View {
     }
 
     private func scrollToBottom(proxy: ScrollViewProxy) {
-        if let lastMessage = chatService.currentMessages.last {
+        if let lastMessage = filteredMessages.last {
             proxy.scrollTo(lastMessage.id, anchor: .bottom)
         }
     }
@@ -170,11 +241,18 @@ struct ChatDetailView: View {
     private var inputArea: some View {
         HStack(alignment: .bottom, spacing: 12) {
             Button(action: { showingAttachmentOptions = true }) {
-                Image(systemName: "plus.circle.fill")
-                    .font(.title2)
-                    .foregroundColor(.brandPurple)
+                if attachmentViewModel.isUploading {
+                    ProgressView()
+                        .progressViewStyle(CircularProgressViewStyle())
+                        .tint(.brandPurple)
+                        .frame(width: 24, height: 24)
+                } else {
+                    Image(systemName: "plus.circle.fill")
+                        .font(.title2)
+                        .foregroundColor(.brandPurple)
+                }
             }
-            .disabled(!chatService.isConnected)
+            .disabled(!chatService.isConnected || attachmentViewModel.isUploading)
 
             HStack(alignment: .bottom, spacing: 8) {
                 TextField(L("chat.placeholder"), text: $messageText, axis: .vertical)
@@ -257,30 +335,13 @@ struct ChatDetailView: View {
 
     private func openCamera() { showingCamera = true }
     private func dismissKeyboard() { isInputFocused = false }
-}
 
-// MARK: - Image Picker
+    private func sendPickedImage(_ image: UIImage) async {
+        guard let imageURL = await attachmentViewModel.upload(image: image) else { return }
 
-struct ChatDetailViewImagePicker: View {
-    let onImageSelected: (String) -> Void
-    @Environment(\.dismiss) private var dismiss
-
-    var body: some View {
-        NavigationStack {
-            VStack(spacing: 20) {
-                Image(systemName: "photo.on.rectangle.angled").font(.system(size: 60)).foregroundColor(.purple)
-                Text(L("camera.select.photo")).font(.title2).fontWeight(.semibold)
-                Text(L("camera.select.photo")).font(.body).foregroundColor(.secondary).multilineTextAlignment(.center).padding()
-                Button(L("camera.sample.image")) {
-                    onImageSelected("https://picsum.photos/400/400?random=\(Int.random(in: 1...1000))")
-                    dismiss()
-                }.buttonStyle(.borderedProminent)
-            }.padding()
-            .navigationTitle(L("camera.select.photo"))
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) { Button(L("action.cancel")) { dismiss() } }
-            }
+        let result = await chatService.sendMessage(roomId: conversation.id, content: imageURL, type: .image)
+        if case .failure(let error) = result {
+            attachmentViewModel.errorMessage = error.errorDescription
         }
     }
 }

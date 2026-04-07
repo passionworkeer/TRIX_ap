@@ -65,7 +65,7 @@ struct TodoFormView: View {
     // MARK: - Body
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             Form {
                 // Title Section
                 Section {

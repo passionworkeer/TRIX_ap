@@ -692,7 +692,7 @@ private struct TimerSettingsSheet: View {
     let onApply: () -> Void
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             Form {
                 Section(L("study.timer.focus.duration")) {
                     Stepper(value: $focusMinutes, in: 1...180) {

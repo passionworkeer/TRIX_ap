@@ -158,6 +158,69 @@ export async function getChatHistory(
   }
 }
 
+/** 搜索聊天消息 */
+export async function searchMessages(
+  friendId: string,
+  query: string,
+  options?: {
+    limit?: number;
+    beforeTimestamp?: string;
+  }
+): Promise<{ messages: ChatMessage[]; hasMore: boolean }> {
+  try {
+    const userId = await getCurrentUserId();
+
+    const conversationId = userId < friendId
+      ? `${userId}_${friendId}`
+      : `${friendId}_${userId}`;
+
+    const limit = options?.limit ?? 50;
+    const beforeTimestamp = options?.beforeTimestamp;
+
+    let dataQuery = supabase
+      .from('chat_messages')
+      .select('*')
+      .eq('conversation_id', conversationId)
+      .ilike('text', `%${query}%`);
+
+    if (beforeTimestamp) {
+      dataQuery = dataQuery.lt('created_at', beforeTimestamp);
+    }
+
+    const { data, error } = await dataQuery
+      .order('created_at', { ascending: false })
+      .limit(limit);
+
+    if (error) {
+      handleGlobalError(error, '搜索消息失败');
+      return { messages: [], hasMore: false };
+    }
+
+    const dbMessages = [...(data || [])].reverse();
+
+    const messages: ChatMessage[] = dbMessages.map((msg) => ({
+      id: msg.id,
+      friend_id: friendId,
+      sender: msg.sender_id === userId ? 'user' : 'friend',
+      text: msg.text,
+      created_at: msg.created_at,
+      message_type: msg.message_type,
+      media_uri: msg.media_uri,
+      media_type: msg.media_type,
+      media_size: msg.media_size,
+      media_metadata: msg.media_metadata,
+    }));
+
+    return {
+      messages,
+      hasMore: dbMessages.length === limit,
+    };
+  } catch (error) {
+    handleGlobalError(error, '搜索消息失败');
+    return { messages: [], hasMore: false };
+  }
+}
+
 /** 发送消息 */
 export async function sendMessage(
   friendId: string,

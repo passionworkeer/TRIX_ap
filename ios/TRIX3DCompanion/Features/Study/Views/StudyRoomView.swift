@@ -12,16 +12,36 @@ import SwiftUI
 // MARK: - Localization Helper
 
 private func L(_ key: String) -> String {
-    NSLocalizedString(key, comment: "")
+    key.localized
+}
+
+private func LF(_ key: String, _ arguments: CVarArg...) -> String {
+    String(format: key.localized, arguments: arguments)
 }
 
 // MARK: - Duration Presets
 
 private let DURATION_PRESETS = [25, 45, 60]
 
+private func studyRoomSessionStateText(_ state: StudyRoomSessionState) -> String {
+    switch state {
+    case .idle: return L("study.room.state.idle")
+    case .focusing: return L("study.room.state.focusing")
+    case .resting: return L("study.room.state.resting")
+    }
+}
+
+private func studyRoomMemberStatusText(_ status: StudyRoomMemberStatus) -> String {
+    switch status {
+    case .online: return L("study.room.member.status.online")
+    case .focusing: return L("study.room.member.status.focusing")
+    case .resting: return L("study.room.member.status.resting")
+    }
+}
+
 // MARK: - Study Room View
 
-/// 学习房间详情视图
+/// Study room detail view
 struct StudyRoomView: View {
 
     // MARK: - Environment
@@ -43,7 +63,7 @@ struct StudyRoomView: View {
     // MARK: - Body
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ZStack {
                 backgroundGradient
                     .ignoresSafeArea()
@@ -96,7 +116,7 @@ struct StudyRoomView: View {
                     ))
                 }
             }
-            .alert("错误", isPresented: Binding(
+            .alert(L("study.room.error.title"), isPresented: Binding(
                 get: { viewModel.errorMessage != nil },
                 set: { if !$0 { viewModel.clearError() } }
             )) {
@@ -113,7 +133,7 @@ struct StudyRoomView: View {
 
     // MARK: - View Components
 
-    /// 入口模式选择器
+    /// Entry mode selector
     private var entryModeSelector: some View {
         VStack(spacing: 16) {
             // Connection status indicator
@@ -121,7 +141,7 @@ struct StudyRoomView: View {
                 HStack(spacing: 6) {
                     Image(systemName: "wifi.slash")
                         .font(.caption)
-                    Text("正在连接自习室服务...")
+                    Text(L("study.room.connecting"))
                         .font(.caption)
                 }
                 .foregroundColor(.orange)
@@ -168,7 +188,7 @@ struct StudyRoomView: View {
         .padding(.horizontal, 4)
     }
 
-    /// 入口模式内容
+    /// Entry mode content
     @ViewBuilder
     private var entryModeContent: some View {
         switch viewModel.entryMode {
@@ -181,10 +201,10 @@ struct StudyRoomView: View {
         }
     }
 
-    /// 自己自习模式
+    /// Solo study mode
     private var selfStudyContent: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("选择本次专注时长")
+            Text(L("study.room.focus.duration"))
                 .font(.caption)
                 .foregroundColor(.white.opacity(0.5))
                 .tracking(0.12)
@@ -196,7 +216,7 @@ struct StudyRoomView: View {
                             viewModel.selectedDuration = minute
                         }
                     }) {
-                        Text("\(minute) 分钟")
+                        Text(LF("study.room.duration.minutes", minute))
                             .font(.system(size: 14))
                             .padding(.horizontal, 16)
                             .padding(.vertical, 8)
@@ -225,7 +245,7 @@ struct StudyRoomView: View {
                 HStack {
                     Image(systemName: "play.fill")
                         .font(.system(size: 13))
-                    Text("开始自己自习")
+                    Text(L("study.room.start.self"))
                         .font(.system(size: 15, weight: .semibold))
                 }
                 .foregroundColor(.white)
@@ -246,16 +266,16 @@ struct StudyRoomView: View {
         .clipShape(RoundedRectangle(cornerRadius: 20))
     }
 
-    /// 房间号加入模式
+    /// Join by room code mode
     private var codeEntryContent: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("输入房间号加入，或创建新房间")
+            Text(L("study.room.join.by.code.description"))
                 .font(.caption)
                 .foregroundColor(.white.opacity(0.5))
                 .tracking(0.12)
 
             HStack(spacing: 10) {
-                TextField("房间号", text: $viewModel.roomCodeInput)
+                TextField(L("study.room.code.placeholder"), text: $viewModel.roomCodeInput)
                     .font(.system(size: 15, design: .monospaced))
                     .textInputAutocapitalization(.characters)
                     .autocorrectionDisabled()
@@ -271,7 +291,7 @@ struct StudyRoomView: View {
                 Button(action: {
                     Task { await viewModel.createRoom() }
                 }) {
-                    Text("创建")
+                    Text(L("study.room.create"))
                         .font(.system(size: 14, weight: .medium))
                         .foregroundColor(.white)
                         .padding(.horizontal, 16)
@@ -287,7 +307,7 @@ struct StudyRoomView: View {
                     HStack(spacing: 4) {
                         Image(systemName: "arrow.right.circle.fill")
                             .font(.system(size: 13))
-                        Text("加入")
+                        Text(L("study.room.join"))
                             .font(.system(size: 14, weight: .medium))
                     }
                     .foregroundColor(.black)
@@ -304,11 +324,11 @@ struct StudyRoomView: View {
         .clipShape(RoundedRectangle(cornerRadius: 20))
     }
 
-    /// 好友房间列表
+    /// Friend's room list
     private var friendListContent: some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
-                Text("好友房间")
+                Text(L("study.room.friend.rooms"))
                     .font(.caption)
                     .foregroundColor(.white.opacity(0.5))
                     .tracking(0.12)
@@ -329,7 +349,7 @@ struct StudyRoomView: View {
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 20)
             } else if viewModel.friendCandidates.isEmpty {
-                Text("暂无可用好友")
+                Text(L("study.room.no.available.friends"))
                     .font(.subheadline)
                     .foregroundColor(.white.opacity(0.4))
                     .frame(maxWidth: .infinity)
@@ -353,7 +373,7 @@ struct StudyRoomView: View {
         .clipShape(RoundedRectangle(cornerRadius: 20))
     }
 
-    /// 房间信息卡片（已入房间）
+    /// Room info card (in-room)
     private var roomInfoCard: some View {
         guard let room = viewModel.roomState else { return AnyView(EmptyView()) }
 
@@ -413,7 +433,7 @@ struct StudyRoomView: View {
                 // Remaining timer
                 if let remaining = viewModel.remainingSeconds, room.sessionState != .idle {
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("Remaining")
+                        Text(L("study.room.remaining"))
                             .font(.caption2)
                             .foregroundColor(.white.opacity(0.4))
                             .tracking(0.14)
@@ -430,7 +450,7 @@ struct StudyRoomView: View {
         )
     }
 
-    /// 状态徽章
+    /// Status badge
     private func statusBadge(for state: StudyRoomSessionState) -> some View {
         let color: Color = {
             switch state {
@@ -455,7 +475,7 @@ struct StudyRoomView: View {
         .clipShape(Capsule())
     }
 
-    /// 参与者列表
+    /// Participants list
     private var participantsSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text(L("study.room.participants"))
@@ -487,7 +507,7 @@ struct StudyRoomView: View {
         .clipShape(RoundedRectangle(cornerRadius: 16))
     }
 
-    /// 空参与者视图
+    /// Empty participants view
     private var emptyParticipantsView: some View {
         VStack(spacing: 12) {
             Image(systemName: "person.2.slash")
@@ -506,7 +526,7 @@ struct StudyRoomView: View {
         .padding(.vertical, 20)
     }
 
-    /// 空座位
+    /// Empty seat
     private var emptySeat: some View {
         VStack(spacing: 6) {
             ZStack {
@@ -520,7 +540,7 @@ struct StudyRoomView: View {
         }
     }
 
-    /// 学习进度
+    /// Study progress
     private var studyProgressSection: some View {
         guard let timer = viewModel.roomState?.timer else {
             return AnyView(
@@ -570,13 +590,13 @@ struct StudyRoomView: View {
         )
     }
 
-    /// 会话控制
+    /// Session controls
     private var sessionControlsSection: some View {
         VStack(spacing: 12) {
             // Duration selector (host, idle state only)
             if viewModel.isHost && viewModel.roomState?.sessionState == .idle {
                 HStack(spacing: 8) {
-                    Text("Focus Duration")
+                    Text(L("study.room.focus.duration"))
                         .font(.caption2)
                         .foregroundColor(.white.opacity(0.4))
                         .tracking(0.14)
@@ -587,7 +607,7 @@ struct StudyRoomView: View {
                                 viewModel.selectedDuration = minute
                             }
                         }) {
-                            Text("\(minute) 分钟")
+                            Text(LF("study.room.duration.minutes", minute))
                                 .font(.caption)
                                 .padding(.horizontal, 10)
                                 .padding(.vertical, 5)
@@ -614,7 +634,7 @@ struct StudyRoomView: View {
                     Button(action: {
                         Task { await viewModel.performHostAction(.startFocus) }
                     }) {
-                        Label("开始", systemImage: "play.fill")
+                        Label(L("study.room.action.start"), systemImage: "play.fill")
                             .font(.headline)
                             .foregroundColor(.white)
                             .frame(maxWidth: .infinity)
@@ -627,7 +647,7 @@ struct StudyRoomView: View {
                     Button(action: {
                         Task { await viewModel.performHostAction(.pause) }
                     }) {
-                        Label("暂停", systemImage: "pause.fill")
+                        Label(L("study.room.action.pause"), systemImage: "pause.fill")
                             .font(.headline)
                             .foregroundColor(.white)
                             .frame(maxWidth: .infinity)
@@ -640,7 +660,7 @@ struct StudyRoomView: View {
                     Button(action: {
                         Task { await viewModel.performHostAction(.end) }
                     }) {
-                        Label("结束", systemImage: "stop.fill")
+                        Label(L("study.room.action.end"), systemImage: "stop.fill")
                             .font(.headline)
                             .foregroundColor(.white)
                             .frame(maxWidth: .infinity)
@@ -732,11 +752,7 @@ struct StudyRoomView: View {
     // MARK: - Helpers
 
     private func sessionStateText(for state: StudyRoomSessionState) -> String {
-        switch state {
-        case .idle: return L("study.room.state.idle")
-        case .focusing: return L("study.room.state.focusing")
-        case .resting: return L("study.room.state.resting")
-        }
+        studyRoomSessionStateText(state)
     }
 
     private func progressFraction(for timer: StudyRoomTimerState) -> Double {
@@ -783,11 +799,11 @@ struct FriendRoomRow: View {
                     .fontWeight(.medium)
 
                 if friend.inRoom, let code = friend.roomCode {
-                    Text("房间 \(code) · \(friend.memberCount ?? 0) 人")
+                    Text(LF("study.room.friend.room.summary", code, friend.memberCount ?? 0))
                         .font(.caption)
                         .foregroundColor(.white.opacity(0.45))
                 } else {
-                    Text(friend.isStudying ? "学习中（非多人房）" : "未在多人房间")
+                    Text(friend.isStudying ? L("study.room.friend.status.studying") : L("study.room.friend.status.idle"))
                         .font(.caption)
                         .foregroundColor(.white.opacity(0.35))
                 }
@@ -796,7 +812,7 @@ struct FriendRoomRow: View {
             Spacer()
 
             Button(action: onJoin) {
-                Text(friend.inRoom ? "加入" : "")
+                Text(friend.inRoom ? L("study.room.join") : "")
                     .font(.caption)
                     .fontWeight(.medium)
                     .foregroundColor(.white)
@@ -846,15 +862,15 @@ private struct StudyRoomSettingsSheet: View {
     let roomState: StudyRoomState
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             List {
-                Section("房间信息") {
-                    LabeledContent("房间号", value: roomState.roomCode)
-                    LabeledContent("成员数", value: "\(roomState.members.count)/\(roomState.maxMembers)")
-                    LabeledContent("状态", value: roomState.sessionState.rawValue)
+                Section(L("study.room.information")) {
+                    LabeledContent(L("study.room.code"), value: roomState.roomCode)
+                    LabeledContent(L("study.room.members"), value: "\(roomState.members.count)/\(roomState.maxMembers)")
+                    LabeledContent(L("study.room.current.state"), value: studyRoomSessionStateText(roomState.sessionState))
                 }
 
-                Section("成员") {
+                Section(L("study.room.participants")) {
                     ForEach(roomState.members) { member in
                         HStack(spacing: 12) {
                             Circle()
@@ -868,7 +884,7 @@ private struct StudyRoomSettingsSheet: View {
 
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(member.displayName)
-                                Text(member.status.rawValue)
+                                Text(studyRoomMemberStatusText(member.status))
                                     .font(.caption)
                                     .foregroundColor(.secondary)
                             }
@@ -876,11 +892,11 @@ private struct StudyRoomSettingsSheet: View {
                     }
                 }
             }
-            .navigationTitle("房间设置")
+            .navigationTitle(L("study.room.settings"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("完成") {
+                    Button(L("study.room.finish")) {
                         dismiss()
                     }
                 }

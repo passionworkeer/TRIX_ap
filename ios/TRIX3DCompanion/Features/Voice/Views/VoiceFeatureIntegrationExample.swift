@@ -276,13 +276,13 @@ enum VoiceTab: String, CaseIterable, Identifiable {
 // MARK: - Preview
 
 #Preview("Voice Feature Integration") {
-    NavigationView {
+    NavigationStack {
         VoiceFeatureIntegrationExample()
     }
 }
 
 #Preview("Dark Mode") {
-    NavigationView {
+    NavigationStack {
         VoiceFeatureIntegrationExample()
     }
     .preferredColorScheme(.dark)

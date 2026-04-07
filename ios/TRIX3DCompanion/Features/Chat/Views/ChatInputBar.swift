@@ -9,10 +9,11 @@
 import SwiftUI
 import Speech
 import Combine
+import UIKit
 
 // MARK: - Localization Helper
 private func L(_ key: String) -> String {
-    NSLocalizedString(key, comment: "")
+    key.localized
 }
 
 // MARK: - Chat Input Bar
@@ -32,6 +33,7 @@ struct ChatInputBar: View {
     @State private var showCamera = false
     @State private var showDocumentPicker = false
     @State private var showVoiceRecording = false
+    @StateObject private var attachmentViewModel = ChatMediaAttachmentViewModel()
 
     // AI Action selector state
     @State private var selectedAIAction: AIActionType = .chat
@@ -45,6 +47,7 @@ struct ChatInputBar: View {
 
     let onSend: () -> Void
     let onAttach: ((AttachmentType) -> Void)?
+    let onAttachmentResolved: ((ResolvedChatAttachment) -> Void)?
     let onVoiceRecordingComplete: ((URL) -> Void)?
 
     let isConnected: Bool
@@ -86,11 +89,9 @@ struct ChatInputBar: View {
         .background(.ultraThinMaterial)
         .overlay(topBorder)
         .sheet(isPresented: $showImagePicker) {
-            // Image picker sheet
             imagePickerSheet
         }
         .sheet(isPresented: $showCamera) {
-            // Camera sheet
             cameraSheet
         }
         .confirmationDialog("Send Attachment", isPresented: $showAttachmentMenu, titleVisibility: .hidden) {
@@ -111,6 +112,16 @@ struct ChatInputBar: View {
             Button(L("action.confirm"), role: .cancel) {}
         } message: {
             Text(speechErrorMessage)
+        }
+        .alert(L("chat.attach.error.title"), isPresented: Binding(
+            get: { attachmentViewModel.errorMessage != nil },
+            set: { if !$0 { attachmentViewModel.clearError() } }
+        )) {
+            Button(L("action.confirm"), role: .cancel) {
+                attachmentViewModel.clearError()
+            }
+        } message: {
+            Text(attachmentViewModel.errorMessage ?? L("chat.attach.error.message"))
         }
     }
 
@@ -329,74 +340,26 @@ struct ChatInputBar: View {
     // MARK: - Sheets
 
     private var imagePickerSheet: some View {
-        NavigationView {
-            VStack(spacing: 20) {
-                Image(systemName: "photo.on.rectangle.angled")
-                    .font(.system(size: 60))
-                    .foregroundColor(.purple)
-
-                Text(L("chat.input.select.photo"))
-                    .font(.title2)
-                    .fontWeight(.semibold)
-
-                Text(L("chat.input.choose.photo"))
-                    .font(.body)
-                    .foregroundColor(.secondary)
-                    .multilineTextAlignment(.center)
-                    .padding()
-
-                Button("Select") {
-                    showImagePicker = false
-                    onAttach?(.photo)
-                }
-                .buttonStyle(.borderedProminent)
+        SystemPhotoLibraryPicker(
+            onImagePicked: { image in
+                showImagePicker = false
+                resolveSelectedImage(image, type: .photo)
+            },
+            onCancel: {
+                showImagePicker = false
+            },
+            onFailure: { error in
+                showImagePicker = false
+                attachmentViewModel.errorMessage = error?.localizedDescription ?? L("chat.attach.error.message")
             }
-            .padding()
-            .navigationTitle(L("chat.input.photo.library"))
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") {
-                        showImagePicker = false
-                    }
-                }
-            }
-        }
+        )
     }
 
     private var cameraSheet: some View {
-        NavigationView {
-            VStack(spacing: 20) {
-                Image(systemName: "camera.fill")
-                    .font(.system(size: 60))
-                    .foregroundColor(.purple)
-
-                Text(L("chat.input.take.photo"))
-                    .font(.title2)
-                    .fontWeight(.semibold)
-
-                Text(L("chat.input.capture.photo"))
-                    .font(.body)
-                    .foregroundColor(.secondary)
-                    .multilineTextAlignment(.center)
-                    .padding()
-
-                Button(L("chat.input.open.camera")) {
-                    showCamera = false
-                    onAttach?(.camera)
-                }
-                .buttonStyle(.borderedProminent)
-            }
-            .padding()
-            .navigationTitle(L("chat.input.camera"))
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") {
-                        showCamera = false
-                    }
-                }
-            }
+        CameraView { _, imageURL in
+            showCamera = false
+            guard let imageURL else { return }
+            handleResolvedAttachment(.init(type: .camera, url: imageURL))
         }
     }
 
@@ -450,6 +413,23 @@ struct ChatInputBar: View {
             speechService.resetRecognizedText()
         }
     }
+
+    private func resolveSelectedImage(_ image: UIImage, type: AttachmentType) {
+        Task {
+            guard let url = await attachmentViewModel.upload(image: image) else { return }
+            handleResolvedAttachment(.init(type: type, url: url))
+        }
+    }
+
+    private func handleResolvedAttachment(_ attachment: ResolvedChatAttachment) {
+        if let onAttachmentResolved {
+            onAttachmentResolved(attachment)
+            return
+        }
+
+        let separator = text.isEmpty ? "" : "\n"
+        text.append("\(separator)\(attachment.url)")
+    }
 }
 
 // MARK: - Convenience Initializers
@@ -461,6 +441,7 @@ extension ChatInputBar {
         self.isConnected = isConnected
         self.onSend = onSend
         self.onAttach = nil
+        self.onAttachmentResolved = nil
         self.onVoiceRecordingComplete = nil
     }
 
@@ -474,6 +455,7 @@ extension ChatInputBar {
         self.isConnected = isConnected
         self.onSend = onSend
         self.onAttach = onAttach
+        self.onAttachmentResolved = nil
         self.onVoiceRecordingComplete = nil
     }
 
@@ -482,12 +464,14 @@ extension ChatInputBar {
         isConnected: Bool = true,
         onSend: @escaping () -> Void,
         onAttach: ((AttachmentType) -> Void)? = nil,
+        onAttachmentResolved: ((ResolvedChatAttachment) -> Void)? = nil,
         onVoiceRecordingComplete: ((URL) -> Void)? = nil
     ) {
         self._text = text
         self.isConnected = isConnected
         self.onSend = onSend
         self.onAttach = onAttach
+        self.onAttachmentResolved = onAttachmentResolved
         self.onVoiceRecordingComplete = onVoiceRecordingComplete
     }
 }

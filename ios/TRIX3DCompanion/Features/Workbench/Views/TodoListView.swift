@@ -33,7 +33,7 @@ struct TodoListView: View {
     // MARK: - Body
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             VStack(spacing: 0) {
                 // Filter and Sort Bar
                 filterSortBar
@@ -195,6 +195,9 @@ struct TodoListView: View {
                     }
                 }
                 .listStyle(.insetGrouped)
+                .refreshable {
+                    await viewModel.loadTodos()
+                }
             }
         }
     }

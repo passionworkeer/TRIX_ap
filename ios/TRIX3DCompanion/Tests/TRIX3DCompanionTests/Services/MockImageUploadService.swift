@@ -7,16 +7,21 @@
 
 import Foundation
 import UIKit
+import Combine
 @testable import TRIX3DCompanion
 
 /// Mock implementation of ImageUploadService for unit testing
-final class MockImageUploadService: ObservableObject {
+@MainActor
+final class MockImageUploadService: ObservableObject, ImageUploadServiceProtocol {
 
     // MARK: - Published Properties
 
     @Published private(set) var isUploading: Bool = false
     @Published private(set) var uploadProgress: Double = 0.0
     @Published private(set) var lastError: UploadError?
+
+    var isUploadingPublisher: Published<Bool>.Publisher { $isUploading }
+    var uploadProgressPublisher: Published<Double>.Publisher { $uploadProgress }
 
     // MARK: - Mock Configuration
 

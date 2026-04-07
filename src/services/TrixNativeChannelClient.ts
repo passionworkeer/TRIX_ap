@@ -1353,6 +1353,14 @@ class TrixNativeChannelClient {
   }
 
   async uploadAttachment(file: File | Blob, options: { fileName?: string; kind?: NativeUploadAttachment['kind'] } = {}): Promise<NativeUploadAttachment> {
+    const MAX_SIZE = 50 * 1024 * 1024; // 50 MB
+    const isImage = file.type.startsWith('image/');
+    const maxSize = isImage ? 10 * 1024 * 1024 : MAX_SIZE;
+
+    if (file.size > maxSize) {
+      throw new Error(`文件大小超过限制 (最大 ${isImage ? '10' : '50'} MB)`);
+    }
+
     const session = this.requireSession();
     const serverUrl = normalizeServerUrl(session.serverUrl);
     if (!serverUrl) {

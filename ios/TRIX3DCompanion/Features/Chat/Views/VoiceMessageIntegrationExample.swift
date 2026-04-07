@@ -467,7 +467,7 @@ struct VoiceUploadRequest: Codable {
 // MARK: - Preview
 
 #Preview("Voice Message Integration") {
-    NavigationView {
+    NavigationStack {
         VoiceMessageIntegrationExample()
             .onAppear {
                 // Pre-populate with some messages

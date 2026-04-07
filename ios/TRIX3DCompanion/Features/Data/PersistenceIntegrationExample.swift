@@ -21,7 +21,7 @@ struct NetworkAwareDataView: View {
     @State private var errorMessage: String?
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             List(messages) { message in
                 Text(message.text)
             }
@@ -574,13 +574,13 @@ struct ShareSheet: UIViewControllerRepresentable {
 }
 
 #Preview("Sync Dashboard") {
-    NavigationView {
+    NavigationStack {
         SyncDashboardView()
     }
 }
 
 #Preview("Export Data") {
-    NavigationView {
+    NavigationStack {
         DataExportView()
     }
 }

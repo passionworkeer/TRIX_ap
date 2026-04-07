@@ -86,7 +86,7 @@ struct StudyListView: View {
     // MARK: - Body
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             VStack(spacing: 0) {
                 // Segmented control
                 segmentControl
@@ -102,6 +102,9 @@ struct StudyListView: View {
                         }
                     }
                     .padding()
+                }
+                .refreshable {
+                    await loadData()
                 }
             }
             .background(backgroundGradient)
@@ -533,7 +536,7 @@ struct CreateStudyRoomView: View {
     private let durations = [30, 45, 60, 90, 120, 180]
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ScrollView {
                 VStack(spacing: 24) {
                     // Header

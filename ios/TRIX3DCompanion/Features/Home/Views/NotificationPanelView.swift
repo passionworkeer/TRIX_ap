@@ -169,6 +169,9 @@ struct NotificationPanelView: View {
             .padding(.horizontal, 16)
             .padding(.bottom, 20)
         }
+        .refreshable {
+            await loadNotificationsAsync()
+        }
     }
 
     private var filteredNotifications: [AppNotification] {
@@ -200,30 +203,34 @@ struct NotificationPanelView: View {
     // MARK: - Actions
 
     private func loadNotifications() {
+        Task {
+            await loadNotificationsAsync()
+        }
+    }
+
+    private func loadNotificationsAsync() async {
         isLoading = true
         errorMessage = nil
 
-        Task {
-            do {
-                // Fetch notifications from backend API
-                let apiNotifications: [APIAppNotification] = try await apiClient.get(.notificationList)
+        do {
+            // Fetch notifications from backend API
+            let apiNotifications: [APIAppNotification] = try await apiClient.get(.notificationList)
 
-                // Map API notifications to local model
-                notifications = apiNotifications.map { apiNotification in
-                    AppNotification(
-                        id: UUID(uuidString: apiNotification.id) ?? UUID(),
-                        type: mapNotificationType(apiNotification.type),
-                        title: apiNotification.title,
-                        content: apiNotification.body,
-                        time: formatTime(apiNotification.createdAt),
-                        isRead: apiNotification.isRead
-                    )
-                }
-                isLoading = false
-            } catch {
-                isLoading = false
-                errorMessage = L("notification.load.failed").replacingOccurrences(of: "%@", with: error.localizedDescription)
+            // Map API notifications to local model
+            notifications = apiNotifications.map { apiNotification in
+                AppNotification(
+                    id: UUID(uuidString: apiNotification.id) ?? UUID(),
+                    type: mapNotificationType(apiNotification.type),
+                    title: apiNotification.title,
+                    content: apiNotification.body,
+                    time: formatTime(apiNotification.createdAt),
+                    isRead: apiNotification.isRead
+                )
             }
+            isLoading = false
+        } catch {
+            isLoading = false
+            errorMessage = L("notification.load.failed").replacingOccurrences(of: "%@", with: error.localizedDescription)
         }
     }
 

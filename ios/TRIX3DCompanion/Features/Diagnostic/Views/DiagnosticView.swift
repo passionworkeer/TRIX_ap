@@ -32,7 +32,7 @@ struct DiagnosticView: View {
     // MARK: - Body
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ZStack {
                 // Background
                 Color.background.ignoresSafeArea()

@@ -127,11 +127,40 @@ function shouldFallbackToNextUrl(error: unknown): boolean {
   return error instanceof TypeError;
 }
 
+// File size limits (in bytes)
+const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50 MB
+const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10 MB
+
+export class FileSizeExceededError extends Error {
+  readonly fileSize: number;
+  readonly maxSize: number;
+  readonly fileName: string;
+
+  constructor(fileName: string, fileSize: number, maxSize: number) {
+    super(`File "${fileName}" (${(fileSize / 1024 / 1024).toFixed(1)} MB) exceeds maximum allowed size (${(maxSize / 1024 / 1024).toFixed(0)} MB)`);
+    this.name = 'FileSizeExceededError';
+    this.fileSize = fileSize;
+    this.maxSize = maxSize;
+    this.fileName = fileName;
+  }
+}
+
+function validateFileSize(file: File): void {
+  const isImage = file.type.startsWith('image/');
+  const maxSize = isImage ? MAX_IMAGE_SIZE : MAX_FILE_SIZE;
+
+  if (file.size > maxSize) {
+    throw new FileSizeExceededError(file.name, file.size, maxSize);
+  }
+}
+
 async function uploadAtUrl(
   uploadUrl: string,
   file: File,
   signal?: AbortSignal
 ): Promise<ServerOssUploadResult> {
+  validateFileSize(file);
+
   const isNativeUploadEndpoint = uploadUrl.endsWith('/api/uploads');
   let response: Response;
   let payload: UploadApiResponse | null = null;

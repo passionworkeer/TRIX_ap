@@ -34,9 +34,9 @@ final class StudyRoomViewModel: ObservableObject {
 
         var label: String {
             switch self {
-            case .selfStudy: return "自己自习"
-            case .friend: return "加入好友"
-            case .code: return "房间号加入"
+            case .selfStudy: return "study.room.entry.self".localized
+            case .friend: return "study.room.entry.friend".localized
+            case .code: return "study.room.entry.code".localized
             }
         }
 
@@ -120,7 +120,7 @@ final class StudyRoomViewModel: ObservableObject {
 
     func createRoom() async {
         guard authService.currentUser != nil else {
-            errorMessage = "请先登录"
+            errorMessage = "study.room.error.login.required".localized
             return
         }
 
@@ -128,7 +128,7 @@ final class StudyRoomViewModel: ObservableObject {
         errorMessage = nil
         defer { isLoading = false }
 
-        let result = await studyService.createStudyRoom(name: "Room", maxMembers: 4)
+        let result = await studyService.createStudyRoom(name: "study.room.default.name".localized, maxMembers: 4)
         switch result {
         case .success:
             if let state = studyService.currentRoomState {
@@ -136,7 +136,7 @@ final class StudyRoomViewModel: ObservableObject {
                 roomCodeInput = state.roomCode
                 updateMemberStatus()
             } else {
-                errorMessage = "房间已创建，但状态同步失败"
+                errorMessage = "study.room.error.state.sync".localized
             }
         case .failure(let error):
             errorMessage = error.localizedDescription
@@ -146,12 +146,12 @@ final class StudyRoomViewModel: ObservableObject {
     func joinRoomByCode() async {
         let code = roomCodeInput.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
         guard code.count == 6, code.allSatisfy({ $0.isLetter || $0.isNumber }) else {
-            errorMessage = "请输入 6 位房间号"
+            errorMessage = "study.room.error.invalid.code".localized
             return
         }
 
         guard authService.isLoggedIn else {
-            errorMessage = "请先登录"
+            errorMessage = "study.room.error.login.required".localized
             return
         }
 
@@ -172,7 +172,7 @@ final class StudyRoomViewModel: ObservableObject {
 
     func joinFriendRoom(_ friend: FriendStudyCandidate) async {
         guard let roomCode = friend.roomCode else {
-            errorMessage = "该好友当前没有可加入的房间"
+            errorMessage = "study.room.error.friend.room.unavailable".localized
             return
         }
 

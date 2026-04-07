@@ -55,7 +55,7 @@ struct StoreView: View {
     // MARK: - Body
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             VStack(spacing: 0) {
                 // Content
                 ScrollView {
@@ -296,10 +296,18 @@ struct StoreView: View {
     /// Points products section
     private var pointsProductsSection: some View {
         VStack(spacing: 16) {
-            ForEach(viewModel.pointsProducts) { product in
-                ProductCard(product: product) {
-                    selectedProduct = product
-                    showProductDetail = true
+            if viewModel.pointsProducts.isEmpty {
+                ContentUnavailableView {
+                    Label(L("store.products.empty"), systemImage: "bag")
+                } description: {
+                    Text(L("store.products.empty.hint"))
+                }
+            } else {
+                ForEach(viewModel.pointsProducts) { product in
+                    ProductCard(product: product) {
+                        selectedProduct = product
+                        showProductDetail = true
+                    }
                 }
             }
         }

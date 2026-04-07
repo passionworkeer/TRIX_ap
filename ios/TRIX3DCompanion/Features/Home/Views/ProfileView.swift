@@ -10,7 +10,7 @@ import ActivityIndicatorView
 
 // MARK: - Localization Helper
 private func L(_ key: String) -> String {
-    NSLocalizedString(key, comment: "")
+    key.localized
 }
 
 // MARK: - Profile View
@@ -31,6 +31,7 @@ struct ProfileView: View {
     @State private var equippedOutfits: Set<String> = ["hat1"]
     @State private var achievements: [Achievement] = []
     @State private var isLoadingAchievements = false
+    @StateObject private var logoutViewModel = ProfileLogoutViewModel()
 
     // MARK: - Dependencies
 
@@ -39,7 +40,7 @@ struct ProfileView: View {
     // MARK: - Body
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ScrollView {
                 VStack(spacing: 24) {
                     // Profile header
@@ -70,7 +71,7 @@ struct ProfileView: View {
             }
             .uiTestMarker(ProfileAccessibilityIdentifiers.screen)
             .background(backgroundGradient)
-            .navigationTitle("Profile")
+            .navigationTitle(L("profile.title"))
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
@@ -94,6 +95,18 @@ struct ProfileView: View {
             }
             .task {
                 await loadAchievements()
+            }
+            .alert(L("profile.logout.confirm.title"), isPresented: $logoutViewModel.isConfirmationPresented) {
+                Button(L("profile.logout.confirm.action"), role: .destructive) {
+                    Task {
+                        await logoutViewModel.confirmLogout(using: appState)
+                    }
+                }
+                Button(L("action.cancel"), role: .cancel) {
+                    logoutViewModel.cancelLogout()
+                }
+            } message: {
+                Text(L("profile.logout.confirm.message"))
             }
         }
     }
@@ -462,10 +475,15 @@ struct ProfileView: View {
 
     /// Logout button
     private var logoutButton: some View {
-        Button(action: handleLogout) {
+        Button(action: { logoutViewModel.requestLogout() }) {
             HStack {
-                Image(systemName: "arrow.right.square.fill")
-                Text("profile.log.out".localized)
+                if logoutViewModel.isLoggingOut {
+                    ProgressView()
+                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                } else {
+                    Image(systemName: "arrow.right.square.fill")
+                }
+                Text(logoutViewModel.isLoggingOut ? L("profile.logout.loading") : "profile.log.out".localized)
                     .fontWeight(.semibold)
             }
             .font(.subheadline)
@@ -486,6 +504,7 @@ struct ProfileView: View {
             .clipShape(RoundedRectangle(cornerRadius: 12))
         }
         .buttonStyle(.plain)
+        .disabled(logoutViewModel.isLoggingOut)
         .accessibilityIdentifier(ProfileAccessibilityIdentifiers.logoutButton)
     }
 
@@ -505,12 +524,6 @@ struct ProfileView: View {
 
     private func levelFromPoints(_ points: Int) -> Int {
         return (points / 1000) + 1
-    }
-
-    private func handleLogout() {
-        Task {
-            await appState.logout()
-        }
     }
 }
 
@@ -667,7 +680,7 @@ struct EditProfileView: View {
     @State private var errorMessage = ""
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ScrollView {
                 VStack(spacing: 24) {
                     // Avatar section
@@ -876,7 +889,7 @@ struct WardrobeCenterView: View {
     ]
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ScrollView {
                 LazyVGrid(columns: columns, spacing: 12) {
                     ForEach(items) { item in
@@ -971,7 +984,7 @@ struct SettingsView: View {
     @State private var syncMessage: String?
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             Form {
                 Section(L("settings.appearance")) {
                     Toggle(
@@ -1112,7 +1125,7 @@ struct AboutView: View {
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             VStack(spacing: 20) {
                 // App icon
                 RoundedRectangle(cornerRadius: 20)
