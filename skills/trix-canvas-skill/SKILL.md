@@ -78,7 +78,8 @@ python3 skills/trix-canvas-skill/scripts/start_canvas.py \
 | `start_all.js` | 兼容入口：自动补 runtime 目录、缺失依赖后，再转发到 skill runtime 的 `assets/canvas-service/start-all.js` | 透传 Node 参数 |
 | `start_canvas.py` | 启动 Canvas 服务（含可选 proxy） | `--host`, `--port`, `--base-url`, `--with-proxy`, `--open` |
 | `parse_script.py` | 将剧本拆解成按镜头排序的 JSON | `script` 文本或文件路径 |
-| `workflow.py` | 一条命令自动完成解析、按镜头顺序生成、失败重试、轮询、字幕导出、最终视频导出 | `script`, `--project-name`, `--concurrent`, `--retries`, `--skip-final-video` |
+| `drama_workflow.py` | **短剧完整工作流**：收集需求→角色图→首尾帧→VEO 视频→拼接→渲染到 Canvas | `--requirements` / `--requirements-file` / `--ask` |
+| `workflow.py` | 普通工作流入口，支持 `--drama-mode` 透传到 drama_workflow.py | `--drama-mode`, `--aspect`, `--image-size`, `--thinking-mode` |
 | `generate.py` | 调用 AI Adapter 生成单个 media（image/video） | `--prompt`, `--type` |
 | `create_node.py` | 手工创建备注/素材/占位节点；普通生成不要先调它 | `project_id`, `--prompt`, `--x`, `--y` |
 | `create_edge.py` | 建立节点之间的场景/转场关系 | `project_id`, `source_id`, `target_id` |
@@ -87,6 +88,8 @@ python3 skills/trix-canvas-skill/scripts/start_canvas.py \
 
 ## 使用约定
 
+- **正式短剧（推荐）**：用 `drama_workflow.py`，自动完成角色→首尾帧→VEO 视频→Canvas 连线全流程
+- **快速混合脚本**：用 `workflow.py`，按 `image::` / `video::` 前缀逐镜头生成，无角色管理
 - 普通图片/视频生成优先用 `create_session.py`，它会自动创建生成节点并挂上 `sessionId` / `nodeId`
 - `create_node.py` 只用于手工加注释、参考素材、占位节点，不要在标准生成流里先手动建一个空节点
 - 做视频续写、图生视频或变体时，再把上一个图片节点通过 `create_session.py --parent-node-id <node_id>` 传进去
@@ -104,9 +107,121 @@ python3 skills/trix-canvas-skill/scripts/start_canvas.py \
 ]
 ```
 
+## 短剧 Agent 执行规范（推荐）
+
+> **推荐流程**：使用 `drama_workflow.py`，Agent 无需自行编排，脚本自动完成全部 6 个阶段。
+
+### 完整工作流（6 阶段）
+
+```
+用户需求 → 角色参考图 → 首帧+尾帧 → VEO 视频 → 拼接 → Canvas 渲染+连线
+```
+
+| 阶段 | 说明 | Canvas 节点 |
+|------|------|------------|
+| **1. 收集需求** | Agent 询问用户：角色列表、分镜列表、宽高比、分辨率等 | — |
+| **2. 创建项目** | 在 Canvas 建立项目节点 | Project |
+| **3. 生成角色图** | 每个角色生成一张参考图（作为后续所有镜头的 inputImage） | 角色节点 × N |
+| **4. 首帧+尾帧** | 每个镜头生成两张图：首帧（inputImage=角色图→主体一致）+ 尾帧（作为视频结束画面提示） | 首帧节点 + 尾帧节点 × N |
+| **5. VEO 视频** | 首帧节点作为 i2v 父节点 → VEO 3.1 生成 8 秒视频 | 视频节点 × N |
+| **6. 导出+渲染** | 拼接最终视频 + 导出 SRT 字幕 + Canvas 渲染节点连线 | Final Video |
+
+### 节点连线规则（Canvas 自动完成）
+
+```
+角色图A ──character_order── 角色图B ──character_order── 角色图C
+   │
+   └──character_to_frame── 首帧① ──shot_frame_order── 尾帧①
+                               │                          │
+                               │ frame_to_video           │ scene_order
+                               ▼                          ▼
+                           视频① ←───────────────── 首帧② ──shot_frame_order── 尾帧②
+                               │                                           │
+                               │ scene_order                               │ scene_order
+                               ▼                                           ▼
+                           视频② ←──────────── (以此类推，连成叙事链) ──────→ ...
+```
+
+- `character_order`：角色图横向排列，保持角色定义可追溯
+- `character_to_frame`：角色图 → 首帧，角色出现在该镜头时连线
+- `shot_frame_order`：同镜头内，首帧 → 尾帧
+- `scene_order`：跨镜头叙事链（上一镜头尾帧 → 本镜头首帧；上一视频 → 本视频）
+- `frame_to_video`：首帧 → 视频，表示 i2v 关系
+
+### 需求 JSON 格式
+
+Agent 收集需求后，构造为 JSON 传入 `drama_workflow.py`：
+
+```json
+{
+  "project": "《雨夜重逢》",
+  "aspect": "9:16",
+  "thinking_mode": "high",
+  "image_size": "2K",
+  "style": "电影感，暗调，雨夜",
+  "characters": [
+    {"name": "女主", "appearance": "穿白色连衣裙，长发及腰，雨中撑透明伞", "personality": "温柔而坚定"},
+    {"name": "男主", "appearance": "黑色风衣，拖着旅行包，神情落寞", "personality": "内敛深情"}
+  ],
+  "shots": [
+    {
+      "shot_number": 1,
+      "description": "雨夜地铁站台，昏黄灯光，水洼倒映霓虹",
+      "characters": ["女主"],
+      "shot_type": "wide"
+    },
+    {
+      "shot_number": 2,
+      "description": "镜头穿过人群推进到女主侧脸，雨滴溅起",
+      "characters": ["女主"],
+      "shot_type": "action"
+    }
+  ]
+}
+```
+
+### 执行命令
+
+```bash
+# 方式 1：通过 workflow.py 的 --drama-mode
+python3 skills/trix-canvas-skill/scripts/workflow.py \
+  '{"project":"《雨夜重逢》","characters":[...],"shots":[...]}' \
+  --drama-mode
+
+# 方式 2：直接调用 drama_workflow.py
+python3 skills/trix-canvas-skill/scripts/drama_workflow.py \
+  --requirements '{"project":"...","characters":[...],"shots":[...]}'
+
+# 方式 3：从文件加载
+python3 skills/trix-canvas-skill/scripts/drama_workflow.py \
+  --requirements-file ./my_drama.json
+
+# 方式 4：交互式（Agent 在无法收集完整需求时使用）
+python3 skills/trix-canvas-skill/scripts/drama_workflow.py --ask
+```
+
+### 普通模式 vs 短剧模式
+
+| | 普通模式（`workflow.py`） | 短剧模式（`drama_workflow.py`） |
+|---|---|---|
+| 角色参考图 | 无 | ✅ 独立生成 |
+| 首帧+尾帧 | 无 | ✅ 每个镜头两张 |
+| 主体一致性 | 依赖 parent_node_id | ✅ inputImage 引用角色图 |
+| 节点连线 | 按顺序简单连线 | ✅ 完整角色→帧→视频连线 |
+| 适用场景 | 快速混合脚本 | 正式短剧制作 |
+| 参数复杂度 | 低（aspect + style） | 高（角色 + 分镜 + 首尾帧） |
+
+### Agent 禁止行为
+
+- ❌ 不得跳过「收集需求」直接开始生成
+- ❌ 不得跳过「角色生成」直接做镜头分镜
+- ❌ 不得让视频镜头不等首帧完成就发起 i2v 请求
+- ❌ 不得手动编排 Canvas 节点连线（`drama_workflow.py` 自动完成）
+- ❌ 不得修改 `drama_workflow.py` 参数名
+
 ## 分发元数据
 
-- `agents/openai.yaml` 已提供 UI/调用元数据，可直接作为技能包的一部分分发
+- `agents/openai.yaml` 已提供完整短剧工作流 prompt，可直接作为技能包的一部分分发
 - `SKILL.md` + `scripts/` + `agents/openai.yaml` + `assets/canvas-service/` 构成完整可复用 skill
 - 如果你修改了 `packages/trix-canvas-service/`，在提交或发布前运行 `python3 skills/trix-canvas-skill/scripts/sync_canvas_runtime.py`，确保 skill 内嵌 runtime 与 repo runtime 一致
 

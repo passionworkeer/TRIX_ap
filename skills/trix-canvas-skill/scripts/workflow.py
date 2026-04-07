@@ -1,4 +1,9 @@
-"""TRIX Canvas 完整工作流 — Agent 调用一个脚本即完成全部工作"""
+"""TRIX Canvas 完整工作流 — Agent 调用一个脚本即完成全部工作
+
+支持两种模式：
+  1. 普通模式（默认）：解析脚本 → 生成图片/视频镜头 → 导出
+  2. 短剧模式（--drama-mode）：收集需求 → 角色图 → 首尾帧 → VEO 视频 → 拼接
+"""
 
 from __future__ import annotations
 
@@ -576,7 +581,9 @@ def run_workflow(
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="TRIX Canvas Workflow")
-    parser.add_argument("script", help="Script text or .txt file path")
+    parser.add_argument("script", help="Script text or .txt file path (普通模式)")
+    parser.add_argument("--drama-mode", action="store_true",
+                        help="启用短剧模式：角色→首尾帧→VEO 视频完整流程")
     parser.add_argument("--project-name", default="", help="Project name")
     parser.add_argument("--concurrent", type=int, default=3, help="Session polling concurrency")
     parser.add_argument("--skip-video", action="store_true", help="Skip video generation")
@@ -614,6 +621,23 @@ if __name__ == "__main__":
         help="Nano Banana 2 思维模式：minimal=快速，high=深度推理（复杂构图更准）",
     )
     args = parser.parse_args()
+
+    if args.drama_mode:
+        # 短剧模式：透传到 drama_workflow.py
+        import drama_workflow
+        req_source = args.script if not os.path.isfile(args.script) else None
+        try:
+            result = drama_workflow.run_drama_workflow(
+                requirements_source=req_source,
+                ask_interactive=False,
+            )
+            print(json.dumps(result, ensure_ascii=False, indent=2))
+            if not result.get("ok", False):
+                sys.exit(1)
+        except Exception as exc:
+            print(json.dumps({"ok": False, "error": str(exc)}, ensure_ascii=False, indent=2))
+            sys.exit(1)
+        sys.exit(0)
 
     if os.path.isfile(args.script):
         with open(args.script, "r", encoding="utf-8") as fh:

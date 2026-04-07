@@ -101,7 +101,8 @@ AI 请求代理，支持 Provider（APIyi）。
 
 | 脚本 | 用途 |
 |------|------|
-| `workflow.py` | 端到端：解析剧本 → 按镜头生成 → 字幕 → 最终视频 |
+| `drama_workflow.py` | **短剧完整流程**：收集需求→角色参考图→首尾帧→VEO 视频→拼接→Canvas 连线 |
+| `workflow.py` | 普通工作流入口，支持 `--drama-mode` 透传短剧模式 |
 | `create_session.py` | 标准 AI 生成入口（推荐）|
 | `query_session.py` | 轮询会话结果 |
 | `parse_script.py` | 剧本拆解为镜头 JSON |
@@ -174,6 +175,8 @@ AI 请求代理，支持 Provider（APIyi）。
 
 ## 7. 数据流示例
 
+### 普通工作流
+
 ```
 OpenClaw Agent 调用 workflow.py
   → parse_script.py 拆解剧本为镜头
@@ -184,6 +187,41 @@ OpenClaw Agent 调用 workflow.py
   → export_video.py 调用 ffmpeg 合成最终视频
   → export_subtitle.py 生成 .srt
 ```
+
+### 短剧完整工作流（drama_workflow.py）
+
+```
+Agent 询问用户 → 收集角色 + 分镜需求
+  → drama_workflow.py
+    [阶段1] create_project → Canvas 项目节点
+    [阶段2] create_session (image) → 角色参考图节点 × N
+    [阶段3] create_session (image, inputImage=角色图) → 首帧节点 × N
+            create_session (image) → 尾帧节点 × N
+            → Canvas 连线：角色→首帧→尾帧 + 叙事链
+    [阶段4] create_session (video, parentNodeId=首帧) → VEO 视频节点 × N
+            → Canvas 连线：首帧→视频 + 视频连续链
+    [阶段5] export_video → 最终视频
+            export_subtitle → .srt
+```
+
+### Canvas 节点连线结构（短剧模式）
+
+```
+角色图A ──character_order── 角色图B
+   │
+   └──character_to_frame── 首帧① ──shot_frame_order── 尾帧①
+                               │
+                               │ frame_to_video
+                               ▼
+                           视频①
+                               │
+                               │ scene_order
+                               ▼
+                     首帧② ──shot_frame_order── 尾帧②
+                           │
+                           │ frame_to_video
+                           ▼
+                       视频②  ...（叙事链）
 
 ---
 

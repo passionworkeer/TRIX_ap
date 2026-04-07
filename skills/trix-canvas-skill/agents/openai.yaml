@@ -2,7 +2,87 @@ interface:
   display_name: "TRIX Canvas"
   short_description: "短剧分镜生成、排队和画布编排工作台"
   brand_color: "#33D1B2"
-  default_prompt: "Use trix-canvas-skill through workflow.py for mixed short-drama scripts. Start the canvas runtime with start_canvas.py --with-proxy when needed, read /api/capabilities before mixed image/video work, fail fast if image-to-video is unavailable, and do not parallelize create_session.py calls for mixed scenes."
+  default_prompt: |
+    TRIX Canvas 短剧 Agent 执行规范：
+
+    ## 核心流程（按顺序执行，每步完成后才能进入下一步）
+
+    1. **询问用户需求**
+       必须收集以下信息后才能开始：
+       - 短剧名称 / 项目名
+       - 宽高比（9:16 竖版 / 16:9 横版 / 21:9 超宽）
+       - 分辨率（2K 默认，4K 高质量，512 快速预览）
+       - 思维模式（high 默认，minimal 快速预览）
+       - 整体风格描述（可选）
+       - **角色列表**：每个角色的「名称 + 外观描述 + 个性描述」
+       - **分镜列表**：每个镜头的「描述 + 出现的角色 + 镜头类型」
+
+    2. **构造需求 JSON**
+       将收集的信息构造为 JSON，格式如下：
+       ```json
+       {
+         "project": "短剧名称",
+         "aspect": "9:16",
+         "thinking_mode": "high",
+         "image_size": "2K",
+         "style": "整体风格描述",
+         "characters": [
+           {"name": "女主", "appearance": "描述", "personality": "描述"}
+         ],
+         "shots": [
+           {"shot_number": 1, "description": "镜头描述", "characters": ["女主"], "shot_type": "normal"}
+         ]
+       }
+       ```
+
+    3. **启动 Canvas 服务**（如未启动）
+       ```bash
+       python3 skills/trix-canvas-skill/scripts/start_canvas.py --with-proxy
+       ```
+
+    4. **执行短剧工作流**
+       ```bash
+       python3 skills/trix-canvas-skill/scripts/drama_workflow.py \
+         --requirements '{"project":"...","characters":[...],"shots":[...]}'
+       ```
+       drama_workflow.py 会自动完成：
+       - 生成角色参考图（Canvas 节点）
+       - 为每个镜头生成首帧 + 尾帧（引用角色图确保主体一致）
+       - 首帧节点作为 i2v 父节点 → VEO 3.1 生成视频（每段 8 秒）
+       - 拼接视频 + 导出字幕
+       - **Canvas 节点连线**：
+         - 角色图 → 首帧（主体一致）
+         - 首帧 → 尾帧（同镜头）
+         - 上一镜头尾帧 → 本镜头首帧（叙事链）
+         - 首帧 → 视频（i2v）
+         - 上一视频 → 本视频（连续播放）
+
+    5. **向用户报告结果**
+       必须报告：
+       - Canvas URL（含 projectId）
+       - 每个角色的参考图 URL
+       - 每个镜头的首帧 URL、尾帧 URL、视频 URL
+       - 最终拼接视频路径
+       - SRT 字幕路径
+
+    ## 关键约束
+
+    - **必须先询问用户需求**，不得直接开始生成
+    - **视频时长固定 8 秒**，每个镜头 = 1 个 VEO 3.1 视频
+    - **首帧通过 inputImage 引用角色图**实现主体一致性
+    - **不要跳过角色生成**直接做镜头图——角色图是后续所有分镜主体一致性的基础
+    - **不要自己编排节点连线**，drama_workflow.py 自动完成
+    - **不要修改 drama_workflow.py 的参数名**，直接透传用户输入
+    - **视频镜头必须等待首帧完成后才能生成**（i2v 依赖）
+    - 短剧分镜用 `image::` / `video::` 前缀标记，workflow.py 可自动识别；drama_workflow.py 用 JSON 格式更精确
+
+    ## 场景化参数参考
+
+    | 场景 | aspect | image_size | thinking_mode |
+    |------|--------|-----------|-------------|
+    | 竖版短视频短剧 | 9:16 | 2K | high |
+    | 横版电影感 | 16:9 | 2K | high |
+    | 快速预览 | 任意 | 512 | minimal |
 
 policy:
   allow_implicit_invocation: true
