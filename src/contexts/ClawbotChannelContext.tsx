@@ -105,6 +105,7 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
 
   const [status, setStatus] = useState<ConnectionStatus>('DISCONNECTED');
   const [pairingStatus, setPairingStatus] = useState<PairingStatus>('idle');
+  const [hasStoredSession, setHasStoredSession] = useState<boolean>(() => trixNativeChannelClient.getStoredPairingState().hasSession);
   const [messages, setMessages] = useState<ClawbotChannelMessage[]>([]);
   const [lastError, setLastError] = useState<string | null>(null);
   const [pairingCode, setPairingCode] = useState<string | null>(null);
@@ -266,6 +267,7 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
     replyAliasMapRef.current.clear();
     setStatus('DISCONNECTED');
     setPairingStatus('idle');
+    setHasStoredSession(false);
     setPairingCode(null);
     setMessages([]);
     setLatestBotMessage(null);
@@ -355,6 +357,7 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
       setBotOnline(payload.agentOnline);
       setLastError(null);
       const session = trixNativeChannelClient.getSession();
+      setHasStoredSession(Boolean(session));
       setDeviceId(session?.clientId || trixNativeChannelClient.getOrCreateClientId());
       setPairingCode(session?.pairingCode ?? null);
     };
@@ -367,6 +370,7 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
     const handlePairingSuccess = (payload: { deviceId: string; deviceName: string }) => {
       setPairingStatus('paired');
       setStatus('PAIRED');
+      setHasStoredSession(true);
       setDeviceId(payload.deviceId);
       const session = trixNativeChannelClient.getSession();
       setPairingCode(session?.pairingCode ?? null);
@@ -472,7 +476,7 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
   ]);
 
   useEffect(() => {
-    trixNativeChannelClient.setAuthUser(user?.id ?? null);
+    trixNativeChannelClient.setAuthUser(user?.id ?? null, user?.email ?? null);
 
     if (!user?.id) {
       trixNativeChannelClient.disconnect();
@@ -497,12 +501,17 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
           return;
         }
 
-        setDeviceId(session?.clientId || trixNativeChannelClient.getOrCreateClientId());
-        setPairingCode(session?.pairingCode ?? null);
-        setPairingStatus(session ? 'paired' : 'idle');
+        const storedPairingState = trixNativeChannelClient.getStoredPairingState();
+        const resolvedSession = session ?? storedPairingState.session;
+        const hasResolvedSession = storedPairingState.hasSession || Boolean(resolvedSession);
+
+        setHasStoredSession(hasResolvedSession);
+        setDeviceId(resolvedSession?.clientId || trixNativeChannelClient.getOrCreateClientId());
+        setPairingCode(resolvedSession?.pairingCode ?? null);
+        setPairingStatus(hasResolvedSession ? 'paired' : 'idle');
         setLastError(null);
 
-        if (session) {
+        if (resolvedSession) {
           await trixNativeChannelClient.connect();
         }
       } catch (error) {
@@ -525,6 +534,7 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
       await trixNativeChannelClient.connect();
       const pairing = await trixNativeChannelClient.checkPairingStatus();
       setPairingStatus(pairing.paired ? 'paired' : 'idle');
+      setHasStoredSession(pairing.paired);
       setBotOnline(pairing.botOnline);
       setDeviceId(pairing.deviceId || trixNativeChannelClient.getOrCreateClientId());
       setLastError(null);
@@ -547,6 +557,7 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
       setStatus('CONNECTING');
       const result = await trixNativeChannelClient.pairWithCode(code.trim().toUpperCase());
       const session = trixNativeChannelClient.getSession();
+      setHasStoredSession(Boolean(session));
       setPairingCode(session?.pairingCode ?? code.trim().toUpperCase());
       setLastError(null);
       return result.success;
@@ -566,6 +577,7 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
       setStatus('CONNECTING');
       const result = await trixNativeChannelClient.pairWithQR(payload);
       const session = trixNativeChannelClient.getSession();
+      setHasStoredSession(Boolean(session));
       setPairingCode(session?.pairingCode ?? null);
       setLastError(null);
       return result.success;
@@ -719,8 +731,8 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
 
   const value = useMemo<ClawbotChannelContextType>(() => ({
     status,
-    isConnected: status === 'CONNECTED' || status === 'PAIRED',
-    isPaired: pairingStatus === 'paired',
+    isConnected: hasStoredSession && status !== 'DISCONNECTED' && status !== 'ERROR',
+    isPaired: hasStoredSession || pairingStatus === 'paired',
     botOnline,
     pairingStatus,
     pairingCode,
@@ -746,6 +758,7 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
     lastError,
   }), [
     status,
+    hasStoredSession,
     pairingStatus,
     botOnline,
     pairingCode,

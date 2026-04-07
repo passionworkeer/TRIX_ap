@@ -279,7 +279,7 @@ const Chat: React.FC = () => {
                           {...iosPressableMotion}
                           className="ios-list-row mb-2 flex cursor-pointer items-center rounded-[1.55rem] border border-white/6 px-3 py-4 transition-colors hover:bg-white/5"
                           onClick={() => {
-                            if (isClawbotChannelConnected && isClawbotPaired) {
+                            if (isClawbotPaired) {
                               // 已连接，进入聊天
                               navigate(generatePath(AppRoutes.CHAT_DETAIL, { friendId: 'clawbot' }), {
                                 state: {
@@ -299,7 +299,7 @@ const Chat: React.FC = () => {
                           <div className="relative mr-4 flex-shrink-0 flex items-center justify-center">
                              <img src={botAvatarImg} alt="TRIX Bot" className="w-12 h-12 rounded-full border border-white/10 object-cover" />
                              {/* 连接状态指示器 */}
-                             {isClawbotChannelConnected && isClawbotPaired ? (
+                             {isClawbotPaired ? (
                                 <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-400 rounded-full border-2 border-black/30 shadow-lg shadow-green-400/50"></div>
                              ) : (
                                 <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-gray-400 rounded-full border-2 border-black/30"></div>
@@ -310,21 +310,23 @@ const Chat: React.FC = () => {
                           <div className="flex-1 min-w-0">
                              <h3 className="text-white font-bold text-base leading-tight mb-0.5 flex items-center gap-2">
                                TRIX Bot
-                               {!(isClawbotChannelConnected && isClawbotPaired) && (
+                               {!isClawbotPaired && (
                                  <span className="text-xs bg-orange-500/20 text-orange-400 px-2 py-0.5 rounded-full">{t('chat.unpaired')}</span>
                                )}
                              </h3>
                              <div className="flex items-center gap-1.5">
-                                <MessageSquare size={14} className={isClawbotChannelConnected && isClawbotPaired ? "text-green-400" : "text-gray-500"} strokeWidth={2.5} />
+                                <MessageSquare size={14} className={isClawbotPaired ? "text-green-400" : "text-gray-500"} strokeWidth={2.5} />
                                 <span className="text-sm text-gray-400 truncate">
-                                  {isClawbotChannelConnected && isClawbotPaired ? t('chat.aiAssistantReady') : t('chat.tapToPair')}
+                                  {isClawbotPaired
+                                    ? (isClawbotChannelConnected ? t('chat.aiAssistantReady') : '已恢复配对，正在连接')
+                                    : t('chat.tapToPair')}
                                 </span>
                              </div>
                           </div>
 
                           {/* 右侧图标 */}
                           <div className="flex-shrink-0 pl-2">
-                             {isClawbotChannelConnected && isClawbotPaired ? (
+                             {isClawbotPaired ? (
                                 <div className="w-10 h-10 rounded-full bg-green-500/20 border border-green-400/30 flex items-center justify-center">
                                    <Camera size={18} className="text-green-400" />
                                 </div>

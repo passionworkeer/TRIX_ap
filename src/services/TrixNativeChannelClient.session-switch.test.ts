@@ -56,6 +56,13 @@ vi.mock('../config/supabase', () => ({
           },
         },
       })),
+      getUser: vi.fn(async () => ({
+        data: {
+          user: {
+            email: 'david@trix.app',
+          },
+        },
+      })),
     },
   },
 }));
@@ -140,6 +147,19 @@ describe('TrixNativeChannelClient session switching', () => {
       },
     });
     vi.stubGlobal('window', globalThis);
+    Object.defineProperty(globalThis, 'matchMedia', {
+      value: vi.fn().mockImplementation(() => ({
+        matches: false,
+        media: '(display-mode: standalone)',
+        onchange: null,
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      })),
+      configurable: true,
+    });
 
     sessionStorage.setItem(
       'trix_native_channel_sessions_v2',
@@ -169,6 +189,103 @@ describe('TrixNativeChannelClient session switching', () => {
     const { default: client } = await import('./TrixNativeChannelClient');
     client.disconnect();
     vi.unstubAllGlobals();
+  });
+
+  it('restores david account sessions by deriving accountId from the signed-in email', async () => {
+    mockFetch.mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.endsWith('/api/client/session/restore')) {
+        expect(JSON.parse(String(init?.body))).toMatchObject({
+          accountId: 'david',
+          clientId: 'web_client_1',
+        });
+        return Promise.resolve(jsonResponse({
+          accountId: 'david',
+          conversationId: 'conv_david',
+          clientToken: 'token_david',
+          websocketUrl: 'wss://trix.love/ws',
+          pairingCode: 'DAVID1',
+          serverUrl: 'https://trix.love',
+          agentOnline: true,
+        }));
+      }
+      throw new Error(`Unexpected fetch: ${url}`);
+    });
+
+    const { default: client } = await import('./TrixNativeChannelClient');
+    client.setAuthUser('user-123', 'david@trix.app');
+
+    const restored = await client.restoreSession(undefined, 'TRIX-Test');
+
+    expect(restored?.accountId).toBe('david');
+    expect(restored?.conversationId).toBe('conv_david');
+  });
+
+  it('restores david account sessions by fetching the signed-in email when context email is unavailable', async () => {
+    mockFetch.mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.endsWith('/api/client/session/restore')) {
+        expect(JSON.parse(String(init?.body))).toMatchObject({
+          accountId: 'david',
+          clientId: 'web_client_1',
+        });
+        return Promise.resolve(jsonResponse({
+          accountId: 'david',
+          conversationId: 'conv_david_async',
+          clientToken: 'token_david_async',
+          websocketUrl: 'wss://trix.love/ws',
+          pairingCode: 'DAVID2',
+          serverUrl: 'https://trix.love',
+          agentOnline: true,
+        }));
+      }
+      throw new Error(`Unexpected fetch: ${url}`);
+    });
+
+    const { default: client } = await import('./TrixNativeChannelClient');
+    client.setAuthUser('user-123');
+
+    const restored = await client.restoreSession(undefined, 'TRIX-Test');
+
+    expect(restored?.accountId).toBe('david');
+    expect(restored?.conversationId).toBe('conv_david_async');
+  });
+
+  it('persists restored native sessions to localStorage for standalone PWA resumes', async () => {
+    vi.mocked(globalThis.matchMedia).mockImplementation((query?: string) => ({
+      matches: query === '(display-mode: standalone)',
+      media: query ?? '',
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    }));
+
+    mockFetch.mockImplementation((input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.endsWith('/api/client/session/restore')) {
+        return Promise.resolve(jsonResponse({
+          accountId: 'david',
+          conversationId: 'conv_david_pwa',
+          clientToken: 'token_david_pwa',
+          websocketUrl: 'wss://trix.love/ws',
+          pairingCode: 'DAVID3',
+          serverUrl: 'https://trix.love',
+          agentOnline: true,
+        }));
+      }
+      throw new Error(`Unexpected fetch: ${url}`);
+    });
+
+    const { default: client } = await import('./TrixNativeChannelClient');
+    client.setAuthUser('user-123', 'david@trix.app');
+
+    await client.restoreSession(undefined, 'TRIX-PWA');
+
+    expect(localStorageStore.trix_native_channel_sessions_v2).toContain('conv_david_pwa');
+    expect(localStorageStore['trix_native_channel_token:david:conv_david_pwa:web_client_1']).toBe('token_david_pwa');
   });
 
   it('reconnects the realtime socket when pairing switches to a new conversation', async () => {

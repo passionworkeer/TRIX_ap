@@ -181,7 +181,7 @@ struct ChatDetailView: View {
             return chatService.currentMessages
         }
         return chatService.currentMessages.filter { message in
-            message.text.localizedCaseInsensitiveContains(searchText)
+            message.content.localizedCaseInsensitiveContains(searchText)
         }
     }
 

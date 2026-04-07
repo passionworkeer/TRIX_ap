@@ -5,36 +5,83 @@ const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 const isBrowser = typeof window !== 'undefined';
 
+function isStandalonePwaWindow(): boolean {
+  if (!isBrowser) {
+    return false;
+  }
+
+  const navigatorRef = window.navigator as Navigator & { standalone?: boolean };
+  const isStandaloneDisplayMode = typeof window.matchMedia === 'function'
+    && window.matchMedia('(display-mode: standalone)').matches;
+
+  return Boolean(navigatorRef.standalone || isStandaloneDisplayMode);
+}
+
+function getAvailableBrowserStorages(): Storage[] {
+  if (!isBrowser) {
+    return [];
+  }
+
+  const storages = isStandalonePwaWindow()
+    ? [window.localStorage, window.sessionStorage]
+    : [window.sessionStorage, window.localStorage];
+
+  return storages.filter((storage, index, list) => Boolean(storage) && list.indexOf(storage) === index);
+}
+
+function getPrimaryBrowserStorage(): Storage | undefined {
+  return getAvailableBrowserStorages()[0];
+}
+
 function migrateLegacySupabaseSessions(): void {
   if (!isBrowser) {
     return;
   }
 
-  for (const key of Object.keys(window.localStorage)) {
-    if (!/^sb-.*-auth-token$/.test(key)) continue;
-    const rawValue = window.localStorage.getItem(key);
-    if (!rawValue) continue;
-    if (!window.sessionStorage.getItem(key)) {
-      window.sessionStorage.setItem(key, rawValue);
+  const storages = getAvailableBrowserStorages();
+  for (const storage of storages) {
+    for (let index = 0; index < storage.length; index += 1) {
+      const key = storage.key(index);
+      if (!key || !/^sb-.*-auth-token$/.test(key)) {
+        continue;
+      }
+
+      const rawValue = storage.getItem(key);
+      if (!rawValue) {
+        continue;
+      }
+
+      for (const targetStorage of storages) {
+        if (!targetStorage.getItem(key)) {
+          targetStorage.setItem(key, rawValue);
+        }
+      }
     }
-    window.localStorage.removeItem(key);
   }
 }
 
 migrateLegacySupabaseSessions();
 
-const browserSessionStorage = isBrowser
+const browserSessionStorage = isBrowser && getPrimaryBrowserStorage()
   ? {
       getItem(key: string) {
-        return window.sessionStorage.getItem(key);
+        for (const storage of getAvailableBrowserStorages()) {
+          const value = storage.getItem(key);
+          if (value) {
+            return value;
+          }
+        }
+        return null;
       },
       setItem(key: string, value: string) {
-        window.sessionStorage.setItem(key, value);
-        window.localStorage.removeItem(key);
+        for (const storage of getAvailableBrowserStorages()) {
+          storage.setItem(key, value);
+        }
       },
       removeItem(key: string) {
-        window.sessionStorage.removeItem(key);
-        window.localStorage.removeItem(key);
+        for (const storage of getAvailableBrowserStorages()) {
+          storage.removeItem(key);
+        }
       },
     }
   : undefined;

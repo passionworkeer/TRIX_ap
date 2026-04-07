@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Download, Share2, X } from 'lucide-react';
 import {
-  canPromptInstall,
   type DeferredInstallPromptEvent,
   shouldShowIosInstallHint,
   isStandaloneMode,
@@ -26,6 +25,11 @@ const PwaInstallPrompt: React.FC<PwaInstallPromptProps> = ({ elevated = false })
     }
 
     setDismissed(window.localStorage.getItem(DISMISS_KEY) === '1');
+
+    // For iOS — show immediately
+    if (shouldShowIosInstallHint(window)) {
+      setShowIosHint(true);
+    }
   }, []);
 
   useEffect(() => {
@@ -72,6 +76,7 @@ const PwaInstallPrompt: React.FC<PwaInstallPromptProps> = ({ elevated = false })
     };
   }, []);
 
+  // iOS and Android — show immediately on mount
   useEffect(() => {
     if (typeof window === 'undefined') {
       return;
@@ -81,8 +86,10 @@ const PwaInstallPrompt: React.FC<PwaInstallPromptProps> = ({ elevated = false })
     const iosHintVisible = shouldShowIosInstallHint(window);
 
     setShowIosHint(iosHintVisible);
-    setShowPrompt(!dismissed && !standalone && (iosHintVisible || canPromptInstall(deferredPrompt, window)));
-  }, [deferredPrompt, dismissed, displayModeVersion]);
+    if (!dismissed && !standalone) {
+      setShowPrompt(true);
+    }
+  }, [dismissed, displayModeVersion]);
 
   const dismissPrompt = () => {
     window.localStorage.setItem(DISMISS_KEY, '1');
@@ -134,7 +141,7 @@ const PwaInstallPrompt: React.FC<PwaInstallPromptProps> = ({ elevated = false })
             </p>
             <p className="mt-1 text-sm leading-6 text-slate-600">
               {showIosHint
-                ? '请在 Safari 点击底部“分享”，然后选择“添加到主屏幕”，安装后会以全屏应用打开。'
+                ? '请在 Safari 点击底部"分享"，然后选择"添加到主屏幕"，安装后会以全屏应用打开。'
                 : '安装后可直接从主屏幕启动 TRIX，打开速度更稳定，也更接近原生应用体验。'}
             </p>
 

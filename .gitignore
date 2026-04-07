@@ -98,6 +98,9 @@ __pycache__/
 desktop/check-float*.cjs
 desktop/cdp-listen.cjs
 *.png
+!public/icon-192.png
+!public/icon-512.png
+!public/apple-touch-icon.png
 !docs/screenshots/*.png
 map-*.png
 home-*.png

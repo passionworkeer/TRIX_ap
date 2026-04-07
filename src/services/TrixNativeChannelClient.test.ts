@@ -170,6 +170,17 @@ function normalizeAccountId(accountId: string | undefined | null): string {
   return accountId?.trim() || 'default';
 }
 
+function deriveAccountIdFromEmail(email: string | undefined | null): string | null {
+  const normalized = email?.trim().toLowerCase();
+  if (!normalized) {
+    return null;
+  }
+
+  const [localPart = ''] = normalized.split('@');
+  const sanitized = localPart.replace(/[^a-z0-9._-]+/g, '-').replace(/^-+|-+$/g, '');
+  return sanitized || null;
+}
+
 // Mock logger for parseQrOrClaimPayload
 const mockLogger = {
   debug: vi.fn(),
@@ -1279,6 +1290,23 @@ describe('TrixNativeChannelClient Pure Functions', () => {
 
     it('should handle accountId with newlines', () => {
       expect(normalizeAccountId('account\n')).toBe('account');
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // deriveAccountIdFromEmail
+  // -------------------------------------------------------------------------
+  describe('deriveAccountIdFromEmail', () => {
+    it('should use the email local part', () => {
+      expect(deriveAccountIdFromEmail('david@trix.app')).toBe('david');
+    });
+
+    it('should normalize case and replace unsupported characters', () => {
+      expect(deriveAccountIdFromEmail('David+ios@TRIX.app')).toBe('david-ios');
+    });
+
+    it('should return null for empty input', () => {
+      expect(deriveAccountIdFromEmail('   ')).toBeNull();
     });
   });
 

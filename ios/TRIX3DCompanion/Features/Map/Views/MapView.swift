@@ -210,7 +210,7 @@ struct MapView: View {
 
             // Heat zone overlays - with hit testing disabled
             ForEach(viewModel.heatZones) { heatZone in
-                HeatZoneOverlay(heatZone: heatZone, region: viewModel.region, containerSize: proxy.size)
+                HeatZoneOverlay(heatZone: heatZone, region: viewModel.region, containerSize: UIScreen.main.bounds.size)
             }
         }
     }

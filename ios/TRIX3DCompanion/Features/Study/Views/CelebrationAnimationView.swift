@@ -244,7 +244,7 @@ struct ConfettiPieceView: View {
                     .easeIn(duration: 4)
                     .delay(piece.delay)
                 ) {
-                    yOffset = screenSize.height + 50
+                    yOffset = UIScreen.main.bounds.height + 50
                 }
             }
     }

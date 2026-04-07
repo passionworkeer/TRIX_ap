@@ -342,20 +342,6 @@ class FeatureFlagServiceImpl {
 export const featureFlagService = new FeatureFlagServiceImpl();
 
 // ============================================
-// React Hook (for Web app)
-// ============================================
-
-let reactHooksAvailable = false;
-try {
-  // Check if React is available
-  if (typeof window !== 'undefined' && (window as any).React) {
-    reactHooksAvailable = true;
-  }
-} catch (error) {
-  logger.warn('FeatureFlags', 'React hooks availability check failed:', error);
-}
-
-// ============================================
 // Direct Export
 // ============================================
 

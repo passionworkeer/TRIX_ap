@@ -151,6 +151,31 @@ const STORAGE_KEYS = {
 const USER_WS_PROTOCOL = 'trix-user';
 const WS_TOKEN_PROTOCOL_PREFIX = 'trix-auth.';
 
+function isStandalonePwaWindow(): boolean {
+  if (typeof window === 'undefined') {
+    return false;
+  }
+
+  const navigatorRef = window.navigator as Navigator & { standalone?: boolean };
+  const isStandaloneDisplayMode = typeof window.matchMedia === 'function'
+    && window.matchMedia('(display-mode: standalone)').matches;
+
+  return Boolean(navigatorRef.standalone || isStandaloneDisplayMode);
+}
+
+function getAvailableBrowserStorages(preferPersistent = false): Storage[] {
+  if (typeof window === 'undefined') {
+    return [localStorage];
+  }
+
+  const prefersLocalStorage = preferPersistent || isStandalonePwaWindow();
+  const storages = prefersLocalStorage
+    ? [window.localStorage, window.sessionStorage]
+    : [window.sessionStorage, window.localStorage];
+
+  return storages.filter((storage, index, list) => Boolean(storage) && list.indexOf(storage) === index);
+}
+
 function generateSecureRandomString(length: number): string {
   const array = new Uint8Array(length);
   crypto.getRandomValues(array);
@@ -158,19 +183,16 @@ function generateSecureRandomString(length: number): string {
 }
 
 function getSessionTokenStorage(): Storage {
-  return typeof window !== 'undefined' && window.sessionStorage
-    ? window.sessionStorage
-    : localStorage;
+  return getAvailableBrowserStorages(true)[0] ?? localStorage;
 }
 
 function getSessionStateStorage(): Storage {
-  return typeof window !== 'undefined' && window.sessionStorage
-    ? window.sessionStorage
-    : localStorage;
+  return getAvailableBrowserStorages(true)[0] ?? localStorage;
 }
 
 function getStorageFallbacks(primaryStorage: Storage): Storage[] {
-  return primaryStorage === localStorage ? [primaryStorage] : [primaryStorage, localStorage];
+  const storages = [primaryStorage, ...getAvailableBrowserStorages(true)];
+  return storages.filter((storage, index, list) => list.indexOf(storage) === index);
 }
 
 function getSessionTokenStorages(): Storage[] {
@@ -209,14 +231,7 @@ function buildUserWebSocketProtocols(session: Pick<StoredSession, 'clientToken'>
 }
 
 function getSupabaseAuthStorages(): Storage[] {
-  const storages: Storage[] = [];
-  if (typeof window !== 'undefined' && window.sessionStorage) {
-    storages.push(window.sessionStorage);
-  }
-  else {
-    storages.push(localStorage);
-  }
-  return storages;
+  return getAvailableBrowserStorages(true);
 }
 
 function normalizeServerUrl(serverUrl: string): string {
@@ -351,6 +366,17 @@ function normalizeAccountId(accountId: string | undefined | null): string {
   return accountId?.trim() || 'default';
 }
 
+function deriveAccountIdFromEmail(email: string | undefined | null): string | null {
+  const normalized = email?.trim().toLowerCase();
+  if (!normalized) {
+    return null;
+  }
+
+  const [localPart = ''] = normalized.split('@');
+  const sanitized = localPart.replace(/[^a-z0-9._-]+/g, '-').replace(/^-+|-+$/g, '');
+  return sanitized || null;
+}
+
 function parseQrOrClaimPayload(rawInput: string): { serverUrl?: string; code: string; secret?: string; accountId?: string } {
   const raw = rawInput.trim();
 
@@ -423,6 +449,7 @@ class TrixNativeChannelClient {
   private manualDisconnect = false;
   private agentOnline = false;
   private currentAuthUserId: string | null = null;
+  private currentAuthEmail: string | null = null;
 
   private buildSocketSessionKey(session: StoredSession): string {
     return [
@@ -481,11 +508,12 @@ class TrixNativeChannelClient {
     });
   }
 
-  setAuthUser(userId: string | null | undefined): void {
+  setAuthUser(userId: string | null | undefined, email?: string | null | undefined): void {
     this.currentAuthUserId = userId?.trim() || null;
+    this.currentAuthEmail = email?.trim() || null;
   }
 
-  private readAuthStateFromStorage(): { accessToken: string | null; userId: string | null } {
+  private readAuthStateFromStorage(): { accessToken: string | null; userId: string | null; email: string | null } {
     try {
       for (const storage of getSupabaseAuthStorages()) {
         const authKey = Object.keys(storage).find((key) => key.startsWith('sb-') && key.endsWith('-auth-token'));
@@ -499,7 +527,7 @@ class TrixNativeChannelClient {
 
         const parsed = JSON.parse(raw) as {
           access_token?: unknown;
-          user?: { id?: unknown };
+          user?: { id?: unknown; email?: unknown };
         };
         const accessToken = typeof parsed.access_token === 'string' && parsed.access_token.trim()
           ? parsed.access_token.trim()
@@ -507,15 +535,57 @@ class TrixNativeChannelClient {
         const userId = typeof parsed.user?.id === 'string' && parsed.user.id.trim()
           ? parsed.user.id.trim()
           : null;
-        if (accessToken || userId) {
-          return { accessToken, userId };
+        const email = typeof parsed.user?.email === 'string' && parsed.user.email.trim()
+          ? parsed.user.email.trim()
+          : null;
+        if (accessToken || userId || email) {
+          return { accessToken, userId, email };
         }
       }
-      return { accessToken: null, userId: null };
+      return { accessToken: null, userId: null, email: null };
     } catch (error) {
       logger.clawbot.debug('[TrixNative] failed to read auth token from local storage', error);
-      return { accessToken: null, userId: null };
+      return { accessToken: null, userId: null, email: null };
     }
+  }
+
+  private resolveAuthScopedAccountId(accountId?: string | null): string {
+    if (accountId?.trim()) {
+      return normalizeAccountId(accountId);
+    }
+
+    const authState = this.readAuthStateFromStorage();
+    const derived = deriveAccountIdFromEmail(this.currentAuthEmail ?? authState.email);
+    if (derived) {
+      return derived;
+    }
+
+    return normalizeAccountId(accountId);
+  }
+
+  private async resolveAuthScopedAccountIdAsync(accountId?: string | null): Promise<string> {
+    if (accountId?.trim()) {
+      return normalizeAccountId(accountId);
+    }
+
+    const fromCachedState = this.resolveAuthScopedAccountId(accountId);
+    if (fromCachedState !== 'default') {
+      return fromCachedState;
+    }
+
+    const { data: { user } } = await supabase.auth.getUser().catch(() => ({
+      data: { user: null as { email?: string | null } | null },
+    }));
+    const email = typeof user?.email === 'string' ? user.email.trim() : null;
+    if (email) {
+      this.currentAuthEmail = email;
+      const derived = deriveAccountIdFromEmail(email);
+      if (derived) {
+        return derived;
+      }
+    }
+
+    return fromCachedState;
   }
 
   private async getAuthAccessToken(): Promise<string | null> {
@@ -561,50 +631,46 @@ class TrixNativeChannelClient {
       return null;
     }
     const storageKey = buildSessionTokenStorageKey(accountId, parsed.conversationId, parsed.clientId);
-    const primaryStorage = getSessionTokenStorage();
-    const primaryValue = readTrimmedStorageItem(primaryStorage, storageKey);
-    if (primaryValue) {
-      return primaryValue;
-    }
+    const storages = getSessionTokenStorages();
+    for (const storage of storages) {
+      const storedValue = readTrimmedStorageItem(storage, storageKey);
+      if (!storedValue) {
+        continue;
+      }
 
-    for (const storage of getSessionTokenStorages()) {
-      if (storage === primaryStorage) {
-        continue;
+      for (const targetStorage of storages) {
+        if (targetStorage !== storage && !targetStorage.getItem(storageKey)) {
+          targetStorage.setItem(storageKey, storedValue);
+        }
       }
-      const legacyValue = readTrimmedStorageItem(storage, storageKey);
-      if (!legacyValue) {
-        continue;
-      }
-      primaryStorage.setItem(storageKey, legacyValue);
-      storage.removeItem(storageKey);
-      return legacyValue;
+      return storedValue;
     }
 
     return null;
   }
 
   private persistSessionToken(session: StoredSession): void {
-    getSessionTokenStorage().setItem(
-      buildSessionTokenStorageKey(session.accountId, session.conversationId, session.clientId),
-      session.clientToken,
-    );
+    const storageKey = buildSessionTokenStorageKey(session.accountId, session.conversationId, session.clientId);
+    for (const storage of getSessionTokenStorages()) {
+      storage.setItem(storageKey, session.clientToken);
+    }
   }
 
   private synchronizePersistedSessionTokens(state: StoredSessionState): void {
-    const primaryStorage = getSessionTokenStorage();
+    const tokenStorages = getSessionTokenStorages();
     const expected = new Set<string>();
     Object.values(state.sessions).forEach((session) => {
       this.persistSessionToken(session);
       expected.add(buildSessionTokenStorageKey(session.accountId, session.conversationId, session.clientId));
     });
 
-    for (const storage of getSessionTokenStorages()) {
+    for (const storage of tokenStorages) {
       for (let index = storage.length - 1; index >= 0; index -= 1) {
         const key = storage.key(index);
         if (!key || !key.startsWith(`${STORAGE_KEYS.sessionTokenPrefix}:`)) {
           continue;
         }
-        if (storage === primaryStorage && expected.has(key)) {
+        if (expected.has(key)) {
           continue;
         }
         storage.removeItem(key);
@@ -700,6 +766,62 @@ class TrixNativeChannelClient {
     }
   }
 
+  private writeSessionState(state: StoredSessionState): void {
+    this.synchronizePersistedSessionTokens(state);
+    const sessionStatePayload = JSON.stringify({
+      ...state,
+      sessions: Object.fromEntries(
+        Object.entries(state.sessions).map(([accountId, session]) => [accountId, this.stripSessionSecrets(session)]),
+      ),
+    });
+    const storages = getSessionStateStorages();
+    for (const storage of storages) {
+      storage.setItem(STORAGE_KEYS.sessions, sessionStatePayload);
+      storage.setItem(STORAGE_KEYS.activeAccountId, state.activeAccountId);
+    }
+
+    const activeSession = state.sessions[state.activeAccountId];
+    if (activeSession) {
+      const legacySessionPayload = JSON.stringify(this.stripSessionSecrets(activeSession));
+      for (const storage of storages) {
+        storage.setItem(STORAGE_KEYS.legacySession, legacySessionPayload);
+      }
+      localStorage.setItem(STORAGE_KEYS.clientId, activeSession.clientId);
+      localStorage.setItem(STORAGE_KEYS.legacyPairDeviceId, activeSession.clientId);
+    } else {
+      for (const storage of storages) {
+        storage.removeItem(STORAGE_KEYS.legacySession);
+      }
+    }
+    for (const storage of storages) {
+      storage.removeItem(STORAGE_KEYS.legacyClaim);
+    }
+
+    if (Object.keys(state.sessions).length === 0) {
+      for (const storage of storages) {
+        clearPersistedSessionState(storage);
+      }
+    } else {
+      for (const storage of getSessionStateStorages()) {
+        if (storages.includes(storage)) {
+          continue;
+        }
+        clearPersistedSessionState(storage);
+      }
+    }
+  }
+
+  getStoredPairingState(accountId?: string): {
+    hasSession: boolean;
+    session: StoredSession | null;
+  } {
+    const session = this.getStoredSession(accountId);
+    return {
+      hasSession: Boolean(session),
+      session,
+    };
+  }
+
   private readSessionState(): StoredSessionState {
     const primaryStorage = getSessionStateStorage();
 
@@ -781,38 +903,6 @@ class TrixNativeChannelClient {
       activeAccountId: 'default',
       sessions: {},
     };
-  }
-
-  private writeSessionState(state: StoredSessionState): void {
-    this.synchronizePersistedSessionTokens(state);
-    const primaryStorage = getSessionStateStorage();
-    primaryStorage.setItem(
-      STORAGE_KEYS.sessions,
-      JSON.stringify({
-        ...state,
-        sessions: Object.fromEntries(
-          Object.entries(state.sessions).map(([accountId, session]) => [accountId, this.stripSessionSecrets(session)]),
-        ),
-      }),
-    );
-    primaryStorage.setItem(STORAGE_KEYS.activeAccountId, state.activeAccountId);
-
-    const activeSession = state.sessions[state.activeAccountId];
-    if (activeSession) {
-      primaryStorage.setItem(STORAGE_KEYS.legacySession, JSON.stringify(this.stripSessionSecrets(activeSession)));
-      localStorage.setItem(STORAGE_KEYS.clientId, activeSession.clientId);
-      localStorage.setItem(STORAGE_KEYS.legacyPairDeviceId, activeSession.clientId);
-    } else {
-      primaryStorage.removeItem(STORAGE_KEYS.legacySession);
-    }
-    primaryStorage.removeItem(STORAGE_KEYS.legacyClaim);
-
-    for (const storage of getSessionStateStorages()) {
-      if (storage === primaryStorage) {
-        continue;
-      }
-      clearPersistedSessionState(storage);
-    }
   }
 
   private getStoredSession(accountId?: string): StoredSession | null {
@@ -1072,7 +1162,7 @@ class TrixNativeChannelClient {
     }
 
     const clientId = this.getOrCreateClientId();
-    const resolvedAccountId = normalizeAccountId(accountId);
+    const resolvedAccountId = await this.resolveAuthScopedAccountIdAsync(accountId);
     const response = await fetch(`${serverUrl}/api/client/session/restore`, {
       method: 'POST',
       headers: {
@@ -1129,7 +1219,7 @@ class TrixNativeChannelClient {
       code,
       clientId,
       deviceName,
-      accountId: accountId ? normalizeAccountId(accountId) : undefined,
+      accountId: await this.resolveAuthScopedAccountIdAsync(accountId),
       secret,
       fallbackError: '配对失败',
     });
@@ -1166,7 +1256,7 @@ class TrixNativeChannelClient {
       code: parsed.code,
       clientId,
       deviceName,
-      accountId: parsed.accountId,
+      accountId: parsed.accountId ? normalizeAccountId(parsed.accountId) : await this.resolveAuthScopedAccountIdAsync(),
       secret: parsed.secret,
       fallbackError: '二维码配对失败',
     });

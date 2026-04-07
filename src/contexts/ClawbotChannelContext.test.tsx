@@ -36,6 +36,7 @@ const { mockInstance, _handlers } = vi.hoisted(() => {
     removeAllListeners: vi.fn(() => { for (const k of Object.keys(handlers)) delete handlers[k]; }),
     setAuthUser: vi.fn(),
     getSession: vi.fn().mockReturnValue(null),
+    getStoredPairingState: vi.fn().mockReturnValue({ hasSession: false, session: null }),
     clearSession: vi.fn(),
     connect: vi.fn().mockResolvedValue(undefined),
     disconnect: vi.fn(),
@@ -164,6 +165,7 @@ describe('ClawbotChannelContext', () => {
 
     // Default: no pre-existing session
     vi.mocked(mockInstance.restoreSession).mockResolvedValue(null);
+    vi.mocked(mockInstance.getStoredPairingState).mockReturnValue({ hasSession: false, session: null });
 
     // connect() fires 'connected' synchronously so ctx.connect() works in tests
     vi.mocked(mockInstance.connect).mockImplementation(() => {
@@ -224,9 +226,21 @@ describe('ClawbotChannelContext', () => {
     // setPairingStatus('paired') fires synchronously inside the effect (before the
     // cancelled async IIFE would call connect()), so it always fires.
     vi.mocked(mockInstance.restoreSession).mockResolvedValue(PAIRED_SESSION);
+    vi.mocked(mockInstance.getStoredPairingState).mockReturnValue({ hasSession: true, session: PAIRED_SESSION });
     const { getByTestId } = renderWithProviders(<TestConsumer />);
     await waitFor(() => {
       expect(getByTestId('pairing-status').textContent).toBe('paired');
+      expect(getByTestId('is-paired').textContent).toBe('true');
+    });
+  });
+
+  it('keeps paired state when a stored session exists but transport is temporarily disconnected', async () => {
+    vi.mocked(mockInstance.getStoredPairingState).mockReturnValue({ hasSession: true, session: PAIRED_SESSION });
+    const { getByTestId } = renderWithProviders(<TestConsumer />);
+    act(() => { fireHandler('disconnected'); });
+    await waitFor(() => {
+      expect(getByTestId('status').textContent).toBe('DISCONNECTED');
+      expect(getByTestId('is-paired').textContent).toBe('true');
     });
   });
 

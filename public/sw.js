@@ -1,5 +1,5 @@
-const APP_SHELL_CACHE = 'trix-app-shell-v1';
-const RUNTIME_CACHE = 'trix-runtime-v1';
+const APP_SHELL_CACHE = 'trix-app-shell-v2';
+const RUNTIME_CACHE = 'trix-runtime-v2';
 const APP_SHELL_URLS = [
   '/',
   '/index.html',
@@ -66,20 +66,10 @@ function shouldHandleRuntimeRequest(request) {
 
 async function handleNavigationRequest(request) {
   const url = new URL(request.url);
-  const cache = await caches.open(RUNTIME_CACHE);
 
   try {
-    const response = await fetch(request);
-    if (response.ok && isSameOrigin(url)) {
-      cache.put(request, response.clone());
-    }
-    return response;
+    return await fetch(request);
   } catch (error) {
-    const cachedResponse = await cache.match(request, { ignoreSearch: true });
-    if (cachedResponse) {
-      return cachedResponse;
-    }
-
     if (url.pathname.endsWith('/pairing.html')) {
       const pairingShell = await caches.match('/pairing.html');
       if (pairingShell) {

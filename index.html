@@ -2,24 +2,24 @@
 <html lang="zh-CN" class="light">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <link rel="apple-touch-icon" href="/icon-192.png" />
+    <link rel="icon" type="image/png" href="/icon-192.png" sizes="192x192" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180" />
     <link rel="manifest" href="/manifest.json" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
 
     <!-- PWA -->
     <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="TRIX" />
     <meta name="application-name" content="TRIX" />
     <meta name="theme-color" content="#0b6e4f" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#0b6e4f" media="(prefers-color-scheme: dark)" />
     <meta name="msapplication-TileColor" content="#0b6e4f" />
-    <meta name="msapplication-config" content="/browserconfig.xml" />
 
     <!-- SEO -->
-    <meta name="description" content="TRIX 原生 OpenClaw 配对聊天入口" />
-    <meta name="keywords" content="TRIX, OpenClaw, 聊天, 配对" />
+    <meta name="description" content="TRIX AI companion for study, focus, chat, and pairing across devices." />
+    <meta name="keywords" content="TRIX, OpenClaw, AI companion, study, focus, chat, pairing" />
 
     <!-- Baidu Maps JavaScript API GL - loaded dynamically via baiduMapService.ts -->
 
@@ -43,28 +43,7 @@
           window.location.replace(target.toString());
           return;
         }
-
-        try {
-          if ('serviceWorker' in navigator) {
-            const registrations = await navigator.serviceWorker.getRegistrations();
-            await Promise.allSettled(registrations.map((registration) => registration.unregister()));
-          }
-          if ('caches' in window) {
-            const cacheNames = await caches.keys();
-            await Promise.allSettled(
-              cacheNames.map((cacheName) => caches.delete(cacheName))
-            );
-          }
-        } catch (error) {
-          console.warn('[TRIX] Failed to retire legacy PWA shell', error);
-        }
       })();
-
-      window.addEventListener('message', (event) => {
-        if (event?.data?.type === 'trix-sw-retired') {
-          window.location.reload();
-        }
-      });
 
       // 生产环境上传地址
       window.__PROD_UPLOAD_URL__ = window.location.origin;

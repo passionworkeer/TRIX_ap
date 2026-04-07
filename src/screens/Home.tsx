@@ -58,7 +58,7 @@ interface HomeProps {
 
 const Home: React.FC<HomeProps> = ({ isUIVisible, onToggleUI, devVideoSource: _devVideoSource, botState: propBotState }) => {
   const navigate = useNavigate();
-  const { isConnected: isClawbotConnected, isPaired: isClawbotPaired, botState: contextBotState, sendMessage } = useClawbotChannel();
+  const { isPaired: isClawbotPaired, botState: contextBotState, sendMessage } = useClawbotChannel();
   const { showWarning, showSuccess } = useNotification();
 
   // 使用 prop_botState 优先，确保正确处理状态
@@ -75,7 +75,7 @@ const Home: React.FC<HomeProps> = ({ isUIVisible, onToggleUI, devVideoSource: _d
   const handleWorkbenchCardClick = (itemId: string) => {
     switch (itemId) {
       case 'snapshot':
-        if (!isClawbotConnected || !isClawbotPaired) {
+        if (!isClawbotPaired) {
           showWarning(PAIRING_REQUIRED_TOAST_MESSAGE, {
             ...PAIRING_REQUIRED_TOAST_OPTIONS,
             id: PAIRING_REQUIRED_TOAST_ID,
@@ -178,7 +178,7 @@ const Home: React.FC<HomeProps> = ({ isUIVisible, onToggleUI, devVideoSource: _d
             onLocationSelected={(location) => {
               logger.ui.debug('Selected location:', location);
 
-              if (!isClawbotConnected || !isClawbotPaired) {
+              if (!isClawbotPaired) {
                 showWarning(PAIRING_REQUIRED_TOAST_MESSAGE, { ...PAIRING_REQUIRED_TOAST_OPTIONS });
                 return;
               }
