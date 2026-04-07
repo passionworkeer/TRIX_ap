@@ -4,11 +4,25 @@
 
 ---
 
-## [Unreleased] — Canvas Skill 完善与 APIyi 支持
+## [Unreleased] — PWA 封装与 iOS 安装支持
 
 ### 完成内容
 
-1. **Canvas APIyi Provider 支持** (`477f5ed`):
+1. **Web PWA 完整封装** (`codex/pwa-ios-install`):
+   - `public/sw.js` — Service Worker，含 App Shell 预缓存 + 导航网络优先策略 + 静态资源缓存优先策略
+   - `public/manifest.json` — 增强 manifest（lang、id、apple-touch-icon、maskable icons）
+   - `src/utils/pwa.ts` — 平台检测工具函数（isStandaloneMode / isIosDevice / isSafariBrowser / shouldShowIosInstallHint）
+   - `src/utils/pwaRegistration.ts` — SW 注册与自动更新逻辑（updatefound → skipWaiting → reload）
+   - `src/utils/pwa.test.ts` — Vitest 单元测试，覆盖 4 个场景
+   - `src/components/PwaInstallPrompt.tsx` — 安装提示组件（iOS Safari 手动引导 + Android/Desktop API 触发）
+   - `src/index.tsx` — 入口注册 `scheduleServiceWorkerRegistration()`
+   - `src/App.tsx` — 挂载 `<PwaInstallPrompt />` 组件
+
+2. **文档更新**:
+   - 新增 `docs/guides/PWA.md` — PWA 安装指南
+   - 更新 `docs/guides/INDEX.md` / `docs/INDEX.md` 索引
+
+3. **Canvas APIyi Provider 支持** (`477f5ed`):
    - 新增 VEO 3.1 和 Nano Banana 模型支持
    - 完善 Canvas Skill 脚本的 provider 适配
 

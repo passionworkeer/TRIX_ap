@@ -1,7 +1,9 @@
 {
   "name": "TRIX",
   "short_name": "TRIX",
-  "description": "原生 OpenClaw 配对聊天入口",
+  "description": "TRIX AI companion for study, focus, chat, and pairing across devices.",
+  "lang": "zh-CN",
+  "id": "/",
   "theme_color": "#0b6e4f",
   "background_color": "#f5efe5",
   "display": "standalone",
@@ -20,6 +22,11 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
+    },
+    {
+      "src": "/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png"
     }
   ],
   "categories": ["lifestyle", "education", "productivity"],

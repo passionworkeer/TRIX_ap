@@ -3,6 +3,7 @@ import { HashRouter, Routes, Route, useLocation, Navigate, matchPath } from 'rea
 import { Toaster } from 'react-hot-toast';
 import ErrorBoundary from './components/ErrorBoundary';
 import ProtectedRoute from './components/ProtectedRoute';
+import PwaInstallPrompt from './components/PwaInstallPrompt';
 import { AppRoutes } from './types';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ClawbotChannelProvider, useClawbotChannel } from './contexts/ClawbotChannelContext';
@@ -69,6 +70,9 @@ function AppContent() {
   const isTimerPage = location.pathname === '/study/timer';
   const isAuthPage = location.pathname === AppRoutes.LOGIN || location.pathname === AppRoutes.REGISTER;
   const isPairingPage = location.pathname === AppRoutes.PAIRING;
+  const showsDock = Boolean(
+    user && (!isHomePage || showDockOnHome) && !isChatDetailPage && !isTimerPage && !isAuthPage
+  );
 
   const toggleDock = () => {
     if (isHomePage) {
@@ -178,11 +182,13 @@ function AppContent() {
         )}
       </div>
 
-      {user && (!isHomePage || showDockOnHome) && !isChatDetailPage && !isTimerPage && !isAuthPage && (
+      {showsDock && (
         <Suspense fallback={null}>
           <GlassDock />
         </Suspense>
       )}
+
+      <PwaInstallPrompt elevated={showsDock} />
 
       <Toaster
         position="top-center"
