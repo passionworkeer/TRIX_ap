@@ -239,6 +239,8 @@ def _create_scene_job(
     aspect: str,
     style: str,
     last_image_node_id: str | None,
+    image_size: str | None = None,
+    thinking_mode: str | None = None,
 ) -> dict:
     media_type = _normalize_scene_media_type(scene)
     parent_node_id = last_image_node_id if media_type == "video" else None
@@ -261,6 +263,8 @@ def _create_scene_job(
             aspect=aspect,
             style=style,
             parent_node_id=parent_node_id,
+            image_size=image_size,
+            thinking_mode=thinking_mode,
         )
         data = _unwrap_payload_data(payload)
         job = {
@@ -294,6 +298,8 @@ def _run_scene_jobs(
     style: str,
     skip_video: bool,
     retries: int,
+    image_size: str | None = None,
+    thinking_mode: str | None = None,
 ) -> tuple[list[dict], list[dict], list[dict], list[dict]]:
     image_completed = []
     image_failed = []
@@ -315,6 +321,8 @@ def _run_scene_jobs(
                 aspect=aspect,
                 style=style,
                 last_image_node_id=last_image_node_id,
+                image_size=image_size,
+                thinking_mode=thinking_mode,
             )
             print(
                 f"  [QUEUED] {job['media_type']} scene {job['scene_index']} -> "
@@ -384,6 +392,8 @@ def run_workflow(
     batch: int = 1,
     aspect: str = "origin",
     style: str = "",
+    image_size: str | None = None,
+    thinking_mode: str | None = None,
 ):
     """
     执行完整工作流。
@@ -445,6 +455,8 @@ def run_workflow(
             style=style,
             skip_video=skip_video,
             retries=retries,
+            image_size=image_size,
+            thinking_mode=thinking_mode,
         )
 
         subtitle_result = None
@@ -580,10 +592,27 @@ if __name__ == "__main__":
     parser.add_argument(
         "--aspect",
         default="origin",
-        choices=["9:16", "16:9", "1:1", "4:3", "origin"],
-        help="Video aspect ratio for generation/export",
+        choices=[
+            "1:1", "16:9", "9:16", "4:3", "3:2", "2:3",
+            "3:4", "4:5", "5:4", "21:9",
+            "1:4", "4:1", "1:8", "8:1",
+            "origin", "portrait", "landscape", "square",
+        ],
+        help="视频宽高比",
     )
     parser.add_argument("--style", default="", help="Style preset passed to Canvas session")
+    parser.add_argument(
+        "--image-size",
+        choices=["512", "1K", "2K", "4K"],
+        default=None,
+        help="Nano Banana 2 输出分辨率：512=低分辨率预览，1K=默认，2K=高清，4K=超高清",
+    )
+    parser.add_argument(
+        "--thinking-mode",
+        choices=["minimal", "high"],
+        default=None,
+        help="Nano Banana 2 思维模式：minimal=快速，high=深度推理（复杂构图更准）",
+    )
     args = parser.parse_args()
 
     if os.path.isfile(args.script):
@@ -604,6 +633,8 @@ if __name__ == "__main__":
             batch=args.batch,
             aspect=args.aspect,
             style=args.style,
+            image_size=args.image_size,
+            thinking_mode=args.thinking_mode,
         )
         print(json.dumps(result, ensure_ascii=False, indent=2))
         if not result.get("ok", False):

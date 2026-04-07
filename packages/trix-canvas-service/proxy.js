@@ -1,8 +1,6 @@
 #!/usr/bin/env node
 /**
- * Local AI Proxy — bridges canvas service to AI providers.
- *
- * Supported providers: minimax (default), apiyi
+ * Local AI Proxy — bridges canvas service to AIyi API.
  *
  * Handles two client patterns:
  *  A) Canvas service:        POST /generate  +  GET /tasks/:taskId
@@ -15,47 +13,19 @@ import { timingSafeEqual } from 'node:crypto';
 
 const PORT = Number(process.env.PROXY_PORT || 8790);
 const HOST = process.env.PROXY_HOST || '127.0.0.1';
-// Provider: 'minimax' (default) or 'apiyi'
-const PROVIDER = process.env.AI_PROVIDER || 'minimax';
-const IS_APIYI = PROVIDER === 'apiyi';
-// APIyi uses a different base
-const APIYI_BASE = 'https://api.apiyi.com';
-const AI_API_BASE = IS_APIYI
-  ? APIYI_BASE
-  : (process.env.AI_API_BASE || 'https://api.minimaxi.com');
+const AI_API_BASE = process.env.AI_API_BASE || 'https://api.apiyi.com';
 const AI_API_KEY = process.env.AI_API_KEY || '';
 const AI_GENERATE_PATH = process.env.AI_GENERATE_PATH || '/anthropic/v1/messages';
-const AI_IMAGE_MODEL = IS_APIYI
-  ? (process.env.AI_IMAGE_MODEL || 'gemini-3.1-flash-image-preview')
-  : (process.env.AI_IMAGE_MODEL || 'image-01');
-const AI_IMAGE_PATH = IS_APIYI
-  ? `/v1beta/models/${AI_IMAGE_MODEL}:generateContent`
-  : (process.env.AI_IMAGE_PATH || '/v1/image_generation');
-const AI_VIDEO_PATH = IS_APIYI
-  ? '/v1/video/generations'
-  : (process.env.AI_VIDEO_PATH || process.env.PROXY_VIDEO_PATH || '');
-const AI_MODEL = process.env.AI_MODEL || 'MiniMax-M2.7';
-const AI_VIDEO_MODEL = IS_APIYI
-  ? (process.env.AI_VIDEO_MODEL || 'veo-3.1')
-  : (process.env.AI_VIDEO_MODEL || process.env.PROXY_VIDEO_MODEL || 'video-01');
-const AI_VIDEO_I2V_MODEL =
-  process.env.AI_VIDEO_I2V_MODEL
-  || process.env.PROXY_VIDEO_I2V_MODEL
-  || (IS_APIYI ? 'veo-3.1' : 'MiniMax-Hailuo-2.3-Fast');
-const AI_VIDEO_DURATION = Number(process.env.AI_VIDEO_DURATION || process.env.PROXY_VIDEO_DURATION || 6);
-const AI_VIDEO_RESOLUTION =
-  process.env.AI_VIDEO_RESOLUTION
-  || process.env.PROXY_VIDEO_RESOLUTION
-  || '768P';
-const AI_IMAGE_TASK_PATH_TEMPLATE =
-  process.env.AI_IMAGE_TASK_PATH_TEMPLATE
-  || process.env.PROXY_IMAGE_TASK_PATH_TEMPLATE
-  || '';
-// APIyi uses /v1/video/generations/{taskId} for polling
-const AI_VIDEO_TASK_PATH_TEMPLATE =
-  IS_APIYI
-    ? '/v1/video/generations/{taskId}'
-    : (process.env.AI_VIDEO_TASK_PATH_TEMPLATE || process.env.PROXY_VIDEO_TASK_PATH_TEMPLATE || '');
+const AI_IMAGE_MODEL = process.env.AI_IMAGE_MODEL || 'gemini-3.1-flash-image-preview';
+const AI_IMAGE_PATH = `/v1beta/models/${AI_IMAGE_MODEL}:generateContent`;
+// VEO 3.1: /v1/videos (async) — model variants: veo-3.1, veo-3.1-fast, veo-3.1-landscape, veo-3.1-fl, etc.
+const AI_VIDEO_PATH = process.env.AI_VIDEO_PATH || '/v1/videos';
+// Default: fast model for speed. Use AI_VIDEO_MODEL to override.
+const AI_VIDEO_MODEL = process.env.AI_VIDEO_MODEL || 'veo-3.1-fast';
+// Frame-to-video (首尾帧) requires -fl variant and multipart/form-data
+const AI_VIDEO_I2V_MODEL = process.env.AI_VIDEO_I2V_MODEL || 'veo-3.1-fast-fl';
+// Polling: /v1/videos/{video_id} — video_id is the id returned from creation
+const AI_VIDEO_TASK_PATH_TEMPLATE = '/v1/videos/{taskId}';
 const MAX_BODY_BYTES = Number(process.env.PROXY_MAX_BODY_BYTES || 256 * 1024);
 const REQUEST_TIMEOUT_MS = Number(process.env.PROXY_REQUEST_TIMEOUT_MS || 120000);
 const TASK_TTL_MS = Number(process.env.PROXY_TASK_TTL_MS || 60 * 60 * 1000);
@@ -442,7 +412,9 @@ function apiRequest(method, pathOrUrl, body) {
 }
 
 function resolveAspect(value) {
+  // Nano Banana 2 支持全部 14 种宽高比
   const ASPECT_MAP = {
+    // 基础比例
     '1:1': '1:1',
     '16:9': '16:9',
     '4:3': '4:3',
@@ -450,10 +422,105 @@ function resolveAspect(value) {
     '3:2': '3:2',
     '2:3': '2:3',
     '3:4': '3:4',
+    // Nano Banana 2 新增比例（超长/超宽）
+    '1:4': '1:4',
+    '4:1': '4:1',
+    '1:8': '1:8',
+    '8:1': '8:1',
+    '4:5': '4:5',
+    '5:4': '5:4',
     '21:9': '21:9',
+    // 兼容别名
     origin: '1:1',
+    portrait: '9:16',
+    landscape: '16:9',
+    square: '1:1',
   };
-  return ASPECT_MAP[value] || '1:1';
+  return ASPECT_MAP[String(value || '').trim()] || '1:1';
+}
+
+// 判断宽高比是否为横屏（用于自动选择 VEO 3.1 landscape 模型）
+function isLandscapeAspect(aspect) {
+  const LANDSCAPE_RATIOS = new Set(['16:9', '4:3', '3:2', '21:9', '4:1', '8:1', '4:5']);
+  return LANDSCAPE_RATIOS.has(aspect);
+}
+
+// 根据 aspect 和是否使用首帧，自动选择 VEO 3.1 模型名称
+// VEO 3.1 模型命名：基础名 -landscape? -fast? -fl?
+// -fl = Frame-to-Video 模式，需要配合 firstFrameImage
+function selectVideoModel(usesFirstFrame, resolvedAspect) {
+  const landscape = isLandscapeAspect(resolvedAspect);
+  // 从环境变量读取基础名（默认 veo-3.1-fast）
+  const baseModel = usesFirstFrame
+    ? (process.env.AI_VIDEO_I2V_MODEL || 'veo-3.1-fast-fl')
+    : (process.env.AI_VIDEO_MODEL || 'veo-3.1-fast');
+
+  // 如果用户已经自己指定了带 -landscape/--fast 等完整后缀，直接用
+  if (baseModel.includes('-landscape') || baseModel.includes('-fl')) {
+    return baseModel;
+  }
+  // 自动加上 -landscape 后缀
+  return landscape ? `${baseModel}-landscape` : baseModel;
+}
+
+// 发送 multipart/form-data 请求（用于 VEO 3.1 帧转视频）
+// fields: { [name]: string | Buffer }
+function apiRequestMultipart(pathOrUrl, fields) {
+  return new Promise((resolve, reject) => {
+    const url = /^https?:\/\//i.test(pathOrUrl)
+      ? new URL(pathOrUrl)
+      : new URL(pathOrUrl, AI_API_BASE);
+    const isHttps = url.protocol === 'https:';
+    const mod = isHttps ? https : http;
+
+    // Build multipart body manually (no external deps)
+    const boundary = `----FormBoundary${Date.now()}`;
+    const parts = [];
+    for (const [name, value] of Object.entries(fields)) {
+      const header = Buffer.from(
+        `--${boundary}\r\nContent-Disposition: form-data; name="${name}"` +
+        (Buffer.isBuffer(value)
+          ? `; filename="input_reference"\r\nContent-Type: application/octet-stream`
+          : '') +
+        `\r\n\r\n`,
+        'utf8',
+      );
+      const body = Buffer.isBuffer(value) ? value : Buffer.from(String(value), 'utf8');
+      parts.push(header, body);
+    }
+    parts.push(Buffer.from(`\r\n--${boundary}--\r\n`, 'utf8'));
+    const body = Buffer.concat(parts);
+
+    const options = {
+      hostname: url.hostname,
+      port: url.port || (isHttps ? 443 : 80),
+      path: url.pathname + url.search,
+      method: 'POST',
+      headers: {
+        'User-Agent': 'TRIX-Canvas-Proxy/1.0',
+        'Content-Type': `multipart/form-data; boundary=${boundary}`,
+        'Content-Length': body.length,
+        ...(AI_API_KEY ? { Authorization: `Bearer ${AI_API_KEY}` } : {}),
+      },
+    };
+
+    const req = mod.request(options, (res) => {
+      let data = '';
+      res.on('data', (chunk) => { data += chunk; });
+      res.on('end', () => {
+        const parsed = (() => { try { return JSON.parse(data); } catch { return data; } })();
+        const ok = (res.statusCode || 500) < 400;
+        resolve({ ok, status: res.statusCode || 500, body: parsed });
+      });
+    });
+    req.on('error', (err) => {
+      console.error(`[apiRequestMultipart ERROR] ${pathOrUrl} → ${err.message}`);
+      reject(err);
+    });
+    req.setTimeout(REQUEST_TIMEOUT_MS, () => { req.destroy(); reject(new Error('timeout')); });
+    req.write(body);
+    req.end();
+  });
 }
 
 function normalizeStatus(rawStatus) {
@@ -783,219 +850,181 @@ async function callAi(canvasPayload) {
   const prompt = canvasPayload.message || canvasPayload.prompt || '';
   const mediaType = canvasPayload.media_type || canvasPayload.mediaType || 'image';
   const aspect = resolveAspect(canvasPayload.aspect);
-  const firstFrameImage = canvasPayload.parent_source_url
+
+  // Nano Banana 2 imageSize: 512 / 1K / 2K / 4K
+  const imageSize = canvasPayload.imageSize || '1K';
+  // Nano Banana 2 thinking mode: 'minimal' | 'high' | 'auto' | number
+  const thinkingMode = canvasPayload.thinkingMode || null;
+  // Image editing: base64 data URL or raw base64 string
+  const inputImage = canvasPayload.inputImage || canvasPayload.input_image || '';
+  // Video first-frame: parent source URL (图生视频)
+  const firstFrameImage =
+    canvasPayload.parent_source_url
     || canvasPayload.parentSourceUrl
     || canvasPayload.parent_result_url
     || canvasPayload.parentResultUrl
     || '';
-  const capabilityContext = { usesFirstFrameImage: Boolean(firstFrameImage) };
 
+  // ── Image generation / editing ──
   if (mediaType === 'image') {
-    // ── APIyi image format (Google Gemini-compatible) ──
-    if (IS_APIYI) {
-      const result = await apiRequest('POST', AI_IMAGE_PATH, {
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: {
-          responseModalities: ['IMAGE'],
-          imageConfig: {
-            aspectRatio: aspect || '1:1',
-            imageSize: '1K',
-          },
-        },
-      });
-      if (!result.ok) {
-        const error = extractErrorMessage(result.body, `HTTP ${result.status}`);
-        updateMediaCapabilityFromFailure(mediaType, error, capabilityContext);
-        return { ok: false, error };
+    const parts = [{ text: prompt }];
+
+    // Support image editing: inject input image as inlineData
+    let inputImageData = null;
+    let inputMimeType = 'image/png';
+    if (inputImage) {
+      if (inputImage.startsWith('data:')) {
+        const commaIdx = inputImage.indexOf(',');
+        inputMimeType = inputImage.slice(5, commaIdx).replace(/;.*/, '');
+        inputImageData = inputImage.slice(commaIdx + 1);
+      } else {
+        inputImageData = inputImage;
       }
-      // Extract base64 image from Gemini-style response
-      const body = result.body;
-      let b64 = null;
-      try {
-        const parts = body?.candidates?.[0]?.content?.parts || [];
-        for (const part of parts) {
-          if (part?.inlineData?.data) {
-            b64 = part.inlineData.data;
-            break;
-          }
-        }
-      } catch (_) {}
-      if (b64) {
-        // Decode and upload — for now return as data URL
-        const mimeType = body?.candidates?.[0]?.content?.parts?.[0]?.inlineData?.mimeType || 'image/png';
-        const dataUrl = `data:${mimeType};base64,${b64}`;
-        updateMediaCapabilityFromSuccess(mediaType, capabilityContext);
-        return { ok: true, status: 'completed', urls: [dataUrl] };
-      }
-      const finishReason = body?.candidates?.[0]?.finishReason;
-      if (finishReason && finishReason !== 'STOP') {
-        const error = `Image generation blocked: ${finishReason}`;
-        updateMediaCapabilityFromFailure(mediaType, error, capabilityContext);
-        return { ok: false, error };
-      }
-      updateMediaCapabilityFromFailure(mediaType, 'No image in response', capabilityContext);
-      return { ok: false, error: 'No image in APIyi response' };
+      parts.unshift({ inlineData: { mimeType: inputMimeType, data: inputImageData } });
     }
-    // ── MiniMax / standard image format ──
+
+    const genConfig = {
+      responseModalities: ['IMAGE'],
+      imageConfig: {
+        aspectRatio: aspect || '1:1',
+        imageSize,
+      },
+    };
+    // thinkingMode: 'minimal' → 0, 'high' → -1, number → that number, null/undefined → omit
+    if (thinkingMode !== null && thinkingMode !== undefined) {
+      genConfig.thinkingConfig = { thinkingBudget: Number(thinkingMode) };
+    }
+
     const result = await apiRequest('POST', AI_IMAGE_PATH, {
-      model: AI_IMAGE_MODEL,
-      prompt,
-      aspect_ratio: aspect,
-      response_format: 'url',
-      n: 1,
+      contents: [{ parts }],
+      generationConfig: genConfig,
     });
     if (!result.ok) {
       const error = extractErrorMessage(result.body, `HTTP ${result.status}`);
-      updateMediaCapabilityFromFailure(mediaType, error, capabilityContext);
+      updateMediaCapabilityFromFailure(mediaType, error, { usesFirstFrameImage: false });
       return { ok: false, error };
     }
-    const urls = extractUrls(result.body);
-    if (urls.length > 0) {
-      updateMediaCapabilityFromSuccess(mediaType, capabilityContext);
-      return { ok: true, status: 'completed', urls };
+    const body = result.body;
+    let b64 = null;
+    try {
+      const candParts = body?.candidates?.[0]?.content?.parts || [];
+      for (const part of candParts) {
+        if (part?.inlineData?.data) {
+          b64 = part.inlineData.data;
+          break;
+        }
+      }
+    } catch (_) {}
+    if (b64) {
+      const mimeType = body?.candidates?.[0]?.content?.parts?.[0]?.inlineData?.mimeType || 'image/png';
+      updateMediaCapabilityFromSuccess(mediaType, { usesFirstFrameImage: false });
+      return { ok: true, status: 'completed', urls: [`data:${mimeType};base64,${b64}`] };
     }
-    const taskId = extractTaskId(result.body);
-    const pollPath = extractStatusUrl(result.body) || buildTaskPath(AI_IMAGE_TASK_PATH_TEMPLATE, taskId);
-    if (taskId && pollPath) {
-      return {
-        ok: true,
-        status: 'processing',
-        upstreamTaskId: taskId,
-        upstreamPollPath: pollPath,
-        urls: [],
-      };
-    }
-    // Recognise MiniMax async "ok + pending" as success (no URLs yet — polling will follow)
-    if (result.body?.status === 'ok' || result.body?.status === 'pending') {
-      return { ok: true, status: 'processing', upstreamTaskId: taskId || null, upstreamPollPath: pollPath || null, urls: [] };
-    }
-    if (result.body?.base_resp?.status_code !== 0) {
-      const error = extractErrorMessage(result.body, 'Image generation failed');
-      updateMediaCapabilityFromFailure(mediaType, error, capabilityContext);
+    const finishReason = body?.candidates?.[0]?.finishReason;
+    if (finishReason && finishReason !== 'STOP') {
+      const error = `Image generation blocked: ${finishReason}`;
+      updateMediaCapabilityFromFailure(mediaType, error, { usesFirstFrameImage: false });
       return { ok: false, error };
     }
-    updateMediaCapabilityFromFailure(mediaType, 'No image URL in response', capabilityContext);
-    return { ok: false, error: 'No image URL in response' };
+    updateMediaCapabilityFromFailure(mediaType, 'No image in response', { usesFirstFrameImage: false });
+    return { ok: false, error: 'No image in APIyi response' };
   }
 
   if (AI_VIDEO_PATH) {
-    // ── APIyi video format ──
-    if (IS_APIYI) {
-      const videoModel = firstFrameImage ? AI_VIDEO_I2V_MODEL : AI_VIDEO_MODEL;
-      const payload = {
-        model: videoModel,
+    // ── VEO 3.1 异步 API (/v1/videos) ──
+    // 模型根据 aspect（横屏/竖屏）和是否使用首帧自动选择
+    // 帧转视频使用 multipart/form-data 格式
+    const usesFirstFrame = Boolean(firstFrameImage);
+    const videoModel = selectVideoModel(usesFirstFrame, aspect);
+    const videoCapabilityContext = { usesFirstFrameImage: usesFirstFrame };
+
+    let result;
+    if (usesFirstFrame) {
+      // VEO 3.1 帧转视频：multipart/form-data，input_reference 为图片
+      let imageData = firstFrameImage;
+      let mimeType = 'image/png';
+      if (firstFrameImage.startsWith('data:')) {
+        const commaIdx = firstFrameImage.indexOf(',');
+        mimeType = firstFrameImage.slice(5, commaIdx).replace(/;.*/, '');
+        imageData = firstFrameImage.slice(commaIdx + 1);
+      }
+      // input_reference 需要原始二进制，先 base64 decode
+      const imageBuffer = Buffer.from(imageData, 'base64');
+      result = await apiRequestMultipart(AI_VIDEO_PATH, {
         prompt,
-        ...(firstFrameImage ? { image_url: firstFrameImage } : {}),
-      };
-      const result = await apiRequest('POST', AI_VIDEO_PATH, payload);
-      if (!result.ok) {
-        const error = extractErrorMessage(result.body, `HTTP ${result.status}`);
-        updateMediaCapabilityFromFailure(mediaType, error, capabilityContext);
-        return { ok: false, error };
-      }
-      const body = result.body;
-      // Sync completion (rare for video)
-      if (body?.status === 'completed' || body?.status === 'success') {
-        const videoUrl = body?.url || body?.result_url || body?.video_url;
-        if (videoUrl) {
-          updateMediaCapabilityFromSuccess(mediaType, capabilityContext);
-          return { ok: true, status: 'completed', urls: [videoUrl] };
-        }
-      }
-      // Async — extract task id from response
-      const taskId = body?.id || extractTaskId(body);
-      if (taskId) {
-        const pollPath = buildTaskPath(AI_VIDEO_TASK_PATH_TEMPLATE, taskId);
-        return {
-          ok: true,
-          status: 'processing',
-          upstreamTaskId: taskId,
-          upstreamPollPath: pollPath,
-          urls: [],
-        };
-      }
-      // Fallback: check for direct URL
-      const urls = extractUrls(body);
-      if (urls.length > 0) {
-        updateMediaCapabilityFromSuccess(mediaType, capabilityContext);
-        return { ok: true, status: 'completed', urls };
-      }
-      updateMediaCapabilityFromFailure(mediaType, 'No video URL or task ID in APIyi response', capabilityContext);
-      return { ok: false, error: 'No video URL or task ID in APIyi response' };
+        model: videoModel,
+        input_reference: imageBuffer,
+      });
+    } else {
+      // 文生视频：普通 JSON
+      result = await apiRequest('POST', AI_VIDEO_PATH, {
+        prompt,
+        model: videoModel,
+      });
     }
-    // ── MiniMax / standard video format ──
-    const videoModel = firstFrameImage ? AI_VIDEO_I2V_MODEL : AI_VIDEO_MODEL;
-    const result = await apiRequest('POST', AI_VIDEO_PATH, {
-      model: videoModel,
-      prompt,
-      duration: AI_VIDEO_DURATION,
-      resolution: AI_VIDEO_RESOLUTION,
-      ...(firstFrameImage ? { first_frame_image: firstFrameImage } : {}),
-    });
+
     if (!result.ok) {
       const error = extractErrorMessage(result.body, `HTTP ${result.status}`);
-      updateMediaCapabilityFromFailure(mediaType, error, capabilityContext);
+      updateMediaCapabilityFromFailure(mediaType, error, videoCapabilityContext);
       return { ok: false, error };
     }
-    const urls = extractUrls(result.body);
-    if (urls.length > 0) {
-      updateMediaCapabilityFromSuccess(mediaType, capabilityContext);
-      return { ok: true, status: 'completed', urls };
+
+    const body = result.body;
+    // VEO 3.1 异步返回: { id: "video_xxx", status: "queued" }
+    if (body?.status === 'completed') {
+      const videoUrl = body?.url || body?.video_url;
+      if (videoUrl) {
+        updateMediaCapabilityFromSuccess(mediaType, videoCapabilityContext);
+        return { ok: true, status: 'completed', urls: [videoUrl] };
+      }
     }
-    const taskId = extractTaskId(result.body);
-    const pollPath = extractStatusUrl(result.body) || buildTaskPath(AI_VIDEO_TASK_PATH_TEMPLATE, taskId);
-    if (taskId && pollPath) {
+    // Async — extract video_id for polling
+    const videoId = body?.id || '';
+    if (videoId) {
+      const pollPath = buildTaskPath(AI_VIDEO_TASK_PATH_TEMPLATE, videoId);
       return {
         ok: true,
         status: 'processing',
-        upstreamTaskId: taskId,
+        upstreamTaskId: videoId,
         upstreamPollPath: pollPath,
         urls: [],
       };
     }
-    const extracted = extractMediaUrl(result.body, mediaType);
-    if (extracted?.url) {
-      updateMediaCapabilityFromSuccess(mediaType, capabilityContext);
-      return { ok: true, status: 'completed', urls: [extracted.url] };
-    }
-    if (extracted?.error) {
-      updateMediaCapabilityFromFailure(mediaType, extracted.error, capabilityContext);
-      return { ok: false, error: extracted.error };
-    }
-    if (result.body?.base_resp?.status_code !== 0) {
-      const error = extractErrorMessage(result.body, 'Video generation failed');
-      updateMediaCapabilityFromFailure(mediaType, error, capabilityContext);
-      return { ok: false, error };
+    // Fallback: check for direct URL in response
+    const urls = extractUrls(body);
+    if (urls.length > 0) {
+      updateMediaCapabilityFromSuccess(mediaType, videoCapabilityContext);
+      return { ok: true, status: 'completed', urls };
     }
     updateMediaCapabilityFromFailure(
       mediaType,
-      'Video endpoint returned neither URL nor pollable task',
-      capabilityContext,
+      'No video ID or URL in VEO 3.1 response',
+      videoCapabilityContext,
     );
-    return { ok: false, error: 'Video endpoint returned neither URL nor pollable task' };
+    return { ok: false, error: 'No video ID or URL in VEO 3.1 response' };
   }
 
+  const fallbackCapabilityContext = { usesFirstFrameImage: false };
   const result = await apiRequest('POST', AI_GENERATE_PATH, {
-    model: AI_MODEL,
     messages: [{ role: 'user', content: prompt }],
     max_tokens: 8000,
     stream: false,
   });
   if (!result.ok) {
     const error = extractErrorMessage(result.body, `HTTP ${result.status}`);
-    updateMediaCapabilityFromFailure(mediaType, error, capabilityContext);
+    updateMediaCapabilityFromFailure(mediaType, error, fallbackCapabilityContext);
     return { ok: false, error };
   }
   const extracted = extractMediaUrl(result.body, mediaType);
   if (!extracted) {
-    updateMediaCapabilityFromFailure(mediaType, 'AI response contained no usable URL', capabilityContext);
+    updateMediaCapabilityFromFailure(mediaType, 'AI response contained no usable URL', fallbackCapabilityContext);
     return { ok: false, error: 'AI response contained no usable URL' };
   }
   if (extracted.error) {
-    updateMediaCapabilityFromFailure(mediaType, extracted.error, capabilityContext);
+    updateMediaCapabilityFromFailure(mediaType, extracted.error, fallbackCapabilityContext);
     return { ok: false, error: extracted.error };
   }
-  updateMediaCapabilityFromSuccess(mediaType, capabilityContext);
+  updateMediaCapabilityFromSuccess(mediaType, fallbackCapabilityContext);
   return { ok: true, status: 'completed', urls: [extracted.url] };
 }
 
@@ -1190,9 +1219,9 @@ srv.listen(PORT, HOST, () => {
     const videoUrl = /https?:\/\//i.test(AI_VIDEO_PATH) ? AI_VIDEO_PATH : `${AI_API_BASE}${AI_VIDEO_PATH}`;
     console.log(`  Video:    ${videoUrl}`);
   }
-  console.log(`  Provider: ${IS_APIYI ? 'apiyi' : 'minimax'}  (${describeProvider(AI_API_BASE)})`);
-  console.log(`  Image:    ${AI_IMAGE_MODEL}`);
-  console.log(`  Video:    ${AI_VIDEO_MODEL}`);
+  console.log(`  Provider: apiyi  (${describeProvider(AI_API_BASE)})`);
+  console.log(`  Image:    ${AI_IMAGE_MODEL}  (gemini)`);
+  console.log(`  Video:    ${AI_VIDEO_MODEL}  (i2v: ${AI_VIDEO_I2V_MODEL})`);
   console.log(`  Key:      ${AI_API_KEY ? '✓' : '✗'}`);
   if (!isLoopbackHost(HOST)) {
     console.warn('⚠ Proxy remote exposure enabled via PROXY_ALLOW_REMOTE=true');

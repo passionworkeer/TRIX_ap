@@ -334,9 +334,12 @@ def create_session(
     style: str = "",
     parent_node_id: str | None = None,
     type: str | None = None,
+    image_size: str | None = None,
+    thinking_mode: str | int | None = None,
+    input_image: str | None = None,
 ) -> dict:
     normalized_media_type = type or media_type
-    body = {
+    body: dict = {
         "message": message,
         "mediaType": normalized_media_type,
         "aspect": aspect,
@@ -348,6 +351,12 @@ def create_session(
         body["sessionId"] = session_id
     if parent_node_id:
         body["parentNodeId"] = str(parent_node_id)
+    if image_size:
+        body["imageSize"] = image_size
+    if thinking_mode is not None:
+        body["thinkingMode"] = thinking_mode
+    if input_image:
+        body["inputImage"] = input_image
     return _canvas_post("/api/session", body)
 
 

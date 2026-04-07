@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * TRIX Canvas Service (Node 24 兼容版)
- * 端口: 8791 → 转发到本地 relay (8788) → MiniMax/apivyi
+ * 端口: 8791 → 转发到本地 relay (8788) → APIyi
  */
 import express from 'express';
 import { createServer } from 'http';
@@ -229,5 +229,5 @@ app.use((req, res) => res.status(404).json({ error: '接口不存在' }));
 createServer(app).listen(PORT, '0.0.0.0', () => {
   console.log(`✅ TRIX Canvas 8791 已启动: http://localhost:${PORT}`);
   console.log(`   Canvas: http://localhost:${PORT}/canvas`);
-  console.log(`   Relay:  http://localhost:8788 → MiniMax/apivyi`);
+  console.log(`   Relay:  http://localhost:8788 → APIyi`);
 });

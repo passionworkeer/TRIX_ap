@@ -66,7 +66,7 @@ python3 skills/trix-canvas-skill/scripts/start_canvas.py \
 
 | 脚本 | 用途 | 关键参数 |
 |------|------|------------|
-| `create_session.py` | 标准生成入口：创建图片/视频生成任务，并自动生成对应画布节点 | `message`, `--project-id`, `--type`, `--aspect`, `--parent-node-id` |
+| `create_session.py` | 标准生成入口：创建图片/视频生成任务，并自动生成对应画布节点 | `message`, `--project-id`, `--type`, `--aspect`, `--parent-node-id`, `--image-size`, `--thinking-mode`, `--input-image` |
 | `query_session.py` | 轮询会话结果、获取 `resultUrls` | `session_id`, `--after-seq` |
 | `change_project.py` | 切换到一个新的项目 UUID | 无参数 |
 | `upload_file.py` | 上传本地图片/视频作为参考素材 | `project_id`, `file`, `--type`, `--prompt` |
@@ -109,6 +109,169 @@ python3 skills/trix-canvas-skill/scripts/start_canvas.py \
 - `agents/openai.yaml` 已提供 UI/调用元数据，可直接作为技能包的一部分分发
 - `SKILL.md` + `scripts/` + `agents/openai.yaml` + `assets/canvas-service/` 构成完整可复用 skill
 - 如果你修改了 `packages/trix-canvas-service/`，在提交或发布前运行 `python3 skills/trix-canvas-skill/scripts/sync_canvas_runtime.py`，确保 skill 内嵌 runtime 与 repo runtime 一致
+
+## Nano Banana 2 图像生成参数
+
+Canvas 后端使用 APIyi（底层为 Google Gemini Nano Banana 2），支持完整的 Nano Banana 2 特性。Agent 在调用 `create_session.py` 或 `workflow.py` 时可通过额外参数控制生成效果。
+
+### 场景化自动选参
+
+Agent 应根据使用场景自动选择以下参数组合，无需用户显式指定：
+
+| 场景 | `aspect` | `image-size` | `thinking-mode` | 说明 |
+|------|---------|-------------|----------------|------|
+| **竖版短视频封面 / 短剧封面** | `9:16` | `2K` | `high` | 竖版高画质，深度推理保证构图精准 |
+| **横版电影感短剧** | `16:9` 或 `21:9` | `2K` | `high` | 电影级构图，21:9 超宽适合大场景 |
+| **社交媒体发帖图** | `1:1` 或 `4:5` | `1K` | `minimal` | 快速出图，适合日常内容 |
+| **缩略图 / 预览图** | 任意 | `512` | `minimal` | 最低分辨率，最快速度 |
+| **专业设计 / 商业海报** | 任意 | `4K` | `high` | 超高清，深度推理确保细节 |
+| **图像编辑（换背景/局部改）** | 与原图一致 | `1K` ~ `4K` | `high` | 宽高比必须与 `input-image` 保持一致，模型才能正确理解原图 |
+| **超长条文字 banner** | `4:1` / `8:1` / `1:4` | `1K` | `high` | Nano Banana 2 专属比例，用于横幅或竖幅文字图 |
+
+### 分辨率（`--image-size`）
+
+| 值 | 说明 | 预估耗时 | 推荐场景 |
+|---|---|---------|---------|
+| `512` | 低分辨率 | ~3s | 缩略图、快速预览 |
+| `1K` | 默认 | ~5s | 社交媒体、网页展示 |
+| `2K` | 高清 | ~10s | 短剧封面、高清显示 |
+| `4K` | 超高清 | ~20s | 专业设计、商业海报 |
+
+### 宽高比（`--aspect`）
+
+支持全部 14 种比例：
+
+| 值 | 说明 |
+|---|---|
+| `1:1` | 正方形（默认） |
+| `16:9` | 横版电影 |
+| `9:16` | 竖版短视频 / 短剧竖版 |
+| `4:3` | 经典 4:3 |
+| `3:2` | 照片比例 |
+| `2:3` | 竖版照片 |
+| `3:4` | 竖版艺术 |
+| `4:5` | Instagram 竖版 |
+| `5:4` | 接近方形 |
+| `21:9` | 超宽电影（横版大场景） |
+| `1:4` / `4:1` | 超长竖/横（Nano Banana 2 专属） |
+| `1:8` / `8:1` | 超长条（Nano Banana 2 专属） |
+
+> **短剧 Agent 优先选**：`9:16`（竖版短视频）或 `16:9`（横版电影感），其余比例仅在特殊镜头需求时使用。
+
+### 思维模式（`--thinking-mode`）
+
+| 值 | 推理深度 | 预估耗时 | 适用场景 |
+|---|---------|---------|---------|
+| `minimal` | 最小推理 | ~3-5s | 简单物体、单一主体、预览、草图 |
+| `high` | 深度推理 | ~15-30s | 复杂构图、多角色、精确风格、光影准确 |
+| 不传 | 默认策略 | ~8-12s | 不确定时使用默认 |
+
+> `high` 模式下模型会花更多算力分析提示词中的空间关系、光影逻辑、风格一致性，出图质量明显更高，但耗时更长。建议预览用 `minimal`，正式生成用 `high`。
+
+### 图片编辑（图生图 / i2v 前置图）
+
+将本地图片 base64 传入 `--input-image`，模型会以该图为基准进行编辑：
+
+- **宽高比约束**：`input-image` 的宽高比必须与请求的 `--aspect` 一致；不一致时模型可能无法正确处理
+- **分辨率建议**：`input-image` 建议使用 `1K` 以上，太低的分辨率会导致细节丢失
+- **多轮编辑**：将上一轮生成结果（`session.resultUrls[0]`）直接作为下一轮的 `input-image`，可实现渐进式精修
+
+```bash
+# 换背景（必须保证 aspect 与原图一致）
+python3 skills/trix-canvas-skill/scripts/create_session.py \
+  "把背景换成雪山" \
+  --project-id <id> --type image --aspect 16:9 \
+  --input-image /path/to/original.jpg   # 支持本地文件路径，自动转 base64
+```
+
+```python
+import sys
+sys.path.insert(0, 'skills/trix-canvas-skill/scripts')
+from _common import create_session
+import base64
+
+# 多轮编辑：将上一轮结果作为 input-image 传入
+with open("last_result.jpg", "rb") as f:
+    img_b64 = base64.b64encode(f.read()).decode()
+
+create_session(
+    message="把背景换成雪山，保留人物不变",
+    project_id="<project_id>",
+    media_type="image",
+    aspect="16:9",
+    input_image=f"data:image/jpeg;base64,{img_b64}",
+    thinking_mode="high",
+)
+```
+
+## VEO 3.1 视频生成参数
+
+Canvas 后端使用 APIyi（底层为 Google VEO 3.1），支持异步视频生成和图生视频（i2v）。
+
+> **视频时长固定为 8 秒**，VEO 3.1 不支持自定义时长。
+
+### 场景化自动选参
+
+| 场景 | `aspect` | 是否 i2v | `thinking-mode`（图像）| 说明 |
+|------|---------|---------|--------------------|------|
+| **竖版短剧视频** | `9:16` | 建议 i2v | `high` | 竖版短视频平台，i2v 确保首帧精确 |
+| **横版电影感短剧** | `16:9` | 建议 i2v | `high` | 电影构图，i2v 保证镜头连续性 |
+| **超宽电影感** | `21:9` | 可选 | `high` | 大场景渲染，可纯文本生成 |
+| **快速预览 / 变体** | 任意 | 否 | `minimal` | 快速出视频，不依赖图片 |
+| **首帧必须与图片一致** | 与图片一致 | 必须 i2v | `high` | 主体一致性场景，必须用 `--parent-node-id` |
+
+> **i2v（图生视频）强制规则**：当 `parent_node_id` 指向一个已完成的图片节点时，Canvas 会自动提取该图片作为视频首帧，并将 aspect 与图片宽高比对齐。如果 aspect 不匹配，系统会自动调整。
+
+### 模型自动选择
+
+Canvas proxy 根据以下规则自动选择模型，无需 Agent 手动指定：
+
+| 条件 | 模型 | 说明 |
+|------|------|------|
+| 横版（landscape）aspect + 纯文本 | `veo-3.1-landscape-fast` | 自动加 `-landscape` 后缀 |
+| 竖版 / 其他 + 纯文本 | `veo-3.1-fast` | 默认快速版 |
+| 任意 aspect + i2v | `veo-3.1-fast-fl` | 固定 `-fl` 变体，帧级别首帧控制 |
+
+### 图生视频（Frame-to-Video）
+
+通过 `--parent-node-id` 指定上一张生成的图片节点，Canvas 自动完成 i2v 全链路：
+
+```bash
+# 1. 生成首帧图片（竖版 high 质量）
+python3 skills/trix-canvas-skill/scripts/create_session.py \
+  "女孩在雨中撑伞，雨滴溅起水花，电影感" \
+  --project-id <id> --type image --aspect 9:16 --thinking-mode high
+
+# 2. i2v 生成视频（aspect 必须与图片一致）
+python3 skills/trix-canvas-skill/scripts/create_session.py \
+  "镜头从女孩脚下仰拍，雨水飞溅，慢动作特写" \
+  --project-id <id> --type video --aspect 9:16 \
+  --parent-node-id <image_node_id>
+```
+
+```python
+import sys
+sys.path.insert(0, 'skills/trix-canvas-skill/scripts')
+from _common import create_session
+
+# i2v：parent_node_id 指向上一张图片节点
+create_session(
+    message="镜头从女孩脚下仰拍，雨水飞溅，慢动作特写",
+    project_id="<project_id>",
+    media_type="video",
+    aspect="9:16",
+    parent_node_id="<image_node_id>",  # 自动触发 ve-3.1-fast-fl
+)
+```
+
+### 环境变量
+
+| 变量 | 默认值 | 说明 |
+|------|--------|------|
+| `AI_VIDEO_MODEL` | `veo-3.1-fast` | 默认视频模型 |
+| `AI_VIDEO_I2V_MODEL` | `veo-3.1-fast-fl` | 图生视频专用模型 |
+| `AI_VIDEO_PATH` | `/v1/videos` | VEO 3.1 异步 API 路径 |
+| `AI_VIDEO_TASK_PATH_TEMPLATE` | `/v1/videos/{taskId}` | 轮询任务结果路径 |
 
 ## Python API（`_common.py`）
 

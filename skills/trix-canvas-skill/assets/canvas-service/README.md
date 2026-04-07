@@ -13,7 +13,7 @@ cp .env.example .env
 npm start
 
 # 方式 2：本地 proxy 适配上游厂商，再让 server.js 调 proxy
-# 先配置 AI_API_KEY 或 MINIMAX_API_KEY
+# 先配置 AI_API_KEY
 # 本机回环模式下也支持回退读取 ~/.openclaw/openclaw.json
 npm run start:all
 
@@ -42,7 +42,7 @@ npm start
 packages/trix-canvas-service/
 ├── server.js             # 主 API 服务（项目/节点/会话 + 静态页面）
 ├── relay.js              # 可选的通用边车：将 Canvas /generate 转换至任意厂商
-├── proxy.js              # MiniMax 代理示例：/generate + /tasks/:id
+├── proxy.js              # AI Proxy：/generate + /tasks/:id
 ├── start-all.js          # 一键启动 proxy + canvas
 ├── public/
 │   └── canvas.html      # 画布 SPA
@@ -85,14 +85,14 @@ packages/trix-canvas-service/
 
 它优先读取这些环境变量：
 
-- `AI_API_KEY` / `MINIMAX_API_KEY` / `PROXY_UPSTREAM_KEY`
-- `PROXY_UPSTREAM_BASE`
-- `PROXY_IMAGE_PATH`
-- `PROXY_IMAGE_MODEL`
-- `PROXY_GENERATE_PATH`
-- `PROXY_MODEL`
+- `AI_API_KEY` / `PROXY_UPSTREAM_KEY`
+- `AI_API_BASE`
+- `AI_IMAGE_PATH`
+- `AI_IMAGE_MODEL`
+- `AI_GENERATE_PATH`
+- `AI_VIDEO_MODEL`
 
-如果这些都没配，本机回环模式下会尝试回退读取 `~/.openclaw/openclaw.json` 里的 `MINIMAX_API_KEY`。
+如果这些都没配，本机回环模式下会尝试回退读取 `~/.openclaw/openclaw.json` 里的 `AI_API_KEY`。
 若你在非本机环境运行，请显式设置 `TRIX_CANVAS_ALLOW_OPENCLAW_CONFIG=true` 才会允许这一回退。
 如果你额外给 proxy 配了 `PROXY_ACCESS_TOKEN`，`start-all.js` 会自动把这个 token 传给 Canvas 服务，保证 Canvas -> proxy 的内部请求也能通过鉴权。
 
@@ -136,7 +136,7 @@ packages/trix-canvas-service/
 | `AI_EXTRA_HEADERS` |  | 附加 Headers，换行分隔 |
 | `AI_GENERATE_PATH` | `/generate` | 创建任务路径 |
 | `AI_TASK_PATH_TEMPLATE` | `/tasks/:taskId` | 轮询路径模板 |
-| `PROXY_UPSTREAM_BASE` | `https://api.minimaxi.com` | `proxy.js` 上游 base URL |
+| `PROXY_UPSTREAM_BASE` | `https://api.apiyi.com` | `proxy.js` 上游 base URL |
 | `PROXY_UPSTREAM_KEY` |  | `proxy.js` 上游鉴权 |
 | `PROXY_PORT` | `8790` | `proxy.js` 监听端口 |
 | `PROXY_HOST` | `127.0.0.1` | `proxy.js` 监听地址 |
@@ -152,7 +152,7 @@ packages/trix-canvas-service/
 | `PROXY_IMAGE_PATH` | `/v1/image_generation` | `proxy.js` 图片接口 |
 | `PROXY_IMAGE_MODEL` | `image-01` | `proxy.js` 图片模型 |
 | `PROXY_GENERATE_PATH` | `/anthropic/v1/messages` | `proxy.js` 非图片生成接口 |
-| `PROXY_MODEL` | `MiniMax-M2.7` | `proxy.js` 非图片模型 |
+| `PROXY_MODEL` | — | `proxy.js` 非图片模型（已废弃，统一使用 AI_GENERATE_PATH） |
 | `IMAGE_API_URL` |  | Relay 发送图片 prompt 的供应商地址 |
 | `IMAGE_API_KEY` |  | 图片供应商鉴权 |
 | `IMAGE_API_MODEL` | `image-01` | 可选模型标识 |

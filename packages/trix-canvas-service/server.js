@@ -1282,6 +1282,9 @@ function buildGeneratePayload(session) {
     parentSourceUrl: parentFile?.source_url || '',
     parent_result_url: absoluteParentResultUrl,
     parentResultUrl: absoluteParentResultUrl,
+    imageSize: session.image_size,
+    thinkingMode: session.thinking_mode,
+    inputImage: session.input_image,
   };
 }
 
@@ -1825,6 +1828,9 @@ async function createGenerationSession({
   aspect = 'origin',
   style = '',
   parent_node_id = null,
+  image_size = null,
+  thinking_mode = null,
+  input_image = null,
 }) {
   const project = requireProject(project_id);
   const timestamp = nowIso();
@@ -1853,6 +1859,9 @@ async function createGenerationSession({
     media_type,
     aspect,
     style,
+    image_size,
+    thinking_mode,
+    input_image,
     status: AI_API_BASE ? 'generating' : 'error',
     task_id: '',
     upstream_status: AI_API_BASE ? 'pending' : 'error',
@@ -2746,6 +2755,9 @@ app.post('/api/session', async (req, res, next) => {
       aspect: body.aspect || 'origin',
       style: body.style || '',
       parent_node_id: body.parent_node_id || body.parentNodeId || null,
+      image_size: body.imageSize || body.image_size || null,
+      thinking_mode: body.thinkingMode || body.thinking_mode || null,
+      input_image: body.inputImage || body.input_image || null,
     });
 
     res.json({

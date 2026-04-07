@@ -35,7 +35,6 @@ const PASSTHROUGH_ENV_PREFIXES = [
   'AI_',
   'PROXY_',
   'TRIX_CANVAS_',
-  'MINIMAX_',
   'OPENAI_',
   'ANTHROPIC_',
 ];
@@ -55,7 +54,7 @@ function defaultBaseUrl(host, port) {
 function readOpenClawApiKey() {
   try {
     const cfg = JSON.parse(readFileSync(OPENCLAW_CONFIG, 'utf8'));
-    return cfg?.env?.vars?.MINIMAX_API_KEY || '';
+    return cfg?.env?.vars?.AI_API_KEY || '';
   } catch {
     return '';
   }
@@ -85,7 +84,6 @@ const allowOpenClawFallback = /^(1|true|yes)$/i.test(process.env.TRIX_CANVAS_ALL
   || (isLoopbackHost(CANVAS_HOST) && isLoopbackHost(PROXY_HOST));
 const proxyApiKey =
   process.env.AI_API_KEY
-  || process.env.MINIMAX_API_KEY
   || process.env.PROXY_UPSTREAM_KEY
   || (allowOpenClawFallback ? readOpenClawApiKey() : '');
 const proxyAccessToken = process.env.PROXY_ACCESS_TOKEN || '';
@@ -94,33 +92,25 @@ const proxyEnv = buildChildEnv({
   PROXY_PORT: String(PXYPORT),
   PROXY_HOST,
   AI_API_BASE:
-    process.env.PROXY_UPSTREAM_BASE
-    || process.env.AI_PROVIDER_BASE
+    process.env.AI_PROVIDER_BASE
     || process.env.AI_API_BASE
-    || 'https://api.minimaxi.com',
+    || 'https://api.apiyi.com',
   AI_API_KEY: proxyApiKey,
-  AI_IMAGE_PATH: process.env.PROXY_IMAGE_PATH || process.env.AI_IMAGE_PATH || '/v1/image_generation',
-  AI_IMAGE_MODEL: process.env.PROXY_IMAGE_MODEL || process.env.AI_IMAGE_MODEL || 'image-01',
-  AI_VIDEO_PATH: process.env.PROXY_VIDEO_PATH || process.env.AI_VIDEO_PATH || '/v1/video_generation',
+  AI_IMAGE_PATH: process.env.AI_IMAGE_PATH || `/v1beta/models/${process.env.AI_IMAGE_MODEL || 'gemini-3.1-flash-image-preview'}:generateContent`,
+  AI_IMAGE_MODEL: process.env.AI_IMAGE_MODEL || 'gemini-3.1-flash-image-preview',
+  AI_VIDEO_PATH: process.env.AI_VIDEO_PATH || '/v1/videos',
   AI_VIDEO_MODEL:
-    process.env.PROXY_VIDEO_MODEL
-    || process.env.AI_VIDEO_MODEL
-    || 'MiniMax-Hailuo-2.3',
+    process.env.AI_VIDEO_MODEL
+    || 'veo-3.1-fast',
   AI_VIDEO_I2V_MODEL:
-    process.env.PROXY_VIDEO_I2V_MODEL
-    || process.env.AI_VIDEO_I2V_MODEL
-    || 'MiniMax-Hailuo-2.3-Fast',
+    process.env.AI_VIDEO_I2V_MODEL
+    || 'veo-3.1-fast-fl',
   AI_VIDEO_TASK_PATH_TEMPLATE:
-    process.env.PROXY_VIDEO_TASK_PATH_TEMPLATE
-    || process.env.AI_VIDEO_TASK_PATH_TEMPLATE
-    || '/v1/query/video_generation?task_id=:taskId',
+    process.env.AI_VIDEO_TASK_PATH_TEMPLATE
+    || '/v1/videos/{taskId}',
   AI_GENERATE_PATH:
-    process.env.PROXY_GENERATE_PATH
-    || process.env.AI_GENERATE_PATH
+    process.env.AI_GENERATE_PATH
     || '/anthropic/v1/messages',
-  AI_MODEL: process.env.PROXY_MODEL || process.env.AI_MODEL || 'MiniMax-M2.7',
-  AI_VIDEO_DURATION: process.env.AI_VIDEO_DURATION || '6',
-  AI_VIDEO_RESOLUTION: process.env.AI_VIDEO_RESOLUTION || '768P',
 });
 
 const serverEnv = buildChildEnv({
@@ -168,7 +158,7 @@ process.on('SIGTERM', () => shutdown('signal'));
 
 if (!proxyApiKey) {
   console.warn(
-    'Proxy upstream key is empty. Set AI_API_KEY/MINIMAX_API_KEY/PROXY_UPSTREAM_KEY, or allow ~/.openclaw/openclaw.json via TRIX_CANVAS_ALLOW_OPENCLAW_CONFIG=true.',
+    'Proxy upstream key is empty. Set AI_API_KEY or PROXY_UPSTREAM_KEY, or allow ~/.openclaw/openclaw.json via TRIX_CANVAS_ALLOW_OPENCLAW_CONFIG=true.',
   );
 }
 

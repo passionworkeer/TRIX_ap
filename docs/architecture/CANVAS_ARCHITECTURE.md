@@ -10,7 +10,7 @@
 Canvas 是 TRIX 的 AI 生成结果展示与编排服务，提供：
 
 - **节点图编排**：通过图节点（节点 + 边）组织分镜，支持图片/视频/字幕多种媒体类型
-- **AI 生成**：通过后端 proxy 桥接 MiniMax / APIyi 等生成服务
+- **AI 生成**：通过后端 proxy 桥接 APIyi 等生成服务
 - **Canvas UI**：可视化编辑器，浏览器访问
 - **脚本工具**：Python CLI + Node.js 入口，供 OpenClaw Agent 调用
 
@@ -35,14 +35,14 @@ Browser / OpenClaw Agent
 │           Proxy (AI 网关)                   │
 │  - 请求转发到 Relay                          │
 │  - 任务表 / 会话表内存管理                   │
-│  - 模型检测 (MiniMax / APIyi)              │
+│  - 模型检测 (APIyi)              │
 │  - 结果聚合                                  │
 └────────────────────────┬────────────────────┘
                          │ HTTP → Relay
                          ▼
 ┌─────────────────── 8788 ───────────────────┐
 │            Relay (TRIX Native)              │
-│  - 实际调用 MiniMax / APIyi / VEO 等         │
+│  - 实际调用 APIyi / VEO 等         │
 │  - WebSocket 流式推送                       │
 └─────────────────────────────────────────────┘
 ```
@@ -67,7 +67,7 @@ Express 服务，管理项目、节点、边、文件。
 
 ### 3.2 Proxy (`proxy.js`，端口 8790)
 
-AI 请求代理，支持多 Provider（MiniMax、APIyi）。
+AI 请求代理，支持 Provider（APIyi）。
 
 - 请求转发至 Relay（8788）
 - 模型自动检测（`imageToVideo` 等能力探测）
@@ -78,7 +78,7 @@ AI 请求代理，支持多 Provider（MiniMax、APIyi）。
 
 实际 AI 生成后端。通过 Canvas Skill 脚本调用，不直接暴露给浏览器。
 
-支持的 Provider：`minimax`（MiniMax）、`apivyi`（APIyi，含 VEO 3.1、Nano Banana）
+支持的 Provider：`apivyi`（APIyi，含 VEO 3.1、Nano Banana）
 
 ---
 
@@ -116,6 +116,51 @@ AI 请求代理，支持多 Provider（MiniMax、APIyi）。
 
 ---
 
+## 5.1 Nano Banana 2 图像生成
+
+代理层通过 `/v1beta/models/...:generateContent` 调用，支持完整参数：
+
+| 参数 | 值 | 说明 |
+|------|---|------|
+| `imageSize` | `512` / `1K` / `2K` / `4K` | 输出分辨率，预估耗时 3s/5s/10s/20s |
+| `aspectRatio` | `1:1` ~ `8:1`（14种） | 宽高比；短剧优先 `9:16`（竖版）或 `16:9`（横版） |
+| `thinkingMode` | `minimal`（~3-5s）/ `high`（~15-30s） | 推理深度；预览用 minimal，正式生成用 high |
+| `inputImage` | base64 data URL | 图片编辑；aspect 必须与 `inputImage` 宽高比一致 |
+
+**场景化选参规则**：
+- 竖版短视频封面 → `9:16` + `2K` + `high`
+- 横版电影感 → `16:9` 或 `21:9` + `2K` + `high`
+- 快速预览 / 缩略图 → `512` + `minimal`
+- 图像编辑（换背景等）→ aspect 与 `input-image` 一致 + `high`
+- 多轮编辑 → 上一轮结果作为 `inputImage` 传入
+
+## 5.2 VEO 3.1 视频生成
+
+代理层通过 `/v1/videos` 异步 API 调用 VEO 3.1：
+
+- **时长**：固定 8 秒，不支持自定义
+- **纯文本生成**：POST `/v1/videos` → `{ prompt, model }` → `{ id }` → 轮询 `/v1/videos/{id}`
+- **图生视频（i2v）**：POST `/v1/videos`（multipart/form-data）→ `prompt` + `input_reference`（首帧 base64）+ `model`
+- **模型选择规则**：
+  - 横版 aspect + 纯文本 → `veo-3.1-landscape-fast`（自动加 `-landscape` 后缀）
+  - 竖版/其他 + 纯文本 → `veo-3.1-fast`
+  - i2v（任意 aspect）→ `veo-3.1-fast-fl`（固定 `-fl` 变体）
+- **i2v 强制规则**：aspect 必须与首帧图片宽高比一致；不一致时系统自动对齐
+
+**场景化选参规则**：
+- 竖版短剧 → `9:16` + i2v（`parent_node_id` 指向图片节点）
+- 横版电影感 → `16:9` 或 `21:9` + i2v
+- 快速变体预览 → 任意 aspect + 纯文本 + `minimal`
+
+| 环境变量 | 默认值 | 说明 |
+|----------|--------|------|
+| `AI_VIDEO_PATH` | `/v1/videos` | VEO 3.1 API 路径 |
+| `AI_VIDEO_MODEL` | `veo-3.1-fast` | 默认视频模型 |
+| `AI_VIDEO_I2V_MODEL` | `veo-3.1-fast-fl` | 图生视频模型 |
+| `AI_VIDEO_TASK_PATH_TEMPLATE` | `/v1/videos/{taskId}` | 轮询路径模板 |
+
+---
+
 ## 6. 鉴权模型
 
 - **本机模式（默认）**：无鉴权，只允许 `127.0.0.1`
@@ -133,7 +178,7 @@ AI 请求代理，支持多 Provider（MiniMax、APIyi）。
 OpenClaw Agent 调用 workflow.py
   → parse_script.py 拆解剧本为镜头
   → create_session.py 为每个镜头创建节点 + Session
-  → Proxy (8790) → Relay (8788) → MiniMax / APIyi
+  → Proxy (8790) → Relay (8788) → APIyi
   → query_session.py 轮询结果
   → Canvas Service 保存 resultUrls 到节点
   → export_video.py 调用 ffmpeg 合成最终视频
@@ -159,7 +204,7 @@ OpenClaw Agent 调用 workflow.py
 |------|------|------|
 | `CANVAS_HOST` | `127.0.0.1` | 监听地址 |
 | `CANVAS_BASE_URL` | `http://localhost:8789` | 外部访问基址 |
-| `AI_API_KEY` | — | MiniMax / APIyi 的 Bearer Token |
+| `AI_API_KEY` | — | APIyi 的 Bearer Token |
 | `AI_API_BASE` | — | Proxy 地址（`start:all` 时自动指向本地 8790）|
 | `CANVAS_REQUIRE_AUTH` | `false` | 开启 API Token 鉴权 |
 | `PROXY_MAX_TASKS` | `500` | Proxy 任务表硬上限 |

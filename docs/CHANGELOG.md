@@ -31,7 +31,7 @@
    - 全套色板重设计（`#0c0d14` 深色调，`#10d9a0` 强调色）
    - 字体切换 PingFang SC / Microsoft YaHei
    - 新增 `packages/trix-canvas-service/public/canvas.js`（工作流预设工具）
-   - 新增 Canvas MiniMax API 模型检测和 payload 构建
+   - 新增 Canvas APIyi API 模型检测和 payload 构建
    - 新增 skill 脚本重定向跟随和安全警告
 
 2. **文档结构整理** (`dd11583`, `9f3f47e`):

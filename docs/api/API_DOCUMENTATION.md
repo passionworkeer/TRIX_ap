@@ -208,7 +208,7 @@ x-trix-client-token: <client_token>  (部分端点)
 
 ## 六、Canvas Service API
 
-> 独立 AI 画布服务，位于 `packages/trix-canvas-service/`。端口 8791，通过本地 relay (8788) 连接 MiniMax/apivyi 等生成服务。
+> 独立 AI 画布服务，位于 `packages/trix-canvas-service/`。端口 8791，通过本地 relay (8788) 连接 APIyi 等生成服务。
 
 ### 服务地址
 

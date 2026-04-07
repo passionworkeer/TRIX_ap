@@ -1,6 +1,6 @@
 # TRIX 3D Companion — 文档索引
 
-> **版本**: v2.9（2026-04-04：docs 全面同步、Canvas 暗色主题、MiniMax API 支持）
+> **版本**: v2.9（2026-04-04：docs 全面同步、Canvas 暗色主题、APIyi API 支持）
 > **维护者**: TRIX 3D Companion 开发团队
 
 ---
