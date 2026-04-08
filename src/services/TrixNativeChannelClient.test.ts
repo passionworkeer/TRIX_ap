@@ -114,16 +114,33 @@ type RawAttachment = {
   fileName: string;
   sizeBytes: number;
   publicUrl?: string;
+  servicePath?: string;
   width?: number;
   height?: number;
   durationMs?: number;
 };
 
-function mapAttachments(rawAttachments: RawAttachment[]): ClawbotChannelAttachment[] {
+function resolveAttachmentUrl(attachment: RawAttachment, serverUrl?: string): string {
+  if (attachment.publicUrl && attachment.publicUrl.trim().length > 0) {
+    return attachment.publicUrl;
+  }
+
+  if (attachment.servicePath && attachment.servicePath.trim().length > 0 && serverUrl) {
+    return `${serverUrl.replace(/\/$/, '')}${attachment.servicePath}`;
+  }
+
+  if (attachment.id && serverUrl) {
+    return `${serverUrl.replace(/\/$/, '')}/api/attachments/${encodeURIComponent(attachment.id)}`;
+  }
+
+  return '';
+}
+
+function mapAttachments(rawAttachments: RawAttachment[], serverUrl?: string): ClawbotChannelAttachment[] {
   return rawAttachments.map((attachment) => ({
     id: attachment.id,
     kind: attachment.kind,
-    url: attachment.publicUrl || '',
+    url: resolveAttachmentUrl(attachment, serverUrl),
     mimeType: attachment.mimeType,
     fileName: attachment.fileName,
     size: attachment.sizeBytes,
@@ -145,8 +162,8 @@ type RawServerMessage = {
   metadata?: Record<string, unknown>;
 };
 
-function mapServerMessage(rawMessage: RawServerMessage): ClawbotChannelMessage {
-  const attachments = mapAttachments(rawMessage.attachments);
+function mapServerMessage(rawMessage: RawServerMessage, serverUrl?: string): ClawbotChannelMessage {
+  const attachments = mapAttachments(rawMessage.attachments, serverUrl);
   const primaryAttachment = attachments[0];
   // Convert createdAt to millisecond timestamp
   const timestamp = typeof rawMessage.createdAt === 'number'
@@ -168,6 +185,17 @@ function mapServerMessage(rawMessage: RawServerMessage): ClawbotChannelMessage {
 
 function normalizeAccountId(accountId: string | undefined | null): string {
   return accountId?.trim() || 'default';
+}
+
+function deriveAccountIdFromEmail(email: string | undefined | null): string | null {
+  const normalized = email?.trim().toLowerCase();
+  if (!normalized) {
+    return null;
+  }
+
+  const [localPart = ''] = normalized.split('@');
+  const sanitized = localPart.replace(/[^a-z0-9._-]+/g, '-').replace(/^-+|-+$/g, '');
+  return sanitized || null;
 }
 
 // Mock logger for parseQrOrClaimPayload
@@ -1243,6 +1271,32 @@ describe('TrixNativeChannelClient Pure Functions', () => {
       const result = mapServerMessage(rawMessage);
       expect(result.contentType).toBe('voice');
     });
+
+    it('should fall back to servicePath when publicUrl is missing', () => {
+      const rawMessage: RawServerMessage = {
+        id: 'msg-1',
+        conversationId: 'conv-1',
+        direction: 'inbound',
+        text: '',
+        attachments: [
+          {
+            id: 'att-1',
+            kind: 'image',
+            mimeType: 'image/png',
+            fileName: 'image.png',
+            sizeBytes: 4096,
+            servicePath: '/api/service/attachments/att-1',
+            width: 512,
+            height: 512,
+          },
+        ],
+        senderId: 'openclaw:agent-1',
+        createdAt: 1700000000000,
+      };
+      const result = mapServerMessage(rawMessage, 'https://trix.love');
+      expect(result.mediaUrl).toBe('https://trix.love/api/service/attachments/att-1');
+      expect(result.attachments[0]?.url).toBe('https://trix.love/api/service/attachments/att-1');
+    });
   });
 
   // -------------------------------------------------------------------------
@@ -1279,6 +1333,23 @@ describe('TrixNativeChannelClient Pure Functions', () => {
 
     it('should handle accountId with newlines', () => {
       expect(normalizeAccountId('account\n')).toBe('account');
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // deriveAccountIdFromEmail
+  // -------------------------------------------------------------------------
+  describe('deriveAccountIdFromEmail', () => {
+    it('should use the email local part', () => {
+      expect(deriveAccountIdFromEmail('david@trix.app')).toBe('david');
+    });
+
+    it('should normalize case and replace unsupported characters', () => {
+      expect(deriveAccountIdFromEmail('David+ios@TRIX.app')).toBe('david-ios');
+    });
+
+    it('should return null for empty input', () => {
+      expect(deriveAccountIdFromEmail('   ')).toBeNull();
     });
   });
 

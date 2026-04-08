@@ -68,6 +68,9 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
       if (status === 'ERROR') {
         return 'bg-red-500';
       }
+      if (status === 'DISCONNECTED') {
+        return 'bg-yellow-500';
+      }
       if (botOnline) {
         return 'bg-green-500';
       }
@@ -98,15 +101,18 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
         return '未配对';
       }
       if (status === 'CONNECTING' || status === 'RECONNECTING') {
-        return '正在连接本机 OpenClaw...';
+        return '已配对，正在恢复本机 OpenClaw 连接...';
       }
       if (status === 'ERROR') {
-        return '连接异常';
+        return '已配对，连接异常';
+      }
+      if (status === 'DISCONNECTED') {
+        return '已配对，等待恢复连接';
       }
       if (botOnline) {
         return '本机 OpenClaw 已连接';
       }
-      return '本机 OpenClaw 离线';
+      return '已配对，等待本机 OpenClaw 在线';
     }
 
     switch (status) {

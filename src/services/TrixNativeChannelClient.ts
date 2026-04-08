@@ -91,6 +91,7 @@ type ConversationMessagesResponse = {
       fileName: string;
       sizeBytes: number;
       publicUrl?: string;
+      servicePath?: string;
       width?: number;
       height?: number;
       durationMs?: number;
@@ -127,6 +128,7 @@ type UploadResponse = {
     fileName: string;
     sizeBytes: number;
     publicUrl?: string;
+    servicePath?: string;
     width?: number;
     height?: number;
     durationMs?: number;
@@ -151,6 +153,31 @@ const STORAGE_KEYS = {
 const USER_WS_PROTOCOL = 'trix-user';
 const WS_TOKEN_PROTOCOL_PREFIX = 'trix-auth.';
 
+function isStandalonePwaWindow(): boolean {
+  if (typeof window === 'undefined') {
+    return false;
+  }
+
+  const navigatorRef = window.navigator as Navigator & { standalone?: boolean };
+  const isStandaloneDisplayMode = typeof window.matchMedia === 'function'
+    && window.matchMedia('(display-mode: standalone)').matches;
+
+  return Boolean(navigatorRef.standalone || isStandaloneDisplayMode);
+}
+
+function getAvailableBrowserStorages(preferPersistent = false): Storage[] {
+  if (typeof window === 'undefined') {
+    return [localStorage];
+  }
+
+  const prefersLocalStorage = preferPersistent || isStandalonePwaWindow();
+  const storages = prefersLocalStorage
+    ? [window.localStorage, window.sessionStorage]
+    : [window.sessionStorage, window.localStorage];
+
+  return storages.filter((storage, index, list) => Boolean(storage) && list.indexOf(storage) === index);
+}
+
 function generateSecureRandomString(length: number): string {
   const array = new Uint8Array(length);
   crypto.getRandomValues(array);
@@ -158,19 +185,16 @@ function generateSecureRandomString(length: number): string {
 }
 
 function getSessionTokenStorage(): Storage {
-  return typeof window !== 'undefined' && window.sessionStorage
-    ? window.sessionStorage
-    : localStorage;
+  return getAvailableBrowserStorages(true)[0] ?? localStorage;
 }
 
 function getSessionStateStorage(): Storage {
-  return typeof window !== 'undefined' && window.sessionStorage
-    ? window.sessionStorage
-    : localStorage;
+  return getAvailableBrowserStorages(true)[0] ?? localStorage;
 }
 
 function getStorageFallbacks(primaryStorage: Storage): Storage[] {
-  return primaryStorage === localStorage ? [primaryStorage] : [primaryStorage, localStorage];
+  const storages = [primaryStorage, ...getAvailableBrowserStorages(true)];
+  return storages.filter((storage, index, list) => list.indexOf(storage) === index);
 }
 
 function getSessionTokenStorages(): Storage[] {
@@ -209,14 +233,7 @@ function buildUserWebSocketProtocols(session: Pick<StoredSession, 'clientToken'>
 }
 
 function getSupabaseAuthStorages(): Storage[] {
-  const storages: Storage[] = [];
-  if (typeof window !== 'undefined' && window.sessionStorage) {
-    storages.push(window.sessionStorage);
-  }
-  else {
-    storages.push(localStorage);
-  }
-  return storages;
+  return getAvailableBrowserStorages(true);
 }
 
 function normalizeServerUrl(serverUrl: string): string {
@@ -308,11 +325,33 @@ function toMediaMetadata(attachments: ClawbotChannelAttachment[]): ClawbotChanne
   };
 }
 
-function mapAttachments(rawAttachments: ConversationMessagesResponse['messages'][number]['attachments']): ClawbotChannelAttachment[] {
+function resolveAttachmentUrl(
+  attachment: ConversationMessagesResponse['messages'][number]['attachments'][number] | UploadResponse['attachment'],
+  serverUrl?: string,
+): string {
+  if (attachment.publicUrl && attachment.publicUrl.trim().length > 0) {
+    return attachment.publicUrl;
+  }
+
+  if (attachment.servicePath && attachment.servicePath.trim().length > 0 && serverUrl) {
+    return `${normalizeServerUrl(serverUrl)}${attachment.servicePath}`;
+  }
+
+  if (attachment.id && serverUrl) {
+    return `${normalizeServerUrl(serverUrl)}/api/attachments/${encodeURIComponent(attachment.id)}`;
+  }
+
+  return '';
+}
+
+function mapAttachments(
+  rawAttachments: ConversationMessagesResponse['messages'][number]['attachments'],
+  serverUrl?: string,
+): ClawbotChannelAttachment[] {
   return rawAttachments.map((attachment) => ({
     id: attachment.id,
     kind: attachment.kind,
-    url: attachment.publicUrl || '',
+    url: resolveAttachmentUrl(attachment, serverUrl),
     mimeType: attachment.mimeType,
     fileName: attachment.fileName,
     size: attachment.sizeBytes,
@@ -322,8 +361,11 @@ function mapAttachments(rawAttachments: ConversationMessagesResponse['messages']
   }));
 }
 
-function mapServerMessage(rawMessage: ConversationMessagesResponse['messages'][number]): ClawbotChannelMessage {
-  const attachments = mapAttachments(rawMessage.attachments);
+function mapServerMessage(
+  rawMessage: ConversationMessagesResponse['messages'][number],
+  serverUrl?: string,
+): ClawbotChannelMessage {
+  const attachments = mapAttachments(rawMessage.attachments, serverUrl);
   const primaryAttachment = attachments[0];
   // 将 createdAt 转换为毫秒时间戳
   const timestamp = typeof rawMessage.createdAt === 'number'
@@ -349,6 +391,17 @@ function mapServerMessage(rawMessage: ConversationMessagesResponse['messages'][n
 
 function normalizeAccountId(accountId: string | undefined | null): string {
   return accountId?.trim() || 'default';
+}
+
+function deriveAccountIdFromEmail(email: string | undefined | null): string | null {
+  const normalized = email?.trim().toLowerCase();
+  if (!normalized) {
+    return null;
+  }
+
+  const [localPart = ''] = normalized.split('@');
+  const sanitized = localPart.replace(/[^a-z0-9._-]+/g, '-').replace(/^-+|-+$/g, '');
+  return sanitized || null;
 }
 
 function parseQrOrClaimPayload(rawInput: string): { serverUrl?: string; code: string; secret?: string; accountId?: string } {
@@ -410,6 +463,51 @@ async function readErrorPayload(response: Response, fallbackMessage: string): Pr
   return typeof payload.error === 'string' ? payload.error : fallbackMessage;
 }
 
+function normalizeErrorText(message: string | undefined | null): string {
+  return String(message || '').trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
+function isInvalidClientTokenMessage(message: string | undefined | null): boolean {
+  const normalized = normalizeErrorText(message);
+  if (!normalized) {
+    return false;
+  }
+
+  return normalized.includes('invalid client token')
+    || normalized.includes('invalid token')
+    || normalized.includes('illegal token')
+    || normalized.includes('非法 token')
+    || normalized.includes('非法的token')
+    || normalized.includes('非法token')
+    || normalized.includes('无效 token')
+    || normalized.includes('无效token')
+    || normalized.includes('token 无效')
+    || normalized.includes('token已失效');
+}
+
+function createInvalidClientTokenError(message = 'Invalid client token'): Error {
+  const error = new Error(message);
+  error.name = 'InvalidClientTokenError';
+  return error;
+}
+
+function isInvalidClientTokenError(error: unknown): boolean {
+  if (error instanceof Error) {
+    return error.name === 'InvalidClientTokenError'
+      || isInvalidClientTokenMessage(error.message);
+  }
+
+  if (typeof error === 'object' && error !== null && 'message' in error) {
+    return isInvalidClientTokenMessage(String((error as { message?: unknown }).message));
+  }
+
+  if (typeof error === 'string') {
+    return isInvalidClientTokenMessage(error);
+  }
+
+  return false;
+}
+
 async function wait(ms: number): Promise<void> {
   await new Promise((resolve) => window.setTimeout(resolve, ms));
 }
@@ -423,6 +521,8 @@ class TrixNativeChannelClient {
   private manualDisconnect = false;
   private agentOnline = false;
   private currentAuthUserId: string | null = null;
+  private currentAuthEmail: string | null = null;
+  private sessionRecoveryPromise: Promise<StoredSession> | null = null;
 
   private buildSocketSessionKey(session: StoredSession): string {
     return [
@@ -481,11 +581,12 @@ class TrixNativeChannelClient {
     });
   }
 
-  setAuthUser(userId: string | null | undefined): void {
+  setAuthUser(userId: string | null | undefined, email?: string | null | undefined): void {
     this.currentAuthUserId = userId?.trim() || null;
+    this.currentAuthEmail = email?.trim() || null;
   }
 
-  private readAuthStateFromStorage(): { accessToken: string | null; userId: string | null } {
+  private readAuthStateFromStorage(): { accessToken: string | null; userId: string | null; email: string | null } {
     try {
       for (const storage of getSupabaseAuthStorages()) {
         const authKey = Object.keys(storage).find((key) => key.startsWith('sb-') && key.endsWith('-auth-token'));
@@ -499,7 +600,7 @@ class TrixNativeChannelClient {
 
         const parsed = JSON.parse(raw) as {
           access_token?: unknown;
-          user?: { id?: unknown };
+          user?: { id?: unknown; email?: unknown };
         };
         const accessToken = typeof parsed.access_token === 'string' && parsed.access_token.trim()
           ? parsed.access_token.trim()
@@ -507,15 +608,57 @@ class TrixNativeChannelClient {
         const userId = typeof parsed.user?.id === 'string' && parsed.user.id.trim()
           ? parsed.user.id.trim()
           : null;
-        if (accessToken || userId) {
-          return { accessToken, userId };
+        const email = typeof parsed.user?.email === 'string' && parsed.user.email.trim()
+          ? parsed.user.email.trim()
+          : null;
+        if (accessToken || userId || email) {
+          return { accessToken, userId, email };
         }
       }
-      return { accessToken: null, userId: null };
+      return { accessToken: null, userId: null, email: null };
     } catch (error) {
       logger.clawbot.debug('[TrixNative] failed to read auth token from local storage', error);
-      return { accessToken: null, userId: null };
+      return { accessToken: null, userId: null, email: null };
     }
+  }
+
+  private resolveAuthScopedAccountId(accountId?: string | null): string {
+    if (accountId?.trim()) {
+      return normalizeAccountId(accountId);
+    }
+
+    const authState = this.readAuthStateFromStorage();
+    const derived = deriveAccountIdFromEmail(this.currentAuthEmail ?? authState.email);
+    if (derived) {
+      return derived;
+    }
+
+    return normalizeAccountId(accountId);
+  }
+
+  private async resolveAuthScopedAccountIdAsync(accountId?: string | null): Promise<string> {
+    if (accountId?.trim()) {
+      return normalizeAccountId(accountId);
+    }
+
+    const fromCachedState = this.resolveAuthScopedAccountId(accountId);
+    if (fromCachedState !== 'default') {
+      return fromCachedState;
+    }
+
+    const { data: { user } } = await supabase.auth.getUser().catch(() => ({
+      data: { user: null as { email?: string | null } | null },
+    }));
+    const email = typeof user?.email === 'string' ? user.email.trim() : null;
+    if (email) {
+      this.currentAuthEmail = email;
+      const derived = deriveAccountIdFromEmail(email);
+      if (derived) {
+        return derived;
+      }
+    }
+
+    return fromCachedState;
   }
 
   private async getAuthAccessToken(): Promise<string | null> {
@@ -561,50 +704,46 @@ class TrixNativeChannelClient {
       return null;
     }
     const storageKey = buildSessionTokenStorageKey(accountId, parsed.conversationId, parsed.clientId);
-    const primaryStorage = getSessionTokenStorage();
-    const primaryValue = readTrimmedStorageItem(primaryStorage, storageKey);
-    if (primaryValue) {
-      return primaryValue;
-    }
+    const storages = getSessionTokenStorages();
+    for (const storage of storages) {
+      const storedValue = readTrimmedStorageItem(storage, storageKey);
+      if (!storedValue) {
+        continue;
+      }
 
-    for (const storage of getSessionTokenStorages()) {
-      if (storage === primaryStorage) {
-        continue;
+      for (const targetStorage of storages) {
+        if (targetStorage !== storage && !targetStorage.getItem(storageKey)) {
+          targetStorage.setItem(storageKey, storedValue);
+        }
       }
-      const legacyValue = readTrimmedStorageItem(storage, storageKey);
-      if (!legacyValue) {
-        continue;
-      }
-      primaryStorage.setItem(storageKey, legacyValue);
-      storage.removeItem(storageKey);
-      return legacyValue;
+      return storedValue;
     }
 
     return null;
   }
 
   private persistSessionToken(session: StoredSession): void {
-    getSessionTokenStorage().setItem(
-      buildSessionTokenStorageKey(session.accountId, session.conversationId, session.clientId),
-      session.clientToken,
-    );
+    const storageKey = buildSessionTokenStorageKey(session.accountId, session.conversationId, session.clientId);
+    for (const storage of getSessionTokenStorages()) {
+      storage.setItem(storageKey, session.clientToken);
+    }
   }
 
   private synchronizePersistedSessionTokens(state: StoredSessionState): void {
-    const primaryStorage = getSessionTokenStorage();
+    const tokenStorages = getSessionTokenStorages();
     const expected = new Set<string>();
     Object.values(state.sessions).forEach((session) => {
       this.persistSessionToken(session);
       expected.add(buildSessionTokenStorageKey(session.accountId, session.conversationId, session.clientId));
     });
 
-    for (const storage of getSessionTokenStorages()) {
+    for (const storage of tokenStorages) {
       for (let index = storage.length - 1; index >= 0; index -= 1) {
         const key = storage.key(index);
         if (!key || !key.startsWith(`${STORAGE_KEYS.sessionTokenPrefix}:`)) {
           continue;
         }
-        if (storage === primaryStorage && expected.has(key)) {
+        if (expected.has(key)) {
           continue;
         }
         storage.removeItem(key);
@@ -700,6 +839,62 @@ class TrixNativeChannelClient {
     }
   }
 
+  private writeSessionState(state: StoredSessionState): void {
+    this.synchronizePersistedSessionTokens(state);
+    const sessionStatePayload = JSON.stringify({
+      ...state,
+      sessions: Object.fromEntries(
+        Object.entries(state.sessions).map(([accountId, session]) => [accountId, this.stripSessionSecrets(session)]),
+      ),
+    });
+    const storages = getSessionStateStorages();
+    for (const storage of storages) {
+      storage.setItem(STORAGE_KEYS.sessions, sessionStatePayload);
+      storage.setItem(STORAGE_KEYS.activeAccountId, state.activeAccountId);
+    }
+
+    const activeSession = state.sessions[state.activeAccountId];
+    if (activeSession) {
+      const legacySessionPayload = JSON.stringify(this.stripSessionSecrets(activeSession));
+      for (const storage of storages) {
+        storage.setItem(STORAGE_KEYS.legacySession, legacySessionPayload);
+      }
+      localStorage.setItem(STORAGE_KEYS.clientId, activeSession.clientId);
+      localStorage.setItem(STORAGE_KEYS.legacyPairDeviceId, activeSession.clientId);
+    } else {
+      for (const storage of storages) {
+        storage.removeItem(STORAGE_KEYS.legacySession);
+      }
+    }
+    for (const storage of storages) {
+      storage.removeItem(STORAGE_KEYS.legacyClaim);
+    }
+
+    if (Object.keys(state.sessions).length === 0) {
+      for (const storage of storages) {
+        clearPersistedSessionState(storage);
+      }
+    } else {
+      for (const storage of getSessionStateStorages()) {
+        if (storages.includes(storage)) {
+          continue;
+        }
+        clearPersistedSessionState(storage);
+      }
+    }
+  }
+
+  getStoredPairingState(accountId?: string): {
+    hasSession: boolean;
+    session: StoredSession | null;
+  } {
+    const session = this.getStoredSession(accountId);
+    return {
+      hasSession: Boolean(session),
+      session,
+    };
+  }
+
   private readSessionState(): StoredSessionState {
     const primaryStorage = getSessionStateStorage();
 
@@ -783,38 +978,6 @@ class TrixNativeChannelClient {
     };
   }
 
-  private writeSessionState(state: StoredSessionState): void {
-    this.synchronizePersistedSessionTokens(state);
-    const primaryStorage = getSessionStateStorage();
-    primaryStorage.setItem(
-      STORAGE_KEYS.sessions,
-      JSON.stringify({
-        ...state,
-        sessions: Object.fromEntries(
-          Object.entries(state.sessions).map(([accountId, session]) => [accountId, this.stripSessionSecrets(session)]),
-        ),
-      }),
-    );
-    primaryStorage.setItem(STORAGE_KEYS.activeAccountId, state.activeAccountId);
-
-    const activeSession = state.sessions[state.activeAccountId];
-    if (activeSession) {
-      primaryStorage.setItem(STORAGE_KEYS.legacySession, JSON.stringify(this.stripSessionSecrets(activeSession)));
-      localStorage.setItem(STORAGE_KEYS.clientId, activeSession.clientId);
-      localStorage.setItem(STORAGE_KEYS.legacyPairDeviceId, activeSession.clientId);
-    } else {
-      primaryStorage.removeItem(STORAGE_KEYS.legacySession);
-    }
-    primaryStorage.removeItem(STORAGE_KEYS.legacyClaim);
-
-    for (const storage of getSessionStateStorages()) {
-      if (storage === primaryStorage) {
-        continue;
-      }
-      clearPersistedSessionState(storage);
-    }
-  }
-
   private getStoredSession(accountId?: string): StoredSession | null {
     const state = this.readSessionState();
     const resolvedAccountId = normalizeAccountId(accountId ?? state.activeAccountId);
@@ -882,7 +1045,120 @@ class TrixNativeChannelClient {
     return Boolean(this.getSession());
   }
 
-  async connect(): Promise<void> {
+  private async withSessionRecovery<T>(
+    operation: (session: StoredSession) => Promise<T>,
+    options: { ensureConnected?: boolean } = {},
+  ): Promise<T> {
+    let didRecoverInvalidSession = false;
+
+    while (true) {
+      if (options.ensureConnected) {
+        await this.connect();
+      }
+
+      const session = this.requireSession();
+
+      try {
+        return await operation(session);
+      } catch (error) {
+        if (didRecoverInvalidSession || !isInvalidClientTokenError(error)) {
+          throw error;
+        }
+
+        await this.recoverInvalidSession(session, error);
+        didRecoverInvalidSession = true;
+      }
+    }
+  }
+
+  private async recoverInvalidSession(staleSession: StoredSession, cause: unknown): Promise<StoredSession> {
+    if (this.sessionRecoveryPromise) {
+      return this.sessionRecoveryPromise;
+    }
+
+    const reason = cause instanceof Error ? cause.message : String(cause);
+    this.sessionRecoveryPromise = (async () => {
+      logger.clawbot.warn('[TrixNative] native session token rejected; attempting restore', {
+        accountId: staleSession.accountId,
+        conversationId: staleSession.conversationId,
+        clientId: staleSession.clientId,
+        reason,
+      });
+
+      if (this.reconnectTimer) {
+        window.clearTimeout(this.reconnectTimer);
+        this.reconnectTimer = null;
+      }
+
+      this.manualDisconnect = true;
+      this.disposeSocket(this.socket);
+      this.manualDisconnect = false;
+
+      const restored = await this.restoreSession(
+        undefined,
+        staleSession.deviceName ?? defaultDeviceName(),
+        staleSession.serverUrl,
+      );
+
+      if (restored) {
+        return restored;
+      }
+
+      this.clearSession(staleSession.accountId);
+      this.agentOnline = false;
+      this.emit('unpaired', undefined);
+      throw new Error('当前配对会话已失效，请重新配对');
+    })().finally(() => {
+      this.sessionRecoveryPromise = null;
+    });
+
+    return this.sessionRecoveryPromise;
+  }
+
+  private async fetchHistoryOnce(session: StoredSession): Promise<ClawbotChannelMessage[]> {
+    const response = await fetch(`${session.serverUrl}/api/conversations/${encodeURIComponent(session.conversationId)}/messages`, {
+      headers: {
+        'x-trix-client-token': session.clientToken,
+      },
+    });
+    const payload = await response.json().catch(() => null) as (ConversationMessagesResponse & { error?: string }) | null;
+
+    if (!response.ok) {
+      if (response.status === 401 && isInvalidClientTokenMessage(payload?.error)) {
+        throw createInvalidClientTokenError(payload?.error);
+      }
+      throw new Error(typeof payload?.error === 'string' ? payload.error : '加载消息历史失败');
+    }
+
+    this.agentOnline = Boolean(payload?.agentOnline);
+    return (payload?.messages ?? []).map((message) => mapServerMessage(message, session.serverUrl));
+  }
+
+  private async requestJsonOnce<T>(
+    session: StoredSession,
+    path: string,
+    init?: RequestInit,
+    fallbackMessage = '请求失败',
+  ): Promise<T> {
+    const headers = new Headers(init?.headers);
+    headers.set('x-trix-client-token', session.clientToken);
+    headers.set('x-trix-conversation-id', session.conversationId);
+
+    const response = await fetch(`${session.serverUrl}${path}`, {
+      ...init,
+      headers,
+    });
+    const payload = await response.json().catch(() => null) as { error?: string } | null;
+    if (!response.ok) {
+      if (response.status === 401 && isInvalidClientTokenMessage(payload?.error)) {
+        throw createInvalidClientTokenError(payload?.error);
+      }
+      throw new Error(typeof payload?.error === 'string' ? payload.error : fallbackMessage);
+    }
+    return (payload ?? {}) as T;
+  }
+
+  async connect(allowRecovery = true): Promise<void> {
     const session = this.getSession();
     if (!session) {
       this.socketSessionKey = null;
@@ -906,63 +1182,118 @@ class TrixNativeChannelClient {
 
     this.emit('connecting', undefined);
 
-    await new Promise<void>((resolve, reject) => {
-      const socket = new WebSocket(
-        `${session.websocketUrl}?role=user&conversationId=${encodeURIComponent(session.conversationId)}&clientId=${encodeURIComponent(session.clientId)}`,
-        buildUserWebSocketProtocols(session),
-      );
-      this.socket = socket;
-      this.socketSessionKey = nextSocketSessionKey;
-
-      socket.onopen = () => {
-        if (this.socket !== socket) {
-          return;
-        }
-        this.reconnectAttempts = 0;
-        resolve();
-      };
-
-      socket.onerror = () => {
-        if (this.socket !== socket) {
-          return;
-        }
-        reject(new Error('无法连接到 TRIX Native Channel 服务器'));
-      };
-
-      socket.onclose = () => {
-        if (this.socket !== socket) {
-          return;
-        }
-        this.socket = null;
-        this.socketSessionKey = null;
-        this.emit('disconnected', undefined);
-        if (!this.manualDisconnect && this.getSession()) {
-          this.reconnectAttempts += 1;
-          this.emit('reconnecting', { attempt: this.reconnectAttempts });
-          this.reconnectTimer = window.setTimeout(() => {
-            void this.connect().catch((error: unknown) => {
-              this.emit('error', { message: error instanceof Error ? error.message : '重连失败' });
-            });
-          }, Math.min(5000, 1000 * this.reconnectAttempts));
-        }
-      };
-
-      socket.onmessage = (event) => {
-        if (this.socket !== socket) {
-          return;
-        }
-        this.handleSocketMessage(event.data);
-      };
-    });
-
     try {
-      const history = await this.fetchHistory();
+      await new Promise<void>((resolve, reject) => {
+        let settled = false;
+        const rejectOnce = (error: Error) => {
+          if (settled) {
+            return;
+          }
+          settled = true;
+          reject(error);
+        };
+        const resolveOnce = () => {
+          if (settled) {
+            return;
+          }
+          settled = true;
+          resolve();
+        };
+
+        const socket = new WebSocket(
+          `${session.websocketUrl}?role=user&conversationId=${encodeURIComponent(session.conversationId)}&clientId=${encodeURIComponent(session.clientId)}&clientToken=${encodeURIComponent(session.clientToken)}`,
+          buildUserWebSocketProtocols(session),
+        );
+        this.socket = socket;
+        this.socketSessionKey = nextSocketSessionKey;
+
+        socket.onopen = () => {
+          if (this.socket !== socket) {
+            return;
+          }
+          this.reconnectAttempts = 0;
+          resolveOnce();
+        };
+
+        socket.onerror = () => {
+          if (this.socket !== socket) {
+            return;
+          }
+          rejectOnce(new Error('无法连接到 TRIX Native Channel 服务器'));
+        };
+
+        socket.onclose = (event) => {
+          if (this.socket !== socket) {
+            return;
+          }
+
+          const closeError = event.code === 1008 && isInvalidClientTokenMessage(event.reason)
+            ? createInvalidClientTokenError(event.reason || 'Invalid client token')
+            : new Error(event.reason || '无法连接到 TRIX Native Channel 服务器');
+
+          if (!settled) {
+            this.socket = null;
+            this.socketSessionKey = null;
+            rejectOnce(closeError);
+            return;
+          }
+
+          this.socket = null;
+          this.socketSessionKey = null;
+          this.emit('disconnected', undefined);
+          if (!this.manualDisconnect && this.getSession()) {
+            this.reconnectAttempts += 1;
+            this.emit('reconnecting', { attempt: this.reconnectAttempts });
+            this.reconnectTimer = window.setTimeout(() => {
+              void this.connect().catch((error: unknown) => {
+                this.emit('error', { message: error instanceof Error ? error.message : '重连失败' });
+              });
+            }, Math.min(5000, 1000 * this.reconnectAttempts));
+          }
+        };
+
+        socket.onmessage = (event) => {
+          if (this.socket !== socket) {
+            return;
+          }
+          this.handleSocketMessage(event.data);
+        };
+      });
+
+      const history = await this.fetchHistoryOnce(session);
       this.emit('history', history);
     } catch (error) {
+      if (allowRecovery && isInvalidClientTokenError(error)) {
+        await this.recoverInvalidSession(session, error);
+        await this.connect(false);
+        return;
+      }
+
       this.emit('error', {
         message: error instanceof Error ? error.message : '加载消息历史失败',
       });
+      throw error instanceof Error ? error : new Error('无法连接到 TRIX Native Channel 服务器');
     }
+  }
+
+  async reconnect(force = false): Promise<void> {
+    const session = this.getSession();
+    if (!session) {
+      this.disconnect();
+      return;
+    }
+
+    if (force) {
+      this.manualDisconnect = true;
+      if (this.reconnectTimer) {
+        window.clearTimeout(this.reconnectTimer);
+        this.reconnectTimer = null;
+      }
+      this.disposeSocket(this.socket);
+      this.manualDisconnect = false;
+    }
+
+    await this.connect();
   }
 
   disconnect(): void {
@@ -1055,7 +1386,11 @@ class TrixNativeChannelClient {
     return true;
   }
 
-  async restoreSession(accountId?: string, deviceName: string = defaultDeviceName()): Promise<StoredSession | null> {
+  async restoreSession(
+    accountId?: string,
+    deviceName: string = defaultDeviceName(),
+    serverUrlHint?: string,
+  ): Promise<StoredSession | null> {
     const authUserId = this.currentAuthUserId ?? this.readAuthStateFromStorage().userId;
     if (!authUserId) {
       return null;
@@ -1066,13 +1401,18 @@ class TrixNativeChannelClient {
       return null;
     }
 
-    const serverUrl = normalizeServerUrl(resolveConfiguredNativeBaseUrl() || this.getStoredSession(accountId)?.serverUrl || '');
+    const serverUrl = normalizeServerUrl(
+      resolveConfiguredNativeBaseUrl()
+      || serverUrlHint
+      || this.getStoredSession(accountId)?.serverUrl
+      || '',
+    );
     if (!serverUrl) {
       return null;
     }
 
     const clientId = this.getOrCreateClientId();
-    const resolvedAccountId = normalizeAccountId(accountId);
+    const resolvedAccountId = await this.resolveAuthScopedAccountIdAsync(accountId);
     const response = await fetch(`${serverUrl}/api/client/session/restore`, {
       method: 'POST',
       headers: {
@@ -1129,7 +1469,7 @@ class TrixNativeChannelClient {
       code,
       clientId,
       deviceName,
-      accountId: accountId ? normalizeAccountId(accountId) : undefined,
+      accountId: await this.resolveAuthScopedAccountIdAsync(accountId),
       secret,
       fallbackError: '配对失败',
     });
@@ -1166,7 +1506,7 @@ class TrixNativeChannelClient {
       code: parsed.code,
       clientId,
       deviceName,
-      accountId: parsed.accountId,
+      accountId: parsed.accountId ? normalizeAccountId(parsed.accountId) : await this.resolveAuthScopedAccountIdAsync(),
       secret: parsed.secret,
       fallbackError: '二维码配对失败',
     });
@@ -1200,18 +1540,7 @@ class TrixNativeChannelClient {
   }
 
   async fetchHistory(): Promise<ClawbotChannelMessage[]> {
-    const session = this.requireSession();
-    const response = await fetch(`${session.serverUrl}/api/conversations/${encodeURIComponent(session.conversationId)}/messages`, {
-      headers: {
-        'x-trix-client-token': session.clientToken,
-      },
-    });
-    if (!response.ok) {
-      throw new Error('加载消息历史失败');
-    }
-    const payload = await response.json() as ConversationMessagesResponse;
-    this.agentOnline = Boolean(payload.agentOnline);
-    return payload.messages.map((message) => mapServerMessage(message));
+    return this.withSessionRecovery((session) => this.fetchHistoryOnce(session));
   }
 
   async createStudyRoom(params: {
@@ -1361,44 +1690,48 @@ class TrixNativeChannelClient {
       throw new Error(`文件大小超过限制 (最大 ${isImage ? '10' : '50'} MB)`);
     }
 
-    const session = this.requireSession();
-    const serverUrl = normalizeServerUrl(session.serverUrl);
-    if (!serverUrl) {
-      throw new Error('未配置 TRIX Native Server 地址');
-    }
-
     const derivedFileName = options.fileName || (file instanceof File ? file.name : `attachment-${Date.now()}`);
     const mimeType = file.type || 'application/octet-stream';
     const kind = options.kind || inferAttachmentKind(mimeType, derivedFileName);
 
-    const response = await fetch(`${serverUrl}/api/uploads`, {
-      method: 'POST',
-      headers: {
-        'x-file-name': encodeURIComponent(derivedFileName),
-        'x-mime-type': mimeType,
-        'x-attachment-kind': kind,
-        'x-trix-conversation-id': session.conversationId,
-        'x-trix-client-token': session.clientToken,
-      },
-      body: file,
+    return this.withSessionRecovery(async (session) => {
+      const serverUrl = normalizeServerUrl(session.serverUrl);
+      if (!serverUrl) {
+        throw new Error('未配置 TRIX Native Server 地址');
+      }
+
+      const response = await fetch(`${serverUrl}/api/uploads`, {
+        method: 'POST',
+        headers: {
+          'x-file-name': encodeURIComponent(derivedFileName),
+          'x-mime-type': mimeType,
+          'x-attachment-kind': kind,
+          'x-trix-conversation-id': session.conversationId,
+          'x-trix-client-token': session.clientToken,
+        },
+        body: file,
+      });
+      const payload = await response.json().catch(() => null) as (UploadResponse & { error?: string }) | null;
+
+      if (!response.ok) {
+        if (response.status === 401 && isInvalidClientTokenMessage(payload?.error)) {
+          throw createInvalidClientTokenError(payload?.error);
+        }
+        throw new Error(typeof payload?.error === 'string' ? payload.error : '上传附件失败');
+      }
+
+      return {
+        attachmentId: payload!.attachment.id,
+        url: resolveAttachmentUrl(payload!.attachment, serverUrl),
+        kind: payload!.attachment.kind,
+        mimeType: payload!.attachment.mimeType,
+        fileName: payload!.attachment.fileName,
+        size: payload!.attachment.sizeBytes,
+        width: payload!.attachment.width,
+        height: payload!.attachment.height,
+        duration: payload!.attachment.durationMs,
+      };
     });
-
-    if (!response.ok) {
-      throw new Error('上传附件失败');
-    }
-
-    const payload = await response.json() as UploadResponse;
-    return {
-      attachmentId: payload.attachment.id,
-      url: payload.attachment.publicUrl || '',
-      kind: payload.attachment.kind,
-      mimeType: payload.attachment.mimeType,
-      fileName: payload.attachment.fileName,
-      size: payload.attachment.sizeBytes,
-      width: payload.attachment.width,
-      height: payload.attachment.height,
-      duration: payload.attachment.durationMs,
-    };
   }
 
   async uploadMedia(file: File | Blob): Promise<string> {
@@ -1415,11 +1748,6 @@ class TrixNativeChannelClient {
     attachments?: NativeMessageAttachmentInput[];
     clientMessageId?: string;
   }): Promise<string> {
-    const session = this.requireSession();
-    if (!this.isConnected()) {
-      await this.connect();
-    }
-
     const uploadedAttachmentIds: string[] = [];
     const inlineAttachments: Array<{
       kind?: NativeUploadAttachment['kind'];
@@ -1465,31 +1793,36 @@ class TrixNativeChannelClient {
     }
 
     const clientMessageId = params.clientMessageId || `msg_${generateSecureRandomString(18)}`;
-    const response = await fetch(`${session.serverUrl}/api/messages`, {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-      },
-      body: JSON.stringify({
-        conversationId: session.conversationId,
-        clientToken: session.clientToken,
-        text: params.text,
-        localId: clientMessageId,
-        attachments: inlineAttachments,
-        uploadedAttachmentIds,
-        metadata: {
-          clientMessageId,
-          declaredContentType: params.contentType,
+    return this.withSessionRecovery(async (activeSession) => {
+      const response = await fetch(`${activeSession.serverUrl}/api/messages`, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
         },
-      }),
-    });
+        body: JSON.stringify({
+          conversationId: activeSession.conversationId,
+          clientToken: activeSession.clientToken,
+          text: params.text,
+          localId: clientMessageId,
+          attachments: inlineAttachments,
+          uploadedAttachmentIds,
+          metadata: {
+            clientMessageId,
+            declaredContentType: params.contentType,
+          },
+        }),
+      });
+      const payload = await response.json().catch(() => ({ error: '发送消息失败' })) as { error?: string };
 
-    if (!response.ok) {
-      const payload = await response.json().catch(() => ({ error: '发送消息失败' }));
-      throw new Error(typeof payload.error === 'string' ? payload.error : '发送消息失败');
-    }
+      if (!response.ok) {
+        if (response.status === 401 && isInvalidClientTokenMessage(payload.error)) {
+          throw createInvalidClientTokenError(payload.error);
+        }
+        throw new Error(typeof payload.error === 'string' ? payload.error : '发送消息失败');
+      }
 
-    return clientMessageId;
+      return clientMessageId;
+    }, { ensureConnected: true });
   }
 
   unpair(): void {
@@ -1519,20 +1852,7 @@ class TrixNativeChannelClient {
   }
 
   private async requestJson<T>(path: string, init?: RequestInit, fallbackMessage = '请求失败'): Promise<T> {
-    const session = this.requireSession();
-    const headers = new Headers(init?.headers);
-    headers.set('x-trix-client-token', session.clientToken);
-    headers.set('x-trix-conversation-id', session.conversationId);
-
-    const response = await fetch(`${session.serverUrl}${path}`, {
-      ...init,
-      headers,
-    });
-    const payload = await response.json().catch(() => null) as { error?: string } | null;
-    if (!response.ok) {
-      throw new Error(typeof payload?.error === 'string' ? payload.error : fallbackMessage);
-    }
-    return (payload ?? {}) as T;
+    return this.withSessionRecovery((session) => this.requestJsonOnce<T>(session, path, init, fallbackMessage));
   }
 
   private handleSocketMessage(rawData: string): void {
@@ -1581,7 +1901,7 @@ class TrixNativeChannelClient {
         if (!payload?.message) {
           return;
         }
-        this.emit('message', mapServerMessage(payload.message));
+        this.emit('message', mapServerMessage(payload.message, this.getSession()?.serverUrl));
         return;
       }
 

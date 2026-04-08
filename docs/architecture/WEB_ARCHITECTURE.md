@@ -1,6 +1,6 @@
 # Web 架构
 
-> **最后更新**: 2026-04-04
+> **最后更新**: 2026-04-07
 > **技术栈**: React 19.2.4 + TypeScript 5.8.2 + Vite 6.2.0 + Tailwind CSS 4.2.0 + Supabase 2.94.0
 
 ---
@@ -317,4 +317,19 @@ src/
 
 ---
 
-**最后更新**: 2026-04-04
+## 9. PWA（Progressive Web App）
+
+| 文件 | 说明 |
+|------|------|
+| `public/sw.js` | Service Worker — App Shell 预缓存 + 导航请求网络优先 + 静态资源缓存优先 |
+| `public/manifest.json` | Web App Manifest — standalone 模式、快捷入口、maskable 图标 |
+| `src/utils/pwa.ts` | 平台检测：isStandaloneMode / isIosDevice / isSafariBrowser / shouldShowIosInstallHint |
+| `src/utils/pwaRegistration.ts` | SW 注册 + updatefound 自动更新（skipWaiting → reload） |
+| `src/utils/pwa.test.ts` | Vitest 单元测试 |
+| `src/components/PwaInstallPrompt.tsx` | 跨平台安装提示组件（Android 直接 prompt / iOS Safari 手动引导） |
+
+详细文档：[guides/PWA.md](../guides/PWA.md)
+
+---
+
+**最后更新**: 2026-04-07

@@ -46,8 +46,22 @@ vi.mock('../services/TrixNativeChannelClient', () => {
         clientId: 'web_client_1',
         pairingCode: 'ABC123',
       })),
+      getStoredPairingState: vi.fn(() => ({
+        hasSession: true,
+        session: {
+          accountId: 'default',
+          appUserId: 'test-user-123',
+          serverUrl: 'https://trix.love',
+          websocketUrl: 'wss://trix.love/ws',
+          conversationId: 'conv_test',
+          clientToken: 'client-token',
+          clientId: 'web_client_1',
+          pairingCode: 'ABC123',
+        },
+      })),
       restoreSession: vi.fn(async () => null),
       connect: vi.fn(async () => undefined),
+      reconnect: vi.fn(async () => undefined),
       disconnect: vi.fn(),
       checkPairingStatus: vi.fn(async () => ({ paired: true, botOnline: true, deviceId: 'web_client_1' })),
       pairWithCode: vi.fn(),
@@ -207,4 +221,47 @@ describe('ClawbotChannelContext reply lifecycle', () => {
     expect(getByTestId('bot-state').textContent).toBe('IDLE');
     expect(getByTestId('message-count').textContent).toBe('4');
   }, 15_000);
+
+  it('resets bot state to idle when restored history has no pending replies', async () => {
+    const { getByTestId } = render(
+      <ClawbotChannelProvider>
+        <Consumer />
+      </ClawbotChannelProvider>,
+    );
+
+    await act(async () => {
+      getByTestId('send-first').click();
+    });
+
+    expect(getByTestId('bot-state').textContent).toBe('THINKING');
+
+    await act(async () => {
+      emit('history', [
+        {
+          id: 'srv_user_1',
+          replyToMessageId: null,
+          content: 'first',
+          contentType: 'text',
+          timestamp: Date.now(),
+          sender: 'user',
+          metadata: {
+            clientMessageId: vi.mocked(trixNativeChannelClient.sendMessage).mock.calls[0]?.[0]?.clientMessageId,
+            serverMessageId: 'srv_user_1',
+            serviceDispatchPending: false,
+          },
+        },
+        {
+          id: 'srv_bot_1',
+          replyToMessageId: 'srv_user_1',
+          content: 'reply one',
+          contentType: 'text',
+          timestamp: Date.now() + 1,
+          sender: 'bot',
+        },
+      ]);
+    });
+
+    expect(getByTestId('bot-state').textContent).toBe('IDLE');
+    expect(getByTestId('message-count').textContent).toBe('2');
+  });
 });

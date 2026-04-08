@@ -1,3 +1,4 @@
+import os from 'node:os';
 import path from 'node:path';
 import type { OpenClawConfig } from 'openclaw/plugin-sdk/core';
 import type { PluginAccountConfig, ResolvedPluginAccount } from './types.js';
@@ -65,13 +66,17 @@ export function resolveDefaultTrixAccountId(cfg: TrixConfigInput): string {
   return (channel?.defaultAccount as string | undefined) ?? DEFAULT_ACCOUNT_ID;
 }
 
+function resolveDefaultStorageDir(): string {
+  return path.resolve(os.homedir(), '.openclaw', 'trix-native-service');
+}
+
 export function resolveTrixAccount(params: { cfg: TrixConfigInput; accountId?: string | null }): ResolvedPluginAccount {
   const accountId = params.accountId ?? resolveDefaultTrixAccountId(params.cfg);
   const channel = readChannelConfig(params.cfg);
   const configured = resolveAccountConfig(params.cfg, accountId);
   const serviceUrl = configured?.serviceUrl ?? configured?.serverUrl ?? '';
   const transport = configured?.transport ?? 'ws';
-  const storageDir = configured?.storageDir ?? path.resolve('.trix-native-channel/openclaw');
+  const storageDir = configured?.storageDir ?? resolveDefaultStorageDir();
 
   return {
     accountId,

@@ -15,7 +15,6 @@ import {
 } from '../domain/messageQueue';
 import { localStorageMessageQueue } from '../infrastructure/messageQueue/localStorageRepository';
 import { createSupabaseMessageSendFn, createNativeChannelSendFn } from '../infrastructure/messageQueue/chatAdapter';
-import type { TrixNativeChannelClient } from './TrixNativeChannelClient';
 import { logger } from '../utils/logger';
 
 /** Chat type for routing messages */
@@ -26,6 +25,17 @@ interface MessageQueueServiceConfig {
   autoRetryInterval?: number;
   /** Maximum concurrent retries (default: 5) */
   maxConcurrentRetries?: number;
+}
+
+interface NativeChannelMessageClient {
+  isConnected: () => boolean;
+  sendMessage: (params: {
+    text: string;
+    contentType?: string;
+    mediaUrl?: string;
+    mediaMimeType?: string;
+    mediaMetadata?: Record<string, unknown>;
+  }) => Promise<string>;
 }
 
 class MessageQueueServiceImpl {
@@ -134,7 +144,7 @@ class MessageQueueServiceImpl {
    */
   async queueNativeChannelMessage(
     input: QueueMessageInput,
-    channelClient: TrixNativeChannelClient,
+    channelClient: NativeChannelMessageClient,
   ): Promise<{ sentImmediately: boolean; messageId: string }> {
     const sendFn = createNativeChannelSendFn(channelClient);
     const queueUseCase = new QueueMessageUseCase(localStorageMessageQueue, sendFn);

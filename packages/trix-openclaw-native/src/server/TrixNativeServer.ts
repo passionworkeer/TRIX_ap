@@ -1737,7 +1737,7 @@ export class TrixNativeServer {
     searchParams: URLSearchParams,
   ): Promise<void> {
     let role = (searchParams.get('role') as SocketMeta['role'] | null) ?? 'user';
-    const accountId = this.resolveAccountId(searchParams);
+    let accountId = this.resolveAccountId(searchParams);
     if (pathname === '/api/service/ws') {
       role = 'service';
       await this.assertServiceToken(request, accountId);
@@ -1762,7 +1762,11 @@ export class TrixNativeServer {
       if (!this.readWebSocketProtocols(request).includes(USER_WS_PROTOCOL)) {
         throw new HttpError(401, 'User websocket protocol required');
       }
-      await this.assertClientToken(conversationId, this.readUserSocketClientToken(request));
+      const { conversation } = await this.resolveClientContext(
+        conversationId,
+        this.readUserSocketClientToken(request) ?? searchParams.get('clientToken') ?? undefined,
+      );
+      accountId = conversation.accountId;
     }
 
     this.sockets.set(socket, {

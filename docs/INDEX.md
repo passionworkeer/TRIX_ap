@@ -85,6 +85,7 @@ docs/
 │   ├── SERVER_GUIDE.md
 │   ├── IOS_TEST_DEPLOY_GUIDE.md
 │   ├── MACOS_LAUNCHD.md
+│   ├── PWA.md
 │   └── SUPABASE_EMAIL_CONFIRMATION.md
 │
 ├── 🖼️ 截图资源 (screenshots/)
@@ -119,7 +120,7 @@ docs/
 | [guides/PAIRING.md](./guides/PAIRING.md) | 三端配对、解绑与故障排查 |
 | [guides/DEPLOYMENT.md](./guides/DEPLOYMENT.md) | `trix.love` 生产部署指南 |
 | [trix-native-publish-and-install.md](./trix-native-publish-and-install.md) | Native 插件发布与安装流程 |
-| [CLAUDE.md](../CLAUDE.md) | 项目规范、Git 工作流、架构约束 |
+| [guides/PWA.md](./guides/PWA.md) | PWA 安装指南（Android / iOS / macOS / Windows） |
 
 ### 三端架构
 

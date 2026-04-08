@@ -1,36 +1,118 @@
+const APP_SHELL_CACHE = 'trix-app-shell-v2';
+const RUNTIME_CACHE = 'trix-runtime-v2';
+const APP_SHELL_URLS = [
+  '/',
+  '/index.html',
+  '/manifest.json',
+  '/pairing.html',
+  '/icon-192.png',
+  '/icon-512.png',
+  '/apple-touch-icon.png',
+];
+
 self.addEventListener('install', (event) => {
-  event.waitUntil(self.skipWaiting());
+  event.waitUntil(
+    caches
+      .open(APP_SHELL_CACHE)
+      .then((cache) => cache.addAll(APP_SHELL_URLS))
+      .catch(() => undefined)
+      .then(() => self.skipWaiting())
+  );
 });
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     (async () => {
       const cacheNames = await caches.keys();
-      await Promise.all(
-        cacheNames.map((cacheName) => caches.delete(cacheName))
-      );
-
-      const clientList = await self.clients.matchAll({
-        type: 'window',
-        includeUncontrolled: true,
-      });
-
-      await self.registration.unregister();
+      const activeCaches = new Set([APP_SHELL_CACHE, RUNTIME_CACHE]);
 
       await Promise.all(
-        clientList.map(async (client) => {
-          try {
-            if ('navigate' in client) {
-              await client.navigate(client.url);
-              return;
-            }
-          } catch (_) {
-            // Ignore reload failures and fall back to a client message.
-          }
-
-          client.postMessage({ type: 'trix-sw-retired' });
-        })
+        cacheNames
+          .filter((cacheName) => !activeCaches.has(cacheName))
+          .map((cacheName) => caches.delete(cacheName))
       );
+
+      await self.clients.claim();
     })()
   );
+});
+
+self.addEventListener('message', (event) => {
+  if (event.data?.type === 'TRIX_SKIP_WAITING') {
+    self.skipWaiting();
+  }
+});
+
+function isSameOrigin(url) {
+  return url.origin === self.location.origin;
+}
+
+function shouldHandleRuntimeRequest(request) {
+  if (request.method !== 'GET') {
+    return false;
+  }
+
+  const url = new URL(request.url);
+  if (!isSameOrigin(url)) {
+    return false;
+  }
+
+  if (request.mode === 'navigate') {
+    return true;
+  }
+
+  return ['script', 'style', 'image', 'font', 'manifest'].includes(request.destination);
+}
+
+async function handleNavigationRequest(request) {
+  const url = new URL(request.url);
+
+  try {
+    return await fetch(request);
+  } catch (error) {
+    if (url.pathname.endsWith('/pairing.html')) {
+      const pairingShell = await caches.match('/pairing.html');
+      if (pairingShell) {
+        return pairingShell;
+      }
+    }
+
+    const appShell = (await caches.match('/index.html')) || (await caches.match('/'));
+    if (appShell) {
+      return appShell;
+    }
+
+    throw error;
+  }
+}
+
+async function handleRuntimeAsset(request) {
+  const cache = await caches.open(RUNTIME_CACHE);
+  const cachedResponse = await cache.match(request);
+
+  const networkResponse = fetch(request)
+    .then((response) => {
+      if (response.ok) {
+        cache.put(request, response.clone());
+      }
+      return response;
+    })
+    .catch(() => cachedResponse);
+
+  return cachedResponse || networkResponse;
+}
+
+self.addEventListener('fetch', (event) => {
+  const { request } = event;
+
+  if (!shouldHandleRuntimeRequest(request)) {
+    return;
+  }
+
+  if (request.mode === 'navigate') {
+    event.respondWith(handleNavigationRequest(request));
+    return;
+  }
+
+  event.respondWith(handleRuntimeAsset(request));
 });
