@@ -249,7 +249,7 @@ const MessageList = forwardRef<HTMLDivElement, MessageListProps>(({
           </div>
         );
       })}
-      {isBotConversation && botState !== 'IDLE' && (
+      {isBotConversation && botState === 'THINKING' && (
         <div
           className="group flex animate-in fade-in slide-in-from-bottom-2 duration-300 justify-start"
           data-testid="chat-bot-loading-bubble"

@@ -479,7 +479,9 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
       if (pendingReplyKeysRef.current.size > 0) {
         pendingBotReplyRef.current = true;
         setBotState('THINKING');
+        return;
       }
+      enterIdle();
     };
     const handleMessage = (message: ClawbotChannelMessage) => {
       const normalized = {
