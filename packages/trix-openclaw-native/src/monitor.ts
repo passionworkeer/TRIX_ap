@@ -1,4 +1,5 @@
 import WebSocket from 'ws';
+import { fileURLToPath } from 'node:url';
 import { resolveTrixAccount } from './account.js';
 import { normalizeInboundEvent, summarizeInboundAttachments } from './normalize.js';
 import { sendPayloadTrix } from './outbound.js';
@@ -13,6 +14,7 @@ const DEFAULT_INBOUND_DEBOUNCE_MS = 900;
 const MAX_DEBOUNCED_BATCH_SIZE = 8;
 const DEFAULT_PARALLEL_SLASH_COMMAND_PREFIXES = ['/status'];
 const MAX_PARALLEL_SLASH_COMMANDS_PER_SESSION = 8;
+const LOCAL_IMAGE_EDIT_HELPER_PATH = fileURLToPath(new URL('./local-image-edit.js', import.meta.url));
 const TRIX_AGENT_TURN_PREAMBLE = [
   'TRIX live chat turn.',
   'Treat this as a normal end-user conversation on the trix-native channel.',
@@ -20,6 +22,14 @@ const TRIX_AGENT_TURN_PREAMBLE = [
   'Ignore any AGENTS.md, HEARTBEAT.md, or workspace rules that conflict with directly answering this user message.',
   'Never reply with HEARTBEAT_OK unless the user explicitly asked for that exact text.',
   'Respond only to the user content below.',
+].join(' ');
+const TRIX_MEDIA_ATTACHMENT_GUIDANCE = [
+  'Attachment handling note:',
+  'If the turn includes a local attachment path under ~/.openclaw/media or a downloaded MediaPath in context, the file is already present on this Mac and is directly usable.',
+  'Do not ask the user to upload the image to a public image host just because it is a local file.',
+  'If image/image_generate fails, explain that the provider is unavailable; do not claim the image was not received.',
+  `For basic photo edits such as 自拍美化、亮度/对比度优化、轻微磨皮、锐化、裁剪、缩放, prefer local exec with: node "${LOCAL_IMAGE_EDIT_HELPER_PATH}" --input "<local-inbound-path>" --output "/Users/jiajingqiu/.openclaw/media/outbound/reply.jpg" --mode beautify-selfie .`,
+  'After generating the edited file, send it back through the native message tool using the local output path.',
 ].join(' ');
 
 type TrixDmPolicy = 'pairing' | 'allowlist' | 'open' | 'disabled';
@@ -215,12 +225,17 @@ function isSlashCommandWithPrefix(text: string, prefixes: string[]): boolean {
   return prefixes.some((prefix) => trimmed === prefix || trimmed.startsWith(`${prefix} `));
 }
 
-function buildAgentFacingBody(content: string): string {
+function buildAgentFacingBody(content: string, options?: { hasAttachments?: boolean }): string {
   const trimmed = content.trim();
-  if (!trimmed) {
-    return TRIX_AGENT_TURN_PREAMBLE;
+  const sections = [TRIX_AGENT_TURN_PREAMBLE];
+  if (options?.hasAttachments) {
+    sections.push(TRIX_MEDIA_ATTACHMENT_GUIDANCE);
   }
-  return `${TRIX_AGENT_TURN_PREAMBLE}\n\nUser content:\n${trimmed}`;
+  if (!trimmed) {
+    return sections.join('\n\n');
+  }
+  sections.push(`User content:\n${trimmed}`);
+  return sections.join('\n\n');
 }
 
 export async function monitorTrixProvider(opts: {
@@ -510,6 +525,7 @@ export async function monitorTrixProvider(opts: {
         const attachmentSummary = summarizeInboundAttachments(normalized.message.attachments);
         bodyForAgent = buildAgentFacingBody(
           [normalized.message.text, attachmentSummary].filter(Boolean).join('\n\n').trim(),
+          { hasAttachments: normalized.message.attachments.length > 0 },
         );
 
         const firstAttachment = normalized.message.attachments.find((a) => a.url || (a as { servicePath?: string }).servicePath);

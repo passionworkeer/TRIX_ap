@@ -4,6 +4,7 @@ import { WebSocketServer } from 'ws';
 import { monitorTrixProvider } from '../src/monitor.js';
 
 const EXPECTED_AGENT_PREAMBLE = 'TRIX live chat turn.';
+const EXPECTED_ATTACHMENT_GUIDANCE = 'Attachment handling note:';
 
 async function createTestServer(
   onAttachmentRequest?: (request: http.IncomingMessage, response: http.ServerResponse) => void,
@@ -286,6 +287,9 @@ describe('monitorTrixProvider', () => {
     expect(call.ctx.CommandBody).toBe('请看图片');
     expect(call.ctx.BodyForCommands).toBe('请看图片');
     expect(call.ctx.BodyForAgent).toContain(EXPECTED_AGENT_PREAMBLE);
+    expect(call.ctx.BodyForAgent).toContain(EXPECTED_ATTACHMENT_GUIDANCE);
+    expect(call.ctx.BodyForAgent).toContain('Do not ask the user to upload the image to a public image host');
+    expect(call.ctx.BodyForAgent).toContain('local-image-edit.js');
     expect(call.ctx.BodyForAgent).toContain('User content:\n请看图片');
     expect(call.ctx.MediaPath).toBe('/tmp/inbound/photo.png');
     expect(call.ctx.MediaType).toBe('image/png');

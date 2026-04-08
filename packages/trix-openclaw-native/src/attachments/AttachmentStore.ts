@@ -1,6 +1,7 @@
 import { lookup } from 'node:dns/promises';
 import fs from 'node:fs/promises';
 import { isIP } from 'node:net';
+import os from 'node:os';
 import path from 'node:path';
 import { randomId, sha256Hex } from '../utils/ids.js';
 import type {
@@ -97,12 +98,16 @@ function isPathInsideRoot(targetPath: string, rootPath: string): boolean {
   return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative));
 }
 
-function assertAllowedLocalPath(rawPath: string): string {
-  if (!isLocalAttachmentPathsEnabled()) {
+function assertAllowedLocalPath(rawPath: string, implicitAllowedRoots: string[] = []): string {
+  const allowedRoots = [
+    ...implicitAllowedRoots.map((entry) => path.resolve(entry)),
+    ...getAllowedLocalAttachmentRoots(),
+  ].filter((entry, index, list) => Boolean(entry) && list.indexOf(entry) === index);
+
+  if (!isLocalAttachmentPathsEnabled() && allowedRoots.length === 0) {
     throw new Error('Local attachment paths are disabled');
   }
 
-  const allowedRoots = getAllowedLocalAttachmentRoots();
   if (allowedRoots.length === 0) {
     throw new Error('Local attachment roots are not configured');
   }
@@ -144,12 +149,12 @@ async function fetchRemoteAttachment(rawUrl: string): Promise<{
   };
 }
 
-async function readLocalAttachment(rawPath: string): Promise<{
+async function readLocalAttachment(rawPath: string, implicitAllowedRoots: string[] = []): Promise<{
   buffer: Buffer;
   fileName: string;
   mimeType: string;
 }> {
-  const resolvedPath = assertAllowedLocalPath(rawPath);
+  const resolvedPath = assertAllowedLocalPath(rawPath, implicitAllowedRoots);
   return {
     buffer: await fs.readFile(resolvedPath),
     fileName: path.basename(resolvedPath),
@@ -177,10 +182,16 @@ function sanitizeFileName(fileName: string): string {
 export class AttachmentStore {
   private readonly attachmentDir: string;
   private readonly uploadBaseUrl?: string;
+  private readonly implicitAllowedLocalRoots: string[];
 
   constructor(storageDir: string, uploadBaseUrl?: string) {
-    this.attachmentDir = path.join(storageDir, 'attachments');
+    const resolvedStorageDir = path.resolve(storageDir);
+    this.attachmentDir = path.join(resolvedStorageDir, 'attachments');
     this.uploadBaseUrl = uploadBaseUrl?.replace(/\/$/, '');
+    this.implicitAllowedLocalRoots = [
+      resolvedStorageDir,
+      path.resolve(os.homedir(), '.openclaw', 'media'),
+    ];
   }
 
   async ensure(): Promise<void> {
@@ -255,7 +266,7 @@ export class AttachmentStore {
       return this.saveBuffer({ buffer, fileName, mimeType });
     }
 
-    const { buffer, fileName, mimeType } = await readLocalAttachment(mediaUrl);
+    const { buffer, fileName, mimeType } = await readLocalAttachment(mediaUrl, this.implicitAllowedLocalRoots);
     return this.saveBuffer({
       buffer,
       fileName,
@@ -281,7 +292,7 @@ export class AttachmentStore {
     }
 
     if (input.localPath) {
-      return (await readLocalAttachment(input.localPath)).buffer;
+      return (await readLocalAttachment(input.localPath, this.implicitAllowedLocalRoots)).buffer;
     }
 
     if (input.url) {

@@ -91,6 +91,7 @@ type ConversationMessagesResponse = {
       fileName: string;
       sizeBytes: number;
       publicUrl?: string;
+      servicePath?: string;
       width?: number;
       height?: number;
       durationMs?: number;
@@ -127,6 +128,7 @@ type UploadResponse = {
     fileName: string;
     sizeBytes: number;
     publicUrl?: string;
+    servicePath?: string;
     width?: number;
     height?: number;
     durationMs?: number;
@@ -323,11 +325,33 @@ function toMediaMetadata(attachments: ClawbotChannelAttachment[]): ClawbotChanne
   };
 }
 
-function mapAttachments(rawAttachments: ConversationMessagesResponse['messages'][number]['attachments']): ClawbotChannelAttachment[] {
+function resolveAttachmentUrl(
+  attachment: ConversationMessagesResponse['messages'][number]['attachments'][number] | UploadResponse['attachment'],
+  serverUrl?: string,
+): string {
+  if (attachment.publicUrl && attachment.publicUrl.trim().length > 0) {
+    return attachment.publicUrl;
+  }
+
+  if (attachment.servicePath && attachment.servicePath.trim().length > 0 && serverUrl) {
+    return `${normalizeServerUrl(serverUrl)}${attachment.servicePath}`;
+  }
+
+  if (attachment.id && serverUrl) {
+    return `${normalizeServerUrl(serverUrl)}/api/attachments/${encodeURIComponent(attachment.id)}`;
+  }
+
+  return '';
+}
+
+function mapAttachments(
+  rawAttachments: ConversationMessagesResponse['messages'][number]['attachments'],
+  serverUrl?: string,
+): ClawbotChannelAttachment[] {
   return rawAttachments.map((attachment) => ({
     id: attachment.id,
     kind: attachment.kind,
-    url: attachment.publicUrl || '',
+    url: resolveAttachmentUrl(attachment, serverUrl),
     mimeType: attachment.mimeType,
     fileName: attachment.fileName,
     size: attachment.sizeBytes,
@@ -337,8 +361,11 @@ function mapAttachments(rawAttachments: ConversationMessagesResponse['messages']
   }));
 }
 
-function mapServerMessage(rawMessage: ConversationMessagesResponse['messages'][number]): ClawbotChannelMessage {
-  const attachments = mapAttachments(rawMessage.attachments);
+function mapServerMessage(
+  rawMessage: ConversationMessagesResponse['messages'][number],
+  serverUrl?: string,
+): ClawbotChannelMessage {
+  const attachments = mapAttachments(rawMessage.attachments, serverUrl);
   const primaryAttachment = attachments[0];
   // 将 createdAt 转换为毫秒时间戳
   const timestamp = typeof rawMessage.createdAt === 'number'
@@ -1104,7 +1131,7 @@ class TrixNativeChannelClient {
     }
 
     this.agentOnline = Boolean(payload?.agentOnline);
-    return (payload?.messages ?? []).map((message) => mapServerMessage(message));
+    return (payload?.messages ?? []).map((message) => mapServerMessage(message, session.serverUrl));
   }
 
   private async requestJsonOnce<T>(
@@ -1695,7 +1722,7 @@ class TrixNativeChannelClient {
 
       return {
         attachmentId: payload!.attachment.id,
-        url: payload!.attachment.publicUrl || '',
+        url: resolveAttachmentUrl(payload!.attachment, serverUrl),
         kind: payload!.attachment.kind,
         mimeType: payload!.attachment.mimeType,
         fileName: payload!.attachment.fileName,
@@ -1874,7 +1901,7 @@ class TrixNativeChannelClient {
         if (!payload?.message) {
           return;
         }
-        this.emit('message', mapServerMessage(payload.message));
+        this.emit('message', mapServerMessage(payload.message, this.getSession()?.serverUrl));
         return;
       }
 

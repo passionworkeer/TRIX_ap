@@ -49,7 +49,8 @@ describe('MediaMessage', () => {
     const img = document.querySelector('img');
     expect(img).toBeTruthy();
     expect(img?.getAttribute('alt')).toBe('Test Image');
-    expect(img?.getAttribute('loading')).toBe('lazy');
+    expect(img?.getAttribute('loading')).toBe('eager');
+    expect(img?.getAttribute('fetchpriority')).toBe('high');
   });
 
   it('should render video media correctly', async () => {

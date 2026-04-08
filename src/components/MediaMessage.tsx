@@ -171,13 +171,12 @@ export const MediaMessage: React.FC<MediaMessageProps> = ({
             setIsLoading(false);
             setError(true);
           }}
-          loading="lazy"
+          loading="eager"
           decoding="async"
-          fetchPriority="auto"
+          fetchPriority="high"
           onLoadStart={() => {
             loadStart.current = performance.now();
           }}
-          style={{ display: isLoading ? 'none' : 'block' }}
         />
       </div>
     );
