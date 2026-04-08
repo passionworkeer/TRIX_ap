@@ -85,6 +85,7 @@ const SPEAKING_BASE_MS = 800;
 const SPEAKING_PER_CHAR_MS = 45;
 const REPLY_SETTLE_WINDOW_MS = 4500;
 const MAX_MESSAGES = 500;
+const FOREGROUND_RECONNECT_COOLDOWN_MS = 1200;
 
 const resolveErrorMessage = (error: unknown): string => {
   if (error instanceof Error && error.message.trim()) {
@@ -125,6 +126,9 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
   const pendingBotReplyRef = useRef(false);
   const pendingReplyKeysRef = useRef<Set<string>>(new Set());
   const replyAliasMapRef = useRef<Map<string, string>>(new Map());
+  const foregroundReconnectPromiseRef = useRef<Promise<void> | null>(null);
+  const hiddenAtRef = useRef<number | null>(null);
+  const lastForegroundReconnectAtRef = useRef(0);
 
   // Push botState changes to Electron float window via IPC
   useEffect(() => {
@@ -265,6 +269,9 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
   const resetSessionScopedState = useCallback(() => {
     pendingReplyKeysRef.current.clear();
     replyAliasMapRef.current.clear();
+    hiddenAtRef.current = null;
+    foregroundReconnectPromiseRef.current = null;
+    lastForegroundReconnectAtRef.current = 0;
     setStatus('DISCONNECTED');
     setPairingStatus('idle');
     setHasStoredSession(false);
@@ -276,6 +283,73 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
     setBotOnline(false);
     enterIdle();
   }, [enterIdle]);
+
+  const recoverForegroundConnection = useCallback(async (trigger: string, forceReconnect: boolean) => {
+    if (!user?.id) {
+      return;
+    }
+
+    const now = Date.now();
+    if (
+      !forceReconnect
+      && foregroundReconnectPromiseRef.current
+      && (now - lastForegroundReconnectAtRef.current) < FOREGROUND_RECONNECT_COOLDOWN_MS
+    ) {
+      return foregroundReconnectPromiseRef.current;
+    }
+
+    const reconnectTask = (async () => {
+      await trixNativeChannelClient.bindCurrentSessionToAuthUser().catch((error: unknown) => {
+        logger.clawbot.warn('[TrixNativeContext] failed to bind local session during foreground recovery', error);
+      });
+
+      let session = trixNativeChannelClient.getSession();
+      if (!session) {
+        session = await trixNativeChannelClient.restoreSession();
+      }
+
+      const storedPairingState = trixNativeChannelClient.getStoredPairingState();
+      const resolvedSession = session ?? storedPairingState.session;
+      if (!resolvedSession) {
+        return;
+      }
+
+      setHasStoredSession(true);
+      setPairingStatus('paired');
+      setDeviceId(resolvedSession.clientId || trixNativeChannelClient.getOrCreateClientId());
+      setPairingCode(resolvedSession.pairingCode ?? null);
+      setStatus((currentStatus) => (currentStatus === 'CONNECTED' && !forceReconnect ? currentStatus : 'RECONNECTING'));
+      setLastError(null);
+
+      logger.clawbot.info('[TrixNativeContext] recovering paired connection on foreground', {
+        trigger,
+        forceReconnect,
+        conversationId: resolvedSession.conversationId,
+        clientId: resolvedSession.clientId,
+      });
+
+      await trixNativeChannelClient.reconnect(forceReconnect);
+    })()
+      .catch((error: unknown) => {
+        const message = resolveErrorMessage(error);
+        setStatus('ERROR');
+        setLastError(message);
+        logger.clawbot.error('[TrixNativeContext] foreground recovery failed', {
+          trigger,
+          forceReconnect,
+          error,
+        });
+      })
+      .finally(() => {
+        if (foregroundReconnectPromiseRef.current === reconnectTask) {
+          foregroundReconnectPromiseRef.current = null;
+        }
+      });
+
+    foregroundReconnectPromiseRef.current = reconnectTask;
+    lastForegroundReconnectAtRef.current = now;
+    return reconnectTask;
+  }, [user?.id]);
 
   const upsertMessageState = useCallback((message: ClawbotChannelMessage) => {
     setMessages((prev) => {
@@ -529,9 +603,59 @@ export const ClawbotChannelProvider: React.FC<ClawbotChannelProviderProps> = ({ 
     };
   }, [resetSessionScopedState, user?.id]);
 
+  useEffect(() => {
+    if (!user?.id || typeof window === 'undefined' || typeof document === 'undefined') {
+      return undefined;
+    }
+
+    const handleVisible = (trigger: string, forceReconnect: boolean) => {
+      if (document.visibilityState === 'hidden') {
+        return;
+      }
+      void recoverForegroundConnection(trigger, forceReconnect);
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        hiddenAtRef.current = Date.now();
+        return;
+      }
+
+      const forceReconnect = hiddenAtRef.current !== null;
+      hiddenAtRef.current = null;
+      handleVisible('visibilitychange', forceReconnect);
+    };
+
+    const handlePageShow = () => {
+      const forceReconnect = hiddenAtRef.current !== null;
+      hiddenAtRef.current = null;
+      handleVisible('pageshow', forceReconnect);
+    };
+
+    const handleFocus = () => {
+      handleVisible('focus', false);
+    };
+
+    const handleOnline = () => {
+      handleVisible('online', true);
+    };
+
+    window.addEventListener('focus', handleFocus);
+    window.addEventListener('pageshow', handlePageShow);
+    window.addEventListener('online', handleOnline);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('pageshow', handlePageShow);
+      window.removeEventListener('online', handleOnline);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [recoverForegroundConnection, user?.id]);
+
   const connect = useCallback(async (): Promise<void> => {
     try {
-      await trixNativeChannelClient.connect();
+      await trixNativeChannelClient.reconnect(true);
       const pairing = await trixNativeChannelClient.checkPairingStatus();
       setPairingStatus(pairing.paired ? 'paired' : 'idle');
       setHasStoredSession(pairing.paired);

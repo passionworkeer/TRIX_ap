@@ -323,7 +323,7 @@ describe('TrixNativeChannelClient session switching', () => {
 
     expect(MockWebSocket.instances).toHaveLength(1);
     expect(MockWebSocket.instances[0]?.url).toContain('conversationId=conv_old');
-    expect(MockWebSocket.instances[0]?.url).not.toContain('clientToken=');
+    expect(MockWebSocket.instances[0]?.url).toContain('clientToken=token_old');
     expect(MockWebSocket.instances[0]?.protocols).toEqual(expect.arrayContaining(['trix-user']));
 
     const staleSocket = MockWebSocket.instances[0];
@@ -333,7 +333,7 @@ describe('TrixNativeChannelClient session switching', () => {
     expect(MockWebSocket.instances).toHaveLength(2);
     expect(staleSocket?.close).toHaveBeenCalledTimes(1);
     expect(MockWebSocket.instances[1]?.url).toContain('conversationId=conv_new');
-    expect(MockWebSocket.instances[1]?.url).not.toContain('clientToken=');
+    expect(MockWebSocket.instances[1]?.url).toContain('clientToken=token_new');
     expect(client.isConnected()).toBe(true);
 
     staleSocket?.emitClose(1006);

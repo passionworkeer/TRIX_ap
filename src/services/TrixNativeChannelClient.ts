@@ -1174,7 +1174,7 @@ class TrixNativeChannelClient {
         };
 
         const socket = new WebSocket(
-          `${session.websocketUrl}?role=user&conversationId=${encodeURIComponent(session.conversationId)}&clientId=${encodeURIComponent(session.clientId)}`,
+          `${session.websocketUrl}?role=user&conversationId=${encodeURIComponent(session.conversationId)}&clientId=${encodeURIComponent(session.clientId)}&clientToken=${encodeURIComponent(session.clientToken)}`,
           buildUserWebSocketProtocols(session),
         );
         this.socket = socket;
@@ -1247,6 +1247,26 @@ class TrixNativeChannelClient {
       });
       throw error instanceof Error ? error : new Error('无法连接到 TRIX Native Channel 服务器');
     }
+  }
+
+  async reconnect(force = false): Promise<void> {
+    const session = this.getSession();
+    if (!session) {
+      this.disconnect();
+      return;
+    }
+
+    if (force) {
+      this.manualDisconnect = true;
+      if (this.reconnectTimer) {
+        window.clearTimeout(this.reconnectTimer);
+        this.reconnectTimer = null;
+      }
+      this.disposeSocket(this.socket);
+      this.manualDisconnect = false;
+    }
+
+    await this.connect();
   }
 
   disconnect(): void {

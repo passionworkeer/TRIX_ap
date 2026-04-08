@@ -39,6 +39,7 @@ const { mockInstance, _handlers } = vi.hoisted(() => {
     getStoredPairingState: vi.fn().mockReturnValue({ hasSession: false, session: null }),
     clearSession: vi.fn(),
     connect: vi.fn().mockResolvedValue(undefined),
+    reconnect: vi.fn().mockResolvedValue(undefined),
     disconnect: vi.fn(),
     isConnected: vi.fn().mockReturnValue(false),
     isPaired: vi.fn().mockReturnValue(false),
@@ -172,6 +173,10 @@ describe('ClawbotChannelContext', () => {
       fireHandler('connected', { agentOnline: true });
       return Promise.resolve();
     });
+    vi.mocked(mockInstance.reconnect).mockImplementation(() => {
+      fireHandler('connected', { agentOnline: true });
+      return Promise.resolve();
+    });
 
     vi.stubGlobal('localStorage', {
       getItem: vi.fn(), setItem: vi.fn(), removeItem: vi.fn(), clear: vi.fn(),
@@ -200,10 +205,10 @@ describe('ClawbotChannelContext', () => {
 
   // ── connection management ─────────────────────────────────────────────────
 
-  it('should call connect when button is clicked', async () => {
+  it('should force a reconnect when button is clicked', async () => {
     const { getByTestId } = renderWithProviders(<TestConsumer />);
     await act(async () => { getByTestId('connect-btn').click(); });
-    expect(mockInstance.connect).toHaveBeenCalled();
+    expect(mockInstance.reconnect).toHaveBeenCalledWith(true);
   });
 
   it('should update status to CONNECTING on connecting event', async () => {
@@ -259,6 +264,45 @@ describe('ClawbotChannelContext', () => {
     await waitFor(() => {
       expect(getByTestId('status').textContent).toBe('RECONNECTING');
     });
+  });
+
+  it('reconnects paired sessions when the app returns to the foreground', async () => {
+    vi.mocked(mockInstance.restoreSession).mockResolvedValue(PAIRED_SESSION);
+    vi.mocked(mockInstance.getStoredPairingState).mockReturnValue({ hasSession: true, session: PAIRED_SESSION });
+
+    const visibilityStateDescriptor = Object.getOwnPropertyDescriptor(document, 'visibilityState');
+    let visibilityState = 'visible';
+    Object.defineProperty(document, 'visibilityState', {
+      configurable: true,
+      get: () => visibilityState,
+    });
+
+    renderWithProviders(<TestConsumer />);
+    await waitFor(() => {
+      expect(mockInstance.connect).toHaveBeenCalled();
+    });
+
+    vi.mocked(mockInstance.reconnect).mockClear();
+
+    visibilityState = 'hidden';
+    act(() => {
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+
+    visibilityState = 'visible';
+    act(() => {
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+
+    await waitFor(() => {
+      expect(mockInstance.reconnect).toHaveBeenCalledWith(true);
+    });
+
+    if (visibilityStateDescriptor) {
+      Object.defineProperty(document, 'visibilityState', visibilityStateDescriptor);
+    } else {
+      delete (document as Document & { visibilityState?: string }).visibilityState;
+    }
   });
 
   it('should call disconnect when button is clicked', async () => {

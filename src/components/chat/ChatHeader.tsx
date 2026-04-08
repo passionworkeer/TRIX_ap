@@ -101,13 +101,13 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
         return '未配对';
       }
       if (status === 'CONNECTING' || status === 'RECONNECTING') {
-        return '正在连接本机 OpenClaw...';
+        return '已配对，正在恢复本机 OpenClaw 连接...';
       }
       if (status === 'ERROR') {
         return '已配对，连接异常';
       }
       if (status === 'DISCONNECTED') {
-        return '已恢复配对，等待重新连接';
+        return '已配对，等待恢复连接';
       }
       if (botOnline) {
         return '本机 OpenClaw 已连接';

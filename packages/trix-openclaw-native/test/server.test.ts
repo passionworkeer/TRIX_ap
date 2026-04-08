@@ -141,24 +141,25 @@ describe('TrixNativeServer', () => {
       }),
     }).then((response) => response.json()) as { conversationId: string; clientToken: string };
 
-    const legacyCloseCode = await new Promise<number>((resolve, reject) => {
+    await new Promise<void>((resolve, reject) => {
       const socket = new WebSocket(
         `ws://127.0.0.1:8810/ws?role=user&conversationId=${encodeURIComponent(claim.conversationId)}&clientId=browser-ws-1&clientToken=${encodeURIComponent(claim.clientToken)}`,
       );
       const timeout = setTimeout(() => {
         socket.terminate();
-        reject(new Error('legacy query-string websocket token should be closed immediately'));
+        reject(new Error('query-string websocket token fallback should open'));
       }, 500);
 
-      socket.once('close', (code) => {
+      socket.once('open', () => {
         clearTimeout(timeout);
-        resolve(code);
+        socket.close();
+        resolve();
       });
-      socket.once('error', () => {
-        // The ws client may emit an error before close; the close code is the assertion target.
+      socket.once('unexpected-response', (_, response) => {
+        reject(new Error(`query-string websocket auth failed with status ${response.statusCode ?? 0}`));
       });
+      socket.once('error', reject);
     });
-    expect(legacyCloseCode).toBe(1008);
 
     await new Promise<void>((resolve, reject) => {
       const socket = new WebSocket(

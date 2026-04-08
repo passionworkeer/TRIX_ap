@@ -280,7 +280,7 @@ const MessageList = forwardRef<HTMLDivElement, MessageListProps>(({
         <div className="my-4 flex justify-center">
           <span className="rounded-full border border-slate-200 bg-slate-100 px-3 py-1 text-xs text-slate-500 animate-pulse dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
             {status === 'RECONNECTING'
-              ? '正在重新连接本机 OpenClaw...'
+              ? '已配对，正在恢复本机 OpenClaw 连接...'
               : '正在连接本机 OpenClaw...'}
           </span>
         </div>
