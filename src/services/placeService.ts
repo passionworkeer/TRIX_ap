@@ -195,7 +195,7 @@ export async function getFavoritePlaces(): Promise<string[]> {
   }
 
   const { data: favorites } = await supabase
-    .from('user_favorite_places')
+    .from<Array<{ place_id: string }>>('user_favorite_places')
     .select('place_id')
     .eq('user_id', user.id);
 

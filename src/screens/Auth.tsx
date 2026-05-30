@@ -26,8 +26,12 @@ export const Login: React.FC = () => {
       return;
     }
 
-    // Validate password
-    const passwordError = validateString(password, AUTH_VALIDATION.password, 'password');
+    // 登录不能复用注册强度校验；已有账号可能符合后端但短于当前注册策略。
+    const passwordError = validateString(
+      password,
+      { min: 1, max: AUTH_VALIDATION.password.max, required: true },
+      'password',
+    );
     if (passwordError) {
       setError(getValidationErrorMessage(passwordError));
       return;

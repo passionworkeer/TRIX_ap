@@ -146,7 +146,7 @@ export function useCompanionSync(options: UseCompanionSyncOptions): UseCompanion
           logger.study.debug('🔥 [useCompanionSync] 检测到自己的 profile 更新:', payload);
 
           if ('companion_id' in payload.new && payload.old?.companion_id !== payload.new.companion_id) {
-            const newCompanionId = payload.new.companion_id;
+            const newCompanionId = (payload.new as { companion_id?: string | null }).companion_id;
             logger.study.debug(`📊 [useCompanionSync] companion_id 变化: ${payload.old?.companion_id} → ${newCompanionId}`);
 
             if (newCompanionId) {

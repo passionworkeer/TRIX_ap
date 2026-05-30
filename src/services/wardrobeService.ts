@@ -38,7 +38,7 @@ export async function getUserOutfits(): Promise<Outfit[]> {
 
   // Get user's owned outfits
   const { data: ownedOutfits } = await supabase
-    .from('user_outfits')
+    .from<Array<{ outfit_id: string; is_equipped: boolean }>>('user_outfits')
     .select('outfit_id, is_equipped')
     .eq('user_id', user.id);
 
@@ -136,7 +136,7 @@ export async function equipOutfit(outfitId: string): Promise<EquipResponse> {
 
   // Unequip other outfits of the same category
   const { data: sameCategoryOutfits } = await supabase
-    .from('outfits')
+    .from<Array<{ id: string }>>('outfits')
     .select('id')
     .eq('category', outfit.category);
 

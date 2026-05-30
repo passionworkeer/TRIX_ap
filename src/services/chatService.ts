@@ -444,7 +444,7 @@ export async function getTotalUnreadCount(): Promise<number> {
     const userId = await getCurrentUserId();
 
     const { data, error } = await supabase
-      .from('unread_counts')
+      .from<Array<{ unread_count: number }>>('unread_counts')
       .select('unread_count')
       .eq('user_id', userId);
 
@@ -528,7 +528,7 @@ export async function subscribeToUnreadCounts(
           filter: `user_id=eq.${userId}`
         },
         (payload) => {
-          callback(payload.new as UnreadCount);
+          callback(payload.new as unknown as UnreadCount);
         }
       )
       .subscribe();

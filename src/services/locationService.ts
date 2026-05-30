@@ -9,6 +9,12 @@ import type {
   LocationUpdateRequest,
 } from '../types/location';
 
+type FriendProfile = {
+  username?: string;
+  avatar_url?: string;
+  status?: string;
+};
+
 /**
  * Get friends' locations who are sharing
  */
@@ -21,7 +27,7 @@ export async function getFriendsLocations(): Promise<FriendLocation[]> {
 
   // Get user's friends
   const { data: friendships, error: friendError } = await supabase
-    .from('friends')
+    .from<Array<{ friend_id: string; profiles?: FriendProfile | FriendProfile[] | null }>>('friends')
     .select('friend_id, profiles!friends_friend_id_fkey(id, username, avatar_url, status)')
     .eq('user_id', user.id)
     .eq('status', 'accepted');
@@ -39,7 +45,7 @@ export async function getFriendsLocations(): Promise<FriendLocation[]> {
   const friendIds = friendships.map((f) => (f as { friend_id: string }).friend_id);
 
   const { data: locations, error: locationError } = await supabase
-    .from('user_locations')
+    .from<Array<{ user_id: string; latitude: number; longitude: number; accuracy?: number | null; updated_at: string }>>('user_locations')
     .select('*')
     .in('user_id', friendIds)
     .eq('is_sharing', true);
@@ -51,12 +57,6 @@ export async function getFriendsLocations(): Promise<FriendLocation[]> {
 
   // Combine location data with friend profile data
   const friendLocations: FriendLocation[] = [];
-  type FriendProfile = {
-    username?: string;
-    avatar_url?: string;
-    status?: string;
-  };
-
   for (const loc of locations) {
     const friendship = friendships.find((f) => (f as { friend_id: string }).friend_id === loc.user_id);
     if (!friendship) continue;
@@ -71,7 +71,7 @@ export async function getFriendsLocations(): Promise<FriendLocation[]> {
       avatar: friendData.avatar_url || '',
       latitude: loc.latitude,
       longitude: loc.longitude,
-      accuracy: loc.accuracy,
+      accuracy: loc.accuracy ?? undefined,
       timestamp: loc.updated_at,
       status: (friendData.status || 'offline') as 'offline' | 'online' | 'away' | 'busy',
       isStudying: false, // Will be updated from study service

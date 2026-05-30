@@ -252,7 +252,7 @@ const StudyRoom: React.FC<StudyRoomProps> = ({ isOpen, onClose }) => {
 
       const myId = session.user.id;
       const { data: friendsData, error: friendsError } = await supabase
-        .from('friends')
+        .from<Array<{ friend_id: string }>>('friends')
         .select('friend_id')
         .eq('user_id', myId)
         .eq('status', 'accepted');
@@ -266,7 +266,7 @@ const StudyRoom: React.FC<StudyRoomProps> = ({ isOpen, onClose }) => {
       }
 
       const { data: profiles, error: profilesError } = await supabase
-        .from('profiles')
+        .from<Array<{ id: string; username: string | null; avatar_url: string | null; is_studying: boolean }>>('profiles')
         .select('id, username, avatar_url, is_studying')
         .in('id', friendIds);
 

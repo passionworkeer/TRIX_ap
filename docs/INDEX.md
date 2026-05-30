@@ -46,6 +46,15 @@ docs/
 │   ├── DATABASE_SCHEMA.md
 │   └── database-consistency-report.md
 │
+├── 🧾 作业交付 (assignment/)
+│   ├── README.md
+│   ├── TRIX_WEB_MYSQL_ASSIGNMENT.md
+│   ├── TRIX_WEB_MYSQL_REQUIREMENTS.md
+│   ├── TRIX_WEB_MYSQL_DATABASE_DESIGN.md
+│   ├── TRIX_WEB_MYSQL_DEMO_AND_TEST.md
+│   ├── TRIX_Web_MySQL_实验报告.docx
+│   └── TRIX_Web_MySQL_宣讲PPT.pptx
+│
 ├── 📡 API 文档 (api/)
 │   ├── API_DOCUMENTATION.md
 │   └── API_TYPES.md
@@ -89,7 +98,7 @@ docs/
 │   └── SUPABASE_EMAIL_CONFIRMATION.md
 │
 ├── 🖼️ 截图资源 (screenshots/)
-│   └── 5 个 Desktop/Gateway PNG 截图
+│   └── 6 个 PNG 截图（含 MySQL 作业版演示截图）
 │
 ├── 🎯 Canvas Skill (skills/)
 │   └── trix-canvas-skill/
@@ -192,6 +201,7 @@ skills/trix-canvas-skill/SKILL.md → skills/trix-canvas-skill/scripts/create_se
 | UI 文档（`ui/`） | 3 |
 | 架构文档（`architecture/`） | 3 |
 | 数据库文档（`database/`） | 2 |
+| 作业交付（`assignment/`） | 7 |
 | API 文档（`api/`） | 2 |
 | iOS 文档（`ios/` 含 `security/`） | 17 |
 | 入门指南（`getting-started/`） | 2 |
@@ -200,8 +210,8 @@ skills/trix-canvas-skill/SKILL.md → skills/trix-canvas-skill/scripts/create_se
 | 归档（`.archive/`） | 7 |
 | Canvas Skill（`skills/trix-canvas-skill/`） | 1 套（`SKILL.md` + 19 脚本） |
 
-**活跃文档总计（仅 `docs/`，不含 `.archive/` / `screenshots/`）**: 58 个
-**额外交付资产**: Canvas Skill 1 套，截图 5 张
+**活跃文档总计（仅 `docs/`，不含 `.archive/` / `screenshots/`）**: 63 个
+**额外交付资产**: Canvas Skill 1 套，截图 6 张
 
 ---
 
@@ -221,4 +231,4 @@ skills/trix-canvas-skill/SKILL.md → skills/trix-canvas-skill/scripts/create_se
 
 ---
 
-**最后更新**: 2026-04-04
+**最后更新**: 2026-05-30

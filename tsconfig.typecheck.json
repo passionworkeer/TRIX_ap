@@ -5,6 +5,8 @@
     "scripts",
     "server",
     "archive",
+    "dist",
+    "desktop/dist-desktop",
     "ios",
     "reference",
     "**/*.spec.ts",

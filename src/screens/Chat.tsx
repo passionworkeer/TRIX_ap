@@ -95,7 +95,7 @@ const Chat: React.FC = () => {
 
       // 获取所有用户（排除自己）
       const { data: allProfiles, error: usersError } = await supabase
-        .from('profiles')
+        .from<Array<RecommendedUser & { full_name?: string | null }>>('profiles')
         .select('id, username, full_name, email, bio')
         .neq('id', currentUserId)
         .limit(10);
@@ -107,7 +107,7 @@ const Chat: React.FC = () => {
 
       // 获取已添加的好友ID列表
       const { data: existingFriends, error: friendsError } = await supabase
-        .from('friends')
+        .from<Array<{ friend_id: string }>>('friends')
         .select('friend_id')
         .eq('user_id', currentUserId);
 

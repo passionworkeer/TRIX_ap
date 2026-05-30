@@ -129,7 +129,7 @@ export const useChatMessages = ({
           filter: `conversation_id=eq.${conversationId}`
         },
         (payload) => {
-          const newMsg = payload.new as ChatMessage;
+          const newMsg = payload.new as unknown as ChatMessage;
           const uiMsg = convertDbMessageToUI(newMsg);
           setMessages((prev) => [...prev, uiMsg]);
           onMessage?.(uiMsg);

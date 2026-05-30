@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
-import { User, Session } from '@supabase/supabase-js';
-import { supabase, type Profile } from '../lib/supabase';
+import { supabase, type Profile, type Session, type User } from '../lib/supabase';
 import {
   logger,
   getLocalSessionId,

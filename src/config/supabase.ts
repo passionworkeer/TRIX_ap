@@ -1,135 +1,673 @@
-import { createClient } from '@supabase/supabase-js';
+import {
+  ApiClientError,
+  type ApiAuthSession,
+  type ApiAuthUser,
+  apiRequest,
+  clearStoredSession,
+  fetchCurrentUser,
+  getStoredSession,
+  loginWithPassword,
+  logout as apiLogout,
+  registerWithPassword,
+  setStoredSession,
+  updateStoredUser,
+} from '../services/apiClient';
 import { logger } from '../utils/logger';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-const isBrowser = typeof window !== 'undefined';
-
-function isStandalonePwaWindow(): boolean {
-  if (!isBrowser) {
-    return false;
-  }
-
-  const navigatorRef = window.navigator as Navigator & { standalone?: boolean };
-  const isStandaloneDisplayMode = typeof window.matchMedia === 'function'
-    && window.matchMedia('(display-mode: standalone)').matches;
-
-  return Boolean(navigatorRef.standalone || isStandaloneDisplayMode);
+export interface PostgrestError {
+  message: string;
+  details?: unknown;
+  hint?: string;
+  code?: string;
+  status?: number;
 }
 
-function getAvailableBrowserStorages(): Storage[] {
-  if (!isBrowser) {
-    return [];
-  }
-
-  const storages = isStandalonePwaWindow()
-    ? [window.localStorage, window.sessionStorage]
-    : [window.sessionStorage, window.localStorage];
-
-  return storages.filter((storage, index, list) => Boolean(storage) && list.indexOf(storage) === index);
+export interface User extends ApiAuthUser {
+  email: string;
+  app_metadata: Record<string, unknown>;
+  user_metadata: Record<string, unknown>;
+  aud: string;
+  role?: string;
 }
 
-function getPrimaryBrowserStorage(): Storage | undefined {
-  return getAvailableBrowserStorages()[0];
+export interface Session extends Omit<ApiAuthSession, 'user'> {
+  user: User;
 }
 
-function migrateLegacySupabaseSessions(): void {
-  if (!isBrowser) {
-    return;
+type AuthChangeEvent = 'INITIAL_SESSION' | 'SIGNED_IN' | 'SIGNED_OUT' | 'TOKEN_REFRESHED' | 'USER_UPDATED';
+type AuthListener = (event: AuthChangeEvent, session: Session | null) => void | Promise<void>;
+
+type QueryAction = 'select' | 'insert' | 'update' | 'delete' | 'upsert';
+type SingleMode = 'none' | 'single' | 'maybeSingle';
+
+interface QueryFilter {
+  column: string;
+  op: string;
+  value: unknown;
+}
+
+interface QueryOrder {
+  column: string;
+  ascending?: boolean;
+}
+
+interface QueryPayload {
+  select?: string;
+  selectOptions?: Record<string, unknown>;
+  values?: unknown;
+  options?: Record<string, unknown>;
+  filters?: QueryFilter[];
+  orFilters?: string[];
+  orders?: QueryOrder[];
+  limit?: number;
+  range?: {
+    from: number;
+    to: number;
+  };
+}
+
+export interface SupabaseResponse<T = any> {
+  data: T | null;
+  error: PostgrestError | null;
+  count?: number | null;
+  status?: number;
+  statusText?: string;
+}
+
+interface SupabaseAuthResponse<T> extends Omit<SupabaseResponse<T>, 'data'> {
+  data: T;
+}
+
+interface DbResponse<T = any> {
+  data: T;
+  count?: number | null;
+}
+
+function normalizeUser(user: ApiAuthUser): User {
+  return {
+    ...user,
+    email: user.email,
+    aud: user.aud ?? 'authenticated',
+    role: user.role ?? 'authenticated',
+    app_metadata: user.app_metadata ?? {},
+    user_metadata: user.user_metadata ?? {
+      username: user.username,
+    },
+  };
+}
+
+function normalizeSession(session: ApiAuthSession): Session {
+  return {
+    ...session,
+    user: normalizeUser(session.user),
+  };
+}
+
+function currentSession(): Session | null {
+  const stored = getStoredSession();
+  return stored ? normalizeSession(stored) : null;
+}
+
+function toSupabaseError(error: unknown): PostgrestError {
+  if (error instanceof ApiClientError) {
+    return {
+      message: error.message,
+      details: error.details,
+      code: String(error.status),
+      status: error.status,
+    };
   }
 
-  const storages = getAvailableBrowserStorages();
-  for (const storage of storages) {
-    for (let index = 0; index < storage.length; index += 1) {
-      const key = storage.key(index);
-      if (!key || !/^sb-.*-auth-token$/.test(key)) {
-        continue;
-      }
+  if (error instanceof Error) {
+    return {
+      message: error.message,
+      details: error,
+    };
+  }
 
-      const rawValue = storage.getItem(key);
-      if (!rawValue) {
-        continue;
-      }
+  return {
+    message: 'Unknown API error',
+    details: error,
+  };
+}
 
-      for (const targetStorage of storages) {
-        if (!targetStorage.getItem(key)) {
-          targetStorage.setItem(key, rawValue);
-        }
-      }
+function postgrestSingleError(message = 'JSON object requested, multiple (or no) rows returned'): PostgrestError {
+  return {
+    message,
+    code: 'PGRST116',
+    details: 'The result contains 0 rows or more than 1 row',
+  };
+}
+
+function normalizePattern(value: unknown): string {
+  return String(value);
+}
+
+class RestQueryBuilder<T = any> implements PromiseLike<SupabaseResponse<T>> {
+  private action: QueryAction = 'select';
+  private values: unknown;
+  private options?: Record<string, unknown>;
+  private selectColumns = '*';
+  private selectOptions?: Record<string, unknown>;
+  private filters: QueryFilter[] = [];
+  private orFilters: string[] = [];
+  private orders: QueryOrder[] = [];
+  private limitValue?: number;
+  private rangeValue?: { from: number; to: number };
+  private singleMode: SingleMode = 'none';
+
+  constructor(private readonly table: string) {}
+
+  select(columns = '*', options?: Record<string, unknown>): this {
+    this.selectColumns = columns;
+    this.selectOptions = options;
+    return this;
+  }
+
+  insert(values: unknown, options?: Record<string, unknown>): this {
+    this.action = 'insert';
+    this.values = values;
+    this.options = options;
+    return this;
+  }
+
+  upsert(values: unknown, options?: Record<string, unknown>): this {
+    this.action = 'upsert';
+    this.values = values;
+    this.options = options;
+    return this;
+  }
+
+  update(values: unknown): this {
+    this.action = 'update';
+    this.values = values;
+    return this;
+  }
+
+  delete(): this {
+    this.action = 'delete';
+    return this;
+  }
+
+  eq(column: string, value: unknown): this {
+    return this.addFilter(column, 'eq', value);
+  }
+
+  neq(column: string, value: unknown): this {
+    return this.addFilter(column, 'neq', value);
+  }
+
+  gt(column: string, value: unknown): this {
+    return this.addFilter(column, 'gt', value);
+  }
+
+  gte(column: string, value: unknown): this {
+    return this.addFilter(column, 'gte', value);
+  }
+
+  lt(column: string, value: unknown): this {
+    return this.addFilter(column, 'lt', value);
+  }
+
+  lte(column: string, value: unknown): this {
+    return this.addFilter(column, 'lte', value);
+  }
+
+  like(column: string, value: unknown): this {
+    return this.addFilter(column, 'like', normalizePattern(value));
+  }
+
+  ilike(column: string, value: unknown): this {
+    return this.addFilter(column, 'ilike', normalizePattern(value));
+  }
+
+  in(column: string, values: unknown[]): this {
+    return this.addFilter(column, 'in', values);
+  }
+
+  is(column: string, value: unknown): this {
+    return this.addFilter(column, 'is', value);
+  }
+
+  not(column: string, operator: string, value: unknown): this {
+    if (operator === 'is') {
+      return this.addFilter(column, 'not_is', value);
+    }
+    return this.addFilter(column, `not_${operator}`, value);
+  }
+
+  match(values: Record<string, unknown>): this {
+    Object.entries(values).forEach(([column, value]) => {
+      this.eq(column, value);
+    });
+    return this;
+  }
+
+  or(expression: string): this {
+    this.orFilters.push(expression);
+    return this;
+  }
+
+  order(column: string, options: { ascending?: boolean; nullsFirst?: boolean } = {}): this {
+    this.orders.push({
+      column,
+      ascending: options.ascending ?? true,
+    });
+    return this;
+  }
+
+  limit(count: number): this {
+    this.limitValue = count;
+    return this;
+  }
+
+  range(from: number, to: number): this {
+    this.rangeValue = { from, to };
+    return this;
+  }
+
+  single(): this {
+    this.singleMode = 'single';
+    return this;
+  }
+
+  maybeSingle(): this {
+    this.singleMode = 'maybeSingle';
+    return this;
+  }
+
+  then<TResult1 = SupabaseResponse<T>, TResult2 = never>(
+    onfulfilled?: ((value: SupabaseResponse<T>) => TResult1 | PromiseLike<TResult1>) | null,
+    onrejected?: ((reason: unknown) => TResult2 | PromiseLike<TResult2>) | null,
+  ): Promise<TResult1 | TResult2> {
+    return this.execute().then(onfulfilled, onrejected);
+  }
+
+  private addFilter(column: string, op: string, value: unknown): this {
+    this.filters.push({ column, op, value });
+    return this;
+  }
+
+  private buildPayload(): QueryPayload {
+    return {
+      select: this.selectColumns,
+      selectOptions: this.selectOptions,
+      values: this.values,
+      options: this.options,
+      filters: this.filters,
+      orFilters: this.orFilters,
+      orders: this.orders,
+      limit: this.limitValue,
+      range: this.rangeValue,
+    };
+  }
+
+  private endpoint(): { path: string; method: 'POST' | 'PATCH' } {
+    if (this.action === 'update') {
+      return { path: `/api/db/${this.table}/update`, method: 'PATCH' };
+    }
+    if (this.action === 'delete') {
+      return { path: `/api/db/${this.table}/delete`, method: 'POST' };
+    }
+    if (this.action === 'insert') {
+      return { path: `/api/db/${this.table}/insert`, method: 'POST' };
+    }
+    if (this.action === 'upsert') {
+      return { path: `/api/db/${this.table}/upsert`, method: 'POST' };
+    }
+    return { path: `/api/db/${this.table}/query`, method: 'POST' };
+  }
+
+  private normalizeResult(raw: DbResponse<unknown>): SupabaseResponse<T> {
+    const count = raw.count ?? null;
+
+    if (this.selectOptions?.head === true) {
+      return { data: null, error: null, count };
+    }
+
+    if (this.singleMode === 'none') {
+      return { data: raw.data as T, error: null, count };
+    }
+
+    const rows = Array.isArray(raw.data)
+      ? raw.data
+      : raw.data === null || raw.data === undefined
+        ? []
+        : [raw.data];
+
+    if (rows.length === 1) {
+      return { data: rows[0] as T, error: null, count };
+    }
+
+    if (rows.length === 0 && this.singleMode === 'maybeSingle') {
+      return { data: null, error: null, count };
+    }
+
+    return { data: null, error: postgrestSingleError(), count };
+  }
+
+  private async execute(): Promise<SupabaseResponse<T>> {
+    const endpoint = this.endpoint();
+
+    try {
+      const response = await apiRequest<DbResponse<unknown>>(endpoint.path, {
+        method: endpoint.method,
+        body: JSON.stringify(this.buildPayload()),
+      });
+      return this.normalizeResult(response);
+    } catch (error) {
+      return {
+        data: null,
+        error: toSupabaseError(error),
+        count: null,
+      };
     }
   }
 }
 
-migrateLegacySupabaseSessions();
+interface RealtimePayload<T = Record<string, unknown>> {
+  new: T;
+  old?: T;
+  eventType?: string;
+}
 
-const browserSessionStorage = isBrowser && getPrimaryBrowserStorage()
-  ? {
-      getItem(key: string) {
-        for (const storage of getAvailableBrowserStorages()) {
-          const value = storage.getItem(key);
-          if (value) {
-            return value;
-          }
-        }
-        return null;
-      },
-      setItem(key: string, value: string) {
-        for (const storage of getAvailableBrowserStorages()) {
-          storage.setItem(key, value);
-        }
-      },
-      removeItem(key: string) {
-        for (const storage of getAvailableBrowserStorages()) {
-          storage.removeItem(key);
-        }
-      },
+type RealtimeCallback = (payload: RealtimePayload) => void;
+
+class NoopRealtimeChannel {
+  private handlers: Array<{
+    event: string;
+    filter: Record<string, unknown>;
+    callback: RealtimeCallback;
+  }> = [];
+
+  constructor(readonly topic: string) {}
+
+  on(event: string, filter: Record<string, unknown>, callback: RealtimeCallback): this {
+    this.handlers.push({ event, filter, callback });
+    return this;
+  }
+
+  subscribe(callback?: (status: string) => void): this {
+    setTimeout(() => callback?.('SUBSCRIBED'), 0);
+    return this;
+  }
+
+  unsubscribe(): Promise<'ok'> {
+    this.handlers = [];
+    return Promise.resolve('ok');
+  }
+}
+
+const objectUrls = new Map<string, string>();
+
+class LocalStorageBucket {
+  constructor(private readonly bucket: string) {}
+
+  async upload(
+    path: string,
+    file: Blob | ArrayBuffer | string,
+    _options?: Record<string, unknown>,
+  ): Promise<SupabaseResponse<{ path: string; fullPath: string }>> {
+    const key = `${this.bucket}/${path}`;
+    if (typeof URL !== 'undefined' && typeof Blob !== 'undefined' && file instanceof Blob) {
+      const existing = objectUrls.get(key);
+      if (existing) URL.revokeObjectURL(existing);
+      objectUrls.set(key, URL.createObjectURL(file));
     }
-  : undefined;
 
-export const supabase = createClient(supabaseUrl, supabaseKey, {
+    return {
+      data: { path, fullPath: key },
+      error: null,
+    };
+  }
+
+  async remove(paths: string[]): Promise<SupabaseResponse<{ path: string }[]>> {
+    for (const path of paths) {
+      const key = `${this.bucket}/${path}`;
+      const existing = objectUrls.get(key);
+      if (existing && typeof URL !== 'undefined') URL.revokeObjectURL(existing);
+      objectUrls.delete(key);
+    }
+
+    return {
+      data: paths.map((path) => ({ path })),
+      error: null,
+    };
+  }
+
+  getPublicUrl(path: string, _options?: Record<string, unknown>): { data: { publicUrl: string } } {
+    const key = `${this.bucket}/${path}`;
+    return {
+      data: {
+        publicUrl: objectUrls.get(key) ?? `/uploads/${key}`,
+      },
+    };
+  }
+}
+
+const authListeners = new Set<AuthListener>();
+
+function emitAuth(event: AuthChangeEvent, session: Session | null): void {
+  for (const listener of authListeners) {
+    void listener(event, session);
+  }
+}
+
+export const supabase = {
   auth: {
-    persistSession: true,
-    autoRefreshToken: true,
-    ...(browserSessionStorage ? { storage: browserSessionStorage } : {}),
-  },
-  realtime: {
-    params: {
-      eventsPerSecond: 10,
+    async getSession(): Promise<SupabaseAuthResponse<{ session: Session | null }>> {
+      return {
+        data: { session: currentSession() },
+        error: null,
+      };
+    },
+
+    async getUser(): Promise<SupabaseAuthResponse<{ user: User | null }>> {
+      const session = currentSession();
+      if (!session) {
+        return { data: { user: null }, error: null };
+      }
+
+      try {
+        const user = await fetchCurrentUser();
+        return {
+          data: { user: user ? normalizeUser(user) : null },
+          error: null,
+        };
+      } catch (error) {
+        return {
+          data: { user: session.user },
+          error: toSupabaseError(error),
+        };
+      }
+    },
+
+    async signInWithPassword(input: { email: string; password: string }): Promise<SupabaseAuthResponse<{ user: User | null; session: Session | null }>> {
+      try {
+        const response = await loginWithPassword(input);
+        const session = normalizeSession(response.session);
+        emitAuth('SIGNED_IN', session);
+        return {
+          data: { user: session.user, session },
+          error: null,
+        };
+      } catch (error) {
+        return {
+          data: { user: null, session: null },
+          error: toSupabaseError(error),
+        };
+      }
+    },
+
+    async signUp(input: {
+      email: string;
+      password: string;
+      options?: {
+        data?: Record<string, unknown>;
+        emailRedirectTo?: string;
+      };
+    }): Promise<SupabaseAuthResponse<{ user: User | null; session: Session | null }>> {
+      try {
+        const username = String(input.options?.data?.username ?? input.email.split('@')[0] ?? 'user');
+        const response = await registerWithPassword({
+          email: input.email,
+          password: input.password,
+          username,
+        });
+        const session = normalizeSession(response.session);
+        emitAuth('SIGNED_IN', session);
+        return {
+          data: { user: session.user, session },
+          error: null,
+        };
+      } catch (error) {
+        return {
+          data: { user: null, session: null },
+          error: toSupabaseError(error),
+        };
+      }
+    },
+
+    async signOut(): Promise<{ error: PostgrestError | null }> {
+      try {
+        await apiLogout();
+        emitAuth('SIGNED_OUT', null);
+        return { error: null };
+      } catch (error) {
+        clearStoredSession();
+        emitAuth('SIGNED_OUT', null);
+        return { error: toSupabaseError(error) };
+      }
+    },
+
+    async refreshSession(): Promise<SupabaseAuthResponse<{ session: Session | null }>> {
+      const session = currentSession();
+      if (!session) {
+        return { data: { session: null }, error: null };
+      }
+
+      try {
+        const user = await fetchCurrentUser();
+        const nextSession = user ? normalizeSession(updateStoredUser(user) ?? getStoredSession() ?? session) : null;
+        emitAuth('TOKEN_REFRESHED', nextSession);
+        return {
+          data: { session: nextSession },
+          error: null,
+        };
+      } catch (error) {
+        return {
+          data: { session },
+          error: toSupabaseError(error),
+        };
+      }
+    },
+
+    onAuthStateChange(callback: AuthListener): { data: { subscription: { unsubscribe: () => void } } } {
+      authListeners.add(callback);
+      setTimeout(() => {
+        void callback('INITIAL_SESSION', currentSession());
+      }, 0);
+      return {
+        data: {
+          subscription: {
+            unsubscribe: () => {
+              authListeners.delete(callback);
+            },
+          },
+        },
+      };
+    },
+
+    async exchangeCodeForSession(_code?: string): Promise<SupabaseAuthResponse<{ session: Session | null }>> {
+      return {
+        data: { session: currentSession() },
+        error: null,
+      };
+    },
+
+    async setSession(input: { access_token: string; refresh_token: string }): Promise<SupabaseAuthResponse<{ session: Session | null; user: User | null }>> {
+      const existing = getStoredSession();
+      if (existing) {
+        const next: ApiAuthSession = {
+          ...existing,
+          access_token: input.access_token || existing.access_token,
+          refresh_token: input.refresh_token || existing.refresh_token,
+        };
+        setStoredSession(next);
+        const session = normalizeSession(next);
+        emitAuth('SIGNED_IN', session);
+        return {
+          data: { session, user: session.user },
+          error: null,
+        };
+      }
+
+      return {
+        data: { session: null, user: null },
+        error: null,
+      };
     },
   },
-});
 
-// ============================================
-// 辅助函数: 获取当前登录用户 ID
-// ============================================
-/**
- * 获取当前登录用户的 ID
- * @throws {Error} 如果用户未登录
- * @returns {Promise<string>} 用户 ID
- */
+  from<T = any>(table: string): RestQueryBuilder<T> {
+    return new RestQueryBuilder<T>(table);
+  },
+
+  async rpc<T = any>(name: string, params?: Record<string, unknown>): Promise<SupabaseResponse<T>> {
+    try {
+      const data = await apiRequest<{ data: T }>(`/api/rpc/${name}`, {
+        method: 'POST',
+        body: JSON.stringify(params ?? {}),
+      });
+      return {
+        data: data.data,
+        error: null,
+      };
+    } catch (error) {
+      return {
+        data: null,
+        error: toSupabaseError(error),
+      };
+    }
+  },
+
+  channel(topic: string): NoopRealtimeChannel {
+    return new NoopRealtimeChannel(topic);
+  },
+
+  removeChannel(channel: NoopRealtimeChannel): Promise<'ok'> {
+    return channel.unsubscribe();
+  },
+
+  storage: {
+    from(bucket: string): LocalStorageBucket {
+      return new LocalStorageBucket(bucket);
+    },
+  },
+};
+
 export async function getCurrentUserId(): Promise<string> {
-  const { data: { session }, error } = await supabase.auth.getSession();
-  
+  const {
+    data: { session },
+    error,
+  } = await supabase.auth.getSession();
+
   if (error) {
     logger.auth.error('获取用户会话失败:', error);
     throw new Error('无法获取用户会话');
   }
-  
+
   if (!session?.user?.id) {
     throw new Error('用户未登录，请先登录');
   }
-  
+
   return session.user.id;
 }
-
-// ============================================
-// TypeScript 接口定义
-// ============================================
 
 export interface Friend {
   id: string;
   user_id: string;
-  friend_id: string;  // 现在是 UUID
+  friend_id: string;
   name: string;
   avatar_url: string | null;
   status: 'online' | 'offline' | 'busy' | 'away';
@@ -142,11 +680,10 @@ export interface Friend {
 
 export interface ChatMessage {
   id: string;
-  friend_id: string;  // 保持兼容性
+  friend_id: string;
   sender: 'user' | 'friend' | 'bot';
   text: string;
   created_at: string;
-  // Media fields (optional)
   message_type?: 'text' | 'image' | 'video' | 'file' | 'voice' | 'mixed';
   media_uri?: string;
   media_type?: string;
@@ -159,18 +696,12 @@ export interface ChatMessage {
     originalName?: string;
     size?: number;
   };
-  // Voice message fields (optional)
-  /** 语音文件 URL */
   voice_url?: string;
-  /** 语音时长（秒） */
   voice_duration?: number;
-  /** 语音转文字结果 */
   voice_transcript?: string;
-  /** 音频格式（如 audio/mp3, audio/webm） */
   voice_mime_type?: string;
 }
 
-// 数据库实际存储的消息格式
 export interface ChatMessageDB {
   id: string;
   conversation_id: string;
@@ -179,7 +710,6 @@ export interface ChatMessageDB {
   text: string;
   is_read: boolean;
   created_at: string;
-  // Media fields
   message_type?: 'text' | 'image' | 'video' | 'file' | 'voice' | 'mixed';
   media_uri?: string;
   media_type?: string;
@@ -192,14 +722,9 @@ export interface ChatMessageDB {
     originalName?: string;
     size?: number;
   };
-  // Voice message fields (database storage)
-  /** 语音文件 URL */
   voice_url?: string;
-  /** 语音时长（秒） */
   voice_duration?: number;
-  /** 语音转文字结果 */
   voice_transcript?: string;
-  /** 音频格式（如 audio/mp3, audio/webm） */
   voice_mime_type?: string;
 }
 
@@ -250,7 +775,7 @@ export interface StudySession {
 }
 
 export interface FriendLatestMessage {
-  user_id: string;  // 添加 user_id 字段
+  user_id: string;
   friend_id: string;
   name: string;
   avatar_url: string | null;
@@ -290,45 +815,35 @@ export interface Profile {
   avatar_url?: string;
   website?: string;
   bio?: string;
-  is_studying?: boolean; // 用户是否正在自习
-  companion_id?: string | null; // 正在一起自习的好友 ID（双向关联）
-  total_study_time?: number; // 总学习时间（分钟）
-  last_active_at?: string | null; // 用户最后活跃时间
-  show_online_status?: boolean; // 是否显示在线状态
-  current_streak?: number; // 当前连续学习天数
-  days_active?: number; // 活跃天数
-  interaction_count?: number; // 互动次数
-  school?: string; // 学校
-  grade?: string; // 年级
+  is_studying?: boolean;
+  companion_id?: string | null;
+  total_study_time?: number;
+  last_active_at?: string | null;
+  show_online_status?: boolean;
+  current_streak?: number;
+  days_active?: number;
+  interaction_count?: number;
+  school?: string;
+  grade?: string;
   created_at?: string;
   updated_at?: string;
 }
 
-// ============================================
-// 用户活跃时间管理
-// ============================================
-
-/**
- * 获取多个用户的最后活跃时间
- * @param userIds - 用户 ID 数组
- * @returns 用户 ID 到最后活跃时间的映射，未活跃或不存在时为 null
- */
 export async function getUsersLastActive(userIds: string[]): Promise<Record<string, string | null>> {
   if (!userIds || userIds.length === 0) {
     return {};
   }
 
   try {
-    // 去重 - 使用 filter 而非 Set 迭代以兼容严格模式
     const seen = new Set<string>();
-    const uniqueUserIds = userIds.filter(id => {
+    const uniqueUserIds = userIds.filter((id) => {
       if (seen.has(id)) return false;
       seen.add(id);
       return true;
     });
 
     const { data, error } = await supabase
-      .from('profiles')
+      .from<Profile[]>('profiles')
       .select('id, last_active_at')
       .in('id', uniqueUserIds);
 
@@ -337,11 +852,10 @@ export async function getUsersLastActive(userIds: string[]): Promise<Record<stri
       return {};
     }
 
-    // 构建映射，缺失的用户的活跃时间设为 null
     const profiles = Array.isArray(data) ? data : [];
     const result: Record<string, string | null> = {};
     for (const userId of uniqueUserIds) {
-      const profile = profiles.find(p => p.id === userId);
+      const profile = profiles.find((item) => item.id === userId);
       result[userId] = profile?.last_active_at ?? null;
     }
 
@@ -352,11 +866,6 @@ export async function getUsersLastActive(userIds: string[]): Promise<Record<stri
   }
 }
 
-/**
- * 更新当前用户的最后活跃时间
- * 用户每次操作时调用此函数更新活跃状态
- * @returns 是否更新成功
- */
 export async function updateLastActive(): Promise<boolean> {
   try {
     const userId = await getCurrentUserId();
@@ -378,20 +887,12 @@ export async function updateLastActive(): Promise<boolean> {
   }
 }
 
-/**
- * 用户在线状态枚举
- */
 export enum UserOnlineStatus {
-  ONLINE = 'online',      // 5分钟内活跃
-  AWAY = 'away',         // 5-30分钟前活跃
-  OFFLINE = 'offline',   // 30分钟以上无活动
+  ONLINE = 'online',
+  AWAY = 'away',
+  OFFLINE = 'offline',
 }
 
-/**
- * 根据最后活跃时间计算用户在线状态
- * @param lastActiveAt - 用户最后活跃时间 (ISO 字符串)
- * @returns UserOnlineStatus
- */
 export function calculateOnlineStatus(lastActiveAt: string | null): UserOnlineStatus {
   if (!lastActiveAt) {
     return UserOnlineStatus.OFFLINE;
@@ -403,18 +904,15 @@ export function calculateOnlineStatus(lastActiveAt: string | null): UserOnlineSt
 
   if (diffMinutes < 5) {
     return UserOnlineStatus.ONLINE;
-  } else if (diffMinutes < 30) {
-    return UserOnlineStatus.AWAY;
-  } else {
-    return UserOnlineStatus.OFFLINE;
   }
+
+  if (diffMinutes < 30) {
+    return UserOnlineStatus.AWAY;
+  }
+
+  return UserOnlineStatus.OFFLINE;
 }
 
-/**
- * 获取用户在线状态的显示文本
- * @param lastActiveAt - 用户最后活跃时间 (ISO 字符串)
- * @returns 显示文本，如 "在线"、"5分钟前"、"离线"
- */
 export function getOnlineStatusText(lastActiveAt: string | null): string {
   if (!lastActiveAt) {
     return '离线';
@@ -426,12 +924,16 @@ export function getOnlineStatusText(lastActiveAt: string | null): string {
 
   if (diffMinutes < 5) {
     return '在线';
-  } else if (diffMinutes < 60) {
+  }
+
+  if (diffMinutes < 60) {
     return `${diffMinutes}分钟前`;
-  } else if (diffMinutes < 1440) { // 24小时内
+  }
+
+  if (diffMinutes < 1440) {
     const hours = Math.floor(diffMinutes / 60);
     return `${hours}小时前`;
-  } else {
-    return '离线';
   }
+
+  return '离线';
 }

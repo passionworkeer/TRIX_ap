@@ -123,7 +123,7 @@ export async function subscribeToNotifications(
           filter: `user_id=eq.${userId}`
         },
         (payload) => {
-          callback(payload.new as Notification);
+          callback(payload.new as unknown as Notification);
         }
       )
       .subscribe();

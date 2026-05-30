@@ -1,0 +1,17 @@
+{
+  "name": "@trix/trix-web-api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch src/server.js",
+    "start": "node src/server.js",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "express": "^5.2.1",
+    "mysql2": "^3.15.3",
+    "dotenv": "^17.3.1"
+  },
+  "devDependencies": {}
+}

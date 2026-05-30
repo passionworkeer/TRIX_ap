@@ -92,7 +92,7 @@ class StudyHistoryService {
 
     try {
       const { data, error } = await supabase
-        .from('study_sessions')
+        .from<Array<{ duration: number }>>('study_sessions')
         .select('duration')
         .eq('user_id', userId)
         .gte('started_at', today)

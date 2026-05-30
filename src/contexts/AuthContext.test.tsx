@@ -2,7 +2,7 @@ import React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, waitFor, act } from '@testing-library/react';
 import { AuthProvider, useAuth, AuthErrorType } from '../contexts/AuthContext';
-import { User, Session } from '@supabase/supabase-js';
+import type { Session, User } from '../config/supabase';
 
 // Mock data
 const mockUser: User = {
@@ -56,7 +56,7 @@ const {
   mockTouchSession: vi.fn().mockResolvedValue(undefined),
   mockCheckSessionValidity: vi.fn().mockResolvedValue({ isValid: true, reason: 'valid' }),
   mockGetLocalSessionId: vi.fn().mockReturnValue(null),
-  mockFrom: vi.fn(() => ({
+  mockFrom: vi.fn<[], any>(() => ({
     select: vi.fn(() => ({
       eq: vi.fn(() => ({
         single: vi.fn()
@@ -197,17 +197,11 @@ describe('AuthContext', () => {
       mockGetSession.mockResolvedValue({ data: { session: null }, error: null });
       mockSignInWithPassword.mockResolvedValue({ data: { session: null }, error: null });
 
-      let contextSignIn: any;
-      let result: { error: any } | undefined;
-
       const TestComponent = () => {
         const ctx = useAuth();
-        contextSignIn = ctx.signIn;
         React.useEffect(() => {
           if (ctx.loading === false) {
-            ctx.signIn('test@example.com', 'password123').then((r: any) => {
-              result = r;
-            });
+            void ctx.signIn('test@example.com', 'password123');
           }
         }, [ctx.loading]);
         return <div data-testid="status">done</div>;
@@ -480,9 +474,10 @@ describe('AuthContext', () => {
       });
 
       // Simulate auth state change
-      if (authCallback) {
+      const signedInCallback = authCallback as ((event: string, session: Session | null) => void) | null;
+      if (signedInCallback) {
         await act(async () => {
-          authCallback('SIGNED_IN', mockSession);
+          signedInCallback('SIGNED_IN', mockSession);
         });
       }
 
@@ -523,9 +518,10 @@ describe('AuthContext', () => {
       expect(screen.getByTestId('user').textContent).toBe('user-123');
 
       // Simulate sign out
-      if (authCallback) {
+      const signedOutCallback = authCallback as ((event: string, session: Session | null) => void) | null;
+      if (signedOutCallback) {
         await act(async () => {
-          authCallback('SIGNED_OUT', null);
+          signedOutCallback('SIGNED_OUT', null);
         });
       }
 
@@ -664,7 +660,7 @@ describe('AuthContext', () => {
       });
 
       expect(result?.error).toBeDefined();
-      expect(result?.error.message).toBe('No user logged in');
+      expect(result?.error?.message).toBe('No user logged in');
     });
   });
 

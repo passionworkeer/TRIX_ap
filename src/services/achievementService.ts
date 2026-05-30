@@ -114,7 +114,7 @@ class AchievementService {
 
       // 获取所有会话的开始时间以计算早鸟和夜猫子
       const { data: allSessions } = await supabase
-        .from('study_sessions')
+        .from<Array<{ start_time: string | null }>>('study_sessions')
         .select('start_time')
         .eq('user_id', userId);
 
@@ -165,7 +165,7 @@ class AchievementService {
   private async getUnlockedAchievementIds(userId: string): Promise<string[]> {
     try {
       const { data, error } = await supabase
-        .from('user_achievements')
+        .from<Array<{ achievement_id: string }>>('user_achievements')
         .select('achievement_id')
         .eq('user_id', userId);
 

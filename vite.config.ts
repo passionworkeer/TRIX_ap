@@ -24,7 +24,6 @@ export default defineConfig(({ mode }: ConfigEnv) => {
       output: {
         manualChunks: {
           'react-vendor': ['react', 'react-dom', 'react-router-dom'],
-          supabase: ['@supabase/supabase-js'],
           leaflet: ['leaflet', 'react-leaflet'],
           motion: ['framer-motion'],
           utils: ['socket.io-client', 'i18next', 'i18next-browser-languagedetector'],
@@ -49,6 +48,12 @@ export default defineConfig(({ mode }: ConfigEnv) => {
     server: {
       host: '0.0.0.0',
       strictPort: false,
+      proxy: {
+        '/api': {
+          target: 'http://localhost:8789',
+          changeOrigin: true,
+        },
+      },
     },
     plugins: [react(), tailwindcss()],
     resolve: {
@@ -62,7 +67,6 @@ export default defineConfig(({ mode }: ConfigEnv) => {
         'react',
         'react-dom',
         'react-router-dom',
-        '@supabase/supabase-js',
         'i18next',
         'use-sync-external-store/shim',
       ],

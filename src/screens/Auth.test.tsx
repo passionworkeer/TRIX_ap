@@ -143,6 +143,22 @@ describe('Auth - Login', () => {
     });
   });
 
+  it('allows seeded demo password length on login', async () => {
+    renderLogin();
+
+    fireEvent.input(screen.getByPlaceholderText('邮箱'), {
+      target: { value: 'test1@trix.app' }
+    });
+    fireEvent.input(screen.getByPlaceholderText('密码'), {
+      target: { value: '123456' }
+    });
+    fireEvent.click(screen.getByRole('button', { name: '登录 →' }));
+
+    await waitFor(() => {
+      expect(mocks.signIn).toHaveBeenCalledWith('test1@trix.app', '123456');
+    });
+  });
+
   it('shows loading state during login', async () => {
     mocks.signIn.mockImplementation(
       () => new Promise((resolve) => setTimeout(() => resolve({ error: null }), 100))

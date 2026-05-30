@@ -10,7 +10,12 @@
  * - 用户友好的中文消息
  */
 
-import { PostgrestError } from '@supabase/supabase-js';
+interface PostgrestError {
+  message: string;
+  details?: unknown;
+  hint?: string;
+  code?: string;
+}
 
 // ============================================
 // 错误类型枚举
@@ -600,7 +605,7 @@ function parseSupabaseError(error: PostgrestError): AppError {
       hint: error.hint,
     },
     originalError: error,
-    statusCode: parseInt(error.code, 10) || 400,
+    statusCode: error.code ? parseInt(error.code, 10) || 400 : 400,
   });
 }
 

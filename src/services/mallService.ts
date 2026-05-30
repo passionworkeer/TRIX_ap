@@ -50,9 +50,9 @@ function getCurrentBalance(record: UserPointsRecord): number {
  */
 export async function getMallItems(filter?: MallFilterOptions): Promise<MallItem[]> {
   try {
-    const fetchItems = async (orderColumn: 'display_order' | 'created_at', ascending: boolean) => {
-      let query = supabase
-        .from('mall_items')
+      const fetchItems = async (orderColumn: 'display_order' | 'created_at', ascending: boolean) => {
+        let query = supabase
+        .from<Array<{ id: string; name: string; description: string; image_url: string; price: number; category: string }>>('mall_items')
         .select('*')
         .eq('is_active', true)
         .order(orderColumn, { ascending });
@@ -92,7 +92,7 @@ export async function getMallItems(filter?: MallFilterOptions): Promise<MallItem
 
     if (userId) {
       const { data: ownedData } = await supabase
-        .from('user_purchased_items')
+        .from<Array<{ item_id: string }>>('user_purchased_items')
         .select('item_id')
         .eq('user_id', userId);
 
@@ -402,7 +402,7 @@ export async function getPointsTransactions(limit: number = 20): Promise<PointsT
     }
 
     const { data, error } = await supabase
-      .from('point_transactions')
+      .from<Array<{ id: string; user_id: string; amount: number; type: PointsTransaction['type']; description: string | null; related_item_id?: string | null; created_at: string }>>('point_transactions')
       .select('*')
       .eq('user_id', user.id)
       .order('created_at', { ascending: false })
@@ -418,8 +418,8 @@ export async function getPointsTransactions(limit: number = 20): Promise<PointsT
       userId: t.user_id,
       amount: t.amount,
       type: t.type,
-      description: t.description,
-      relatedItemId: t.related_item_id,
+      description: t.description ?? '',
+      relatedItemId: t.related_item_id ?? undefined,
       createdAt: t.created_at,
     }));
   } catch (error) {
