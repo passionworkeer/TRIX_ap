@@ -10,6 +10,15 @@
 
 import { test, expect, loginWithSupabase } from './test-config';
 
+async function waitForQrPairingReady(page: import('@playwright/test').Page) {
+  await expect(page.getByRole('heading', { name: /TRIX Native 配对/ })).toBeVisible({
+    timeout: 20000,
+  });
+  await expect(page.getByRole('button', { name: '扫描二维码' })).toBeVisible({
+    timeout: 20000,
+  });
+}
+
 test.describe('QR Code Pairing Page E2E Tests', () => {
   test.beforeEach(async ({ page }) => {
     // Use mock Supabase session
@@ -20,23 +29,20 @@ test.describe('QR Code Pairing Page E2E Tests', () => {
 
     // Wait for page to fully load
     await page.waitForLoadState('domcontentloaded');
-
-    // Wait for React to render - increased to 3 seconds as per requirements
-    await page.waitForTimeout(3000);
+    await waitForQrPairingReady(page);
   });
 
   test('T5.1.1: should load and render QR code pairing page successfully', async ({ page }) => {
-    // Wait for page to fully render
-    await page.waitForTimeout(2000);
-
     // Check that we're on the QR pairing page
     await expect(page).toHaveURL(/.*qr-pairing/);
 
     // Check page title - look for h1 element
-    await expect(page.locator('h1')).toBeVisible({ timeout: 10000 });
+    await expect(page.getByRole('heading', { name: /TRIX Native 配对/ })).toBeVisible({
+      timeout: 10000,
+    });
 
     // Verify heading text contains expected content
-    const headingText = await page.locator('h1').textContent();
+    const headingText = await page.getByRole('heading', { name: /TRIX Native 配对/ }).textContent();
     expect(headingText).toContain('TRIX Native');
     expect(headingText).toContain('配对');
 
@@ -45,16 +51,14 @@ test.describe('QR Code Pairing Page E2E Tests', () => {
   });
 
   test('T5.1.2: should display QR code pairing UI elements', async ({ page }) => {
-    // Wait for animations to complete
-    await page.waitForTimeout(2000);
-
     // Check for main heading
-    await expect(page.locator('h1')).toBeVisible();
+    await expect(page.getByRole('heading', { name: /TRIX Native 配对/ })).toBeVisible({ timeout: 10000 });
 
     // Check for connection instruction text - look for key elements
     const pageContent = await page.locator('body').textContent();
-    expect(pageContent).toContain('连接');
     expect(pageContent).toContain('TRIX');
+    expect(pageContent).toContain('使用说明');
+    expect(pageContent).toContain('扫描二维码');
 
     // Check for device name input if present
     const deviceNameInput = page.locator('input[placeholder*="留空"]').first();
@@ -65,35 +69,22 @@ test.describe('QR Code Pairing Page E2E Tests', () => {
   });
 
   test('T5.1.3: should have manual input option available', async ({ page }) => {
-    // Wait for page to render
-    await page.waitForTimeout(2000);
-
-    // Look for manual input button or textarea
-    // Check for either scan button or manual input button
-    const scanButton = page.locator('button:has-text("扫描")').first();
-    const manualButton = page.locator('button:has-text("手动")').first();
-    const manualTextarea = page.locator('textarea').first();
-
-    // At least one of these should be visible
-    const hasScanButton = await scanButton.isVisible().catch(() => false);
-    const hasManualButton = await manualButton.isVisible().catch(() => false);
-    const hasTextarea = await manualTextarea.isVisible().catch(() => false);
-
-    expect(hasScanButton || hasManualButton || hasTextarea).toBe(true);
+    await expect(page.getByRole('button', { name: '扫描二维码' })).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText('手动输入配对码', { exact: true })).toBeVisible({
+      timeout: 10000,
+    });
+    await expect(page.locator('input[placeholder="AB12CD"]')).toBeVisible({ timeout: 10000 });
   });
 
   test('T5.1.4: should display pairing steps or instructions', async ({ page }) => {
-    // Wait for page to fully load
-    await page.waitForTimeout(2000);
-
     // Check page content for expected text
     const pageContent = await page.locator('body').textContent() ?? '';
 
     // Should contain some form of instructions or steps
-    const hasInstructions = pageContent.includes('步骤') ||
-                           pageContent.includes('扫描') ||
-                           pageContent.includes('配对') ||
-                           pageContent.includes('连接');
+    const hasInstructions = pageContent.includes('使用说明') ||
+                           pageContent.includes('扫描二维码') ||
+                           pageContent.includes('手动输入配对码') ||
+                           pageContent.includes('配对成功');
 
     expect(hasInstructions).toBe(true);
   });

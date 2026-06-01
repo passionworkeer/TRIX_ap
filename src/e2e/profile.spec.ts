@@ -44,17 +44,8 @@ test.describe('Profile & Settings E2E Tests', () => {
     await page.waitForLoadState('domcontentloaded');
     await page.waitForTimeout(3000);
 
-    // Check for user avatar section
-    const avatarContainer = page.locator('.rounded-full');
-    const count = await avatarContainer.count();
-
-    // If we have avatar containers, check the first one
-    if (count > 0) {
-      await expect(avatarContainer.first()).toBeVisible();
-    } else {
-      // Avatar might not be visible but page should still load
-      expect(true).toBe(true);
-    }
+    await expect(page.getByRole('heading', { name: '个人中心' })).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText('TestUser')).toBeVisible({ timeout: 15000 });
   });
 
   test('T5.1.3: should show points section', async ({ page }) => {
@@ -104,13 +95,9 @@ test.describe('Profile & Settings E2E Tests', () => {
     await page.waitForLoadState('domcontentloaded');
     await page.waitForTimeout(3000);
 
-    // Check for stats container
-    const statsContainer = page.locator('.flex.items-center.justify-center');
-    const count = await statsContainer.count();
-
-    if (count > 0) {
-      await expect(statsContainer.first()).toBeVisible();
-    }
+    await expect(page.getByText('陪伴天数', { exact: true })).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText('积分', { exact: true })).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText('互动', { exact: true })).toBeVisible({ timeout: 15000 });
   });
 
   test('T5.1.6: should show wardrobe section', async ({ page }) => {

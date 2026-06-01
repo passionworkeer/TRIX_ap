@@ -61,6 +61,7 @@ const { mockInstance, handlers } = vi.hoisted(() => {
     unpair: vi.fn(),
     getUserId: vi.fn().mockReturnValue('user-123'),
     getOrCreateClientId: vi.fn().mockReturnValue('client-123'),
+    getStoredPairingState: vi.fn().mockReturnValue({ hasSession: false, session: null }),
   };
 
   return { mockInstance: instance, handlers: eventHandlers };
@@ -238,7 +239,7 @@ describe('AuthContext + ClawbotChannelContext integration', () => {
     expect(screen.getByTestId('auth-user').textContent).toBe('no-user');
     expect(screen.getByTestId('channel-status').textContent).toBe('DISCONNECTED');
     expect(screen.getByTestId('channel-pairing').textContent).toBe('idle');
-    expect(mockInstance.setAuthUser).toHaveBeenCalledWith(null);
+    expect(mockInstance.setAuthUser).toHaveBeenCalledWith(null, null);
     expect(mockInstance.disconnect).toHaveBeenCalled();
     expect(mockInstance.bindCurrentSessionToAuthUser).not.toHaveBeenCalled();
   });
@@ -269,7 +270,7 @@ describe('AuthContext + ClawbotChannelContext integration', () => {
       expect(screen.getByTestId('channel-pairing').textContent).toBe('paired');
     });
 
-    expect(mockInstance.setAuthUser).toHaveBeenLastCalledWith('user-123');
+    expect(mockInstance.setAuthUser).toHaveBeenLastCalledWith('user-123', 'test@example.com');
     expect(mockUpsertSession).toHaveBeenCalledWith('user-123', undefined, true);
     expect(mockInstance.bindCurrentSessionToAuthUser).toHaveBeenCalled();
     expect(mockInstance.restoreSession).toHaveBeenCalled();
@@ -308,7 +309,7 @@ describe('AuthContext + ClawbotChannelContext integration', () => {
       expect(screen.getByTestId('channel-pairing').textContent).toBe('idle');
     });
 
-    expect(mockInstance.setAuthUser).toHaveBeenLastCalledWith(null);
+    expect(mockInstance.setAuthUser).toHaveBeenLastCalledWith(null, null);
     expect(mockInstance.disconnect).toHaveBeenCalled();
   });
 });

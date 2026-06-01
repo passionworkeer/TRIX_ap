@@ -3,7 +3,7 @@
  *
  * Tests message input renders, handles text change, and submit
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeAll, beforeEach } from 'vitest';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import React from 'react';
 import { createFramerMotionMock } from '../../test/framerMotionMock';
@@ -35,6 +35,7 @@ vi.mock('../utils/iosMotion', () => ({
 }));
 
 describe('MessageInput', () => {
+  let MessageInput: any;
   const defaultProps = {
     input: '',
     isInputFocused: false,
@@ -64,18 +65,17 @@ describe('MessageInput', () => {
     vi.clearAllMocks();
   });
 
-  it('should render textarea for input', async () => {
-    const MessageInput = (await import('./MessageInput')).default;
+  beforeAll(async () => {
+    MessageInput = (await import('./MessageInput')).default;
+  });
 
+  it('should render textarea for input', async () => {
     render(<MessageInput {...defaultProps} />);
 
-    const textarea = document.querySelector('textarea');
-    expect(textarea).toBeTruthy();
+    expect(screen.getByRole('textbox')).toBeTruthy();
   });
 
   it('should display placeholder text', async () => {
-    const MessageInput = (await import('./MessageInput')).default;
-
     render(<MessageInput {...defaultProps} />);
 
     const textarea = document.querySelector('textarea') as HTMLTextAreaElement;
@@ -83,8 +83,6 @@ describe('MessageInput', () => {
   });
 
   it('should call onInputChange when text is entered', async () => {
-    const MessageInput = (await import('./MessageInput')).default;
-
     render(<MessageInput {...defaultProps} />);
 
     const textarea = document.querySelector('textarea') as HTMLTextAreaElement;
@@ -94,8 +92,6 @@ describe('MessageInput', () => {
   });
 
   it('should disable send button when input is empty', async () => {
-    const MessageInput = (await import('./MessageInput')).default;
-
     render(<MessageInput {...defaultProps} input="" />);
 
     const sendButton = screen.getByRole('button', { name: /send/i });
@@ -103,8 +99,6 @@ describe('MessageInput', () => {
   });
 
   it('should enable send button when input has text', async () => {
-    const MessageInput = (await import('./MessageInput')).default;
-
     render(<MessageInput {...defaultProps} input="Hello" />);
 
     const sendButton = screen.getByRole('button', { name: /send/i });
@@ -112,8 +106,6 @@ describe('MessageInput', () => {
   });
 
   it('should call onSend when send button is clicked', async () => {
-    const MessageInput = (await import('./MessageInput')).default;
-
     render(<MessageInput {...defaultProps} input="Hello" />);
 
     const sendButton = screen.getByRole('button', { name: /send/i });
@@ -123,8 +115,6 @@ describe('MessageInput', () => {
   });
 
   it('should call onSend when Enter is pressed', async () => {
-    const MessageInput = (await import('./MessageInput')).default;
-
     render(<MessageInput {...defaultProps} input="Hello" />);
 
     const textarea = document.querySelector('textarea') as HTMLTextAreaElement;
@@ -134,8 +124,6 @@ describe('MessageInput', () => {
   });
 
   it('should enable send button and pass transcript while listening', async () => {
-    const MessageInput = (await import('./MessageInput')).default;
-
     render(
       <MessageInput
         {...defaultProps}
@@ -154,8 +142,6 @@ describe('MessageInput', () => {
   });
 
   it('should send transcript when Enter is pressed while listening', async () => {
-    const MessageInput = (await import('./MessageInput')).default;
-
     render(
       <MessageInput
         {...defaultProps}
@@ -172,8 +158,6 @@ describe('MessageInput', () => {
   });
 
   it('should render attachment button', async () => {
-    const MessageInput = (await import('./MessageInput')).default;
-
     render(<MessageInput {...defaultProps} />);
 
     const attachmentButton = screen.getByRole('button', { name: /addAttachment/i });
@@ -181,8 +165,6 @@ describe('MessageInput', () => {
   });
 
   it('should show voice button when isBotConversation and isSpeechSupported', async () => {
-    const MessageInput = (await import('./MessageInput')).default;
-
     render(
       <MessageInput
         {...defaultProps}
@@ -196,8 +178,6 @@ describe('MessageInput', () => {
   });
 
   it('should show voice recorder button when isBotConversation is false', async () => {
-    const MessageInput = (await import('./MessageInput')).default;
-
     render(
       <MessageInput
         {...defaultProps}
@@ -211,8 +191,6 @@ describe('MessageInput', () => {
   });
 
   it('should call onInputFocus when textarea is focused', async () => {
-    const MessageInput = (await import('./MessageInput')).default;
-
     render(<MessageInput {...defaultProps} />);
 
     const textarea = document.querySelector('textarea') as HTMLTextAreaElement;
@@ -223,8 +201,6 @@ describe('MessageInput', () => {
 
   it('should call onInputBlur when textarea loses focus', async () => {
     vi.useFakeTimers();
-    const MessageInput = (await import('./MessageInput')).default;
-
     render(<MessageInput {...defaultProps} />);
 
     const textarea = document.querySelector('textarea') as HTMLTextAreaElement;
@@ -240,8 +216,6 @@ describe('MessageInput', () => {
   });
 
   it('should render with attachment previews when present', async () => {
-    const MessageInput = (await import('./MessageInput')).default;
-
     render(
       <MessageInput
         {...defaultProps}
@@ -256,8 +230,6 @@ describe('MessageInput', () => {
   });
 
   it('should disable send button when uploadingFile is true', async () => {
-    const MessageInput = (await import('./MessageInput')).default;
-
     render(<MessageInput {...defaultProps} input="Hello" uploadingFile={true} />);
 
     const sendButton = screen.getByRole('button', { name: /send/i });

@@ -30,18 +30,9 @@ test.describe('Diagnostic Advanced E2E Tests', () => {
   });
 
   test('T4.2.2: should display advanced diagnostic title', async ({ page }) => {
-    // The page uses a monospace-style dark theme
-    // Title text is "高级 Native 通道诊断"
-    const title = page.locator('h2').first();
-    const titleVisible = await title.isVisible().catch(() => false);
-
-    if (titleVisible) {
-      await expect(title).toBeVisible();
-    } else {
-      // The title uses h2 with inline style, try by text content
-      const titleByText = page.locator('text=高级 Native 通道诊断').first();
-      await expect(titleByText).toBeVisible({ timeout: 5000 });
-    }
+    await expect(page.getByRole('heading', { name: '高级 Native 通道诊断' })).toBeVisible({
+      timeout: 10000,
+    });
   });
 
   test('T4.2.3: should display service test button', async ({ page }) => {
@@ -51,17 +42,7 @@ test.describe('Diagnostic Advanced E2E Tests', () => {
   });
 
   test('T4.2.4: should display gateway log section', async ({ page }) => {
-    // Log section with h3 "日志"
-    const logSection = page.locator('h3:has-text("日志")').first();
-    const logVisible = await logSection.isVisible().catch(() => false);
-
-    if (logVisible) {
-      await expect(logSection).toBeVisible();
-    } else {
-      // Try finding the log container by text
-      const logByText = page.locator('text=日志').first();
-      await expect(logByText).toBeVisible({ timeout: 5000 });
-    }
+    await expect(page.getByText('日志', { exact: true })).toBeVisible({ timeout: 10000 });
   });
 
   test('T4.2.5: should display clear logs button', async ({ page }) => {

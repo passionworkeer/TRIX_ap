@@ -17,7 +17,8 @@ const AI_API_BASE = process.env.AI_API_BASE || 'https://api.apiyi.com';
 const AI_API_KEY = process.env.AI_API_KEY || '';
 const AI_GENERATE_PATH = process.env.AI_GENERATE_PATH || '/anthropic/v1/messages';
 const AI_IMAGE_MODEL = process.env.AI_IMAGE_MODEL || 'gemini-3.1-flash-image-preview';
-const AI_IMAGE_PATH = `/v1beta/models/${AI_IMAGE_MODEL}:generateContent`;
+const AI_IMAGE_PATH = process.env.AI_IMAGE_PATH || `/v1beta/models/${AI_IMAGE_MODEL}:generateContent`;
+const AI_IMAGE_TASK_PATH_TEMPLATE = process.env.AI_IMAGE_TASK_PATH_TEMPLATE || '/tasks/{taskId}';
 // VEO 3.1: /v1/videos (async) — model variants: veo-3.1, veo-3.1-fast, veo-3.1-landscape, veo-3.1-fl, etc.
 const AI_VIDEO_PATH = process.env.AI_VIDEO_PATH || '/v1/videos';
 // Default: fast model for speed. Use AI_VIDEO_MODEL to override.
@@ -25,7 +26,7 @@ const AI_VIDEO_MODEL = process.env.AI_VIDEO_MODEL || 'veo-3.1-fast';
 // Frame-to-video (首尾帧) requires -fl variant and multipart/form-data
 const AI_VIDEO_I2V_MODEL = process.env.AI_VIDEO_I2V_MODEL || 'veo-3.1-fast-fl';
 // Polling: /v1/videos/{video_id} — video_id is the id returned from creation
-const AI_VIDEO_TASK_PATH_TEMPLATE = '/v1/videos/{taskId}';
+const AI_VIDEO_TASK_PATH_TEMPLATE = process.env.AI_VIDEO_TASK_PATH_TEMPLATE || '/v1/videos/{taskId}';
 const MAX_BODY_BYTES = Number(process.env.PROXY_MAX_BODY_BYTES || 256 * 1024);
 const REQUEST_TIMEOUT_MS = Number(process.env.PROXY_REQUEST_TIMEOUT_MS || 120000);
 const TASK_TTL_MS = Number(process.env.PROXY_TASK_TTL_MS || 60 * 60 * 1000);
@@ -905,6 +906,13 @@ async function callAi(canvasPayload) {
       return { ok: false, error };
     }
     const body = result.body;
+    if (body?.status === 'completed') {
+      const directUrls = extractUrls(body);
+      if (directUrls.length > 0) {
+        updateMediaCapabilityFromSuccess(mediaType, { usesFirstFrameImage: false });
+        return { ok: true, status: 'completed', urls: directUrls };
+      }
+    }
     let b64 = null;
     try {
       const candParts = body?.candidates?.[0]?.content?.parts || [];
@@ -919,6 +927,19 @@ async function callAi(canvasPayload) {
       const mimeType = body?.candidates?.[0]?.content?.parts?.[0]?.inlineData?.mimeType || 'image/png';
       updateMediaCapabilityFromSuccess(mediaType, { usesFirstFrameImage: false });
       return { ok: true, status: 'completed', urls: [`data:${mimeType};base64,${b64}`] };
+    }
+    const taskId = extractTaskId(body);
+    const statusUrl = extractStatusUrl(body);
+    if (taskId || statusUrl) {
+      const pollPath = statusUrl || buildTaskPath(AI_IMAGE_TASK_PATH_TEMPLATE, taskId);
+      updateMediaCapabilityFromSuccess(mediaType, { usesFirstFrameImage: false });
+      return {
+        ok: true,
+        status: normalizeStatus(body?.status || body?.state || body?.progress) === 'completed' ? 'completed' : 'processing',
+        upstreamTaskId: taskId,
+        upstreamPollPath: pollPath,
+        urls: extractUrls(body),
+      };
     }
     const finishReason = body?.candidates?.[0]?.finishReason;
     if (finishReason && finishReason !== 'STOP') {
@@ -978,10 +999,10 @@ async function callAi(canvasPayload) {
         return { ok: true, status: 'completed', urls: [videoUrl] };
       }
     }
-    // Async — extract video_id for polling
-    const videoId = body?.id || '';
+    // Async — extract video_id/task_id for polling
+    const videoId = extractTaskId(body);
     if (videoId) {
-      const pollPath = buildTaskPath(AI_VIDEO_TASK_PATH_TEMPLATE, videoId);
+      const pollPath = extractStatusUrl(body) || buildTaskPath(AI_VIDEO_TASK_PATH_TEMPLATE, videoId);
       return {
         ok: true,
         status: 'processing',

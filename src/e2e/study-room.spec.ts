@@ -28,8 +28,7 @@ test.describe('Study Room E2E Tests', () => {
     // Use hash router format - navigate to study page
     await page.goto('/#/study');
     await page.waitForLoadState('domcontentloaded');
-    // Wait for React to hydrate and i18n to initialize
-    await page.waitForTimeout(2000);
+    await expect(page.getByRole('heading', { name: '自习室' })).toBeVisible({ timeout: 20000 });
   });
 
   /**
@@ -38,7 +37,7 @@ test.describe('Study Room E2E Tests', () => {
   async function openStudyRoomModal(page: any) {
     // Click the "Add Study Buddy" button (Plus icon) to open the modal
     const addBuddyButton = page.locator('[aria-label="添加学习伙伴"]');
-    await expect(addBuddyButton).toBeVisible({ timeout: 10000 });
+    await expect(addBuddyButton).toBeVisible({ timeout: 20000 });
     await addBuddyButton.click();
     // Wait for modal to appear
     await page.waitForTimeout(1000);

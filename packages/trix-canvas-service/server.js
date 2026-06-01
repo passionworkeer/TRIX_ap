@@ -398,7 +398,7 @@ function deleteRecord(dir, id) {
   if (dir === EDGES_DIR) return db.prepare('DELETE FROM edges WHERE id = ? AND user_id = ?').run(id, user_id);
   if (dir === FILES_DIR) return db.prepare('DELETE FROM files WHERE id = ? AND user_id = ?').run(id, user_id);
   if (dir === SESSIONS_DIR) return db.prepare('DELETE FROM sessions WHERE id = ? AND user_id = ?').run(id, user_id);
-  
+
   const file = recordPath(dir, id);
   if (existsSync(file)) {
     rmSync(file, { force: true });
@@ -422,7 +422,7 @@ function listRecords(dir) {
   if (dir === SESSIONS_DIR) return db.prepare('SELECT * FROM sessions WHERE user_id = ?').all(user_id).map(row => ({
     ...row, result_urls: row.result_urls ? JSON.parse(row.result_urls) : [], messages: row.messages ? JSON.parse(row.messages) : []
   }));
-  
+
   return readdirSync(dir)
     .filter((name) => name.endsWith('.json'))
     .map((name) => {

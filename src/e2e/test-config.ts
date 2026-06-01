@@ -23,6 +23,7 @@ export async function waitForI18n(page: Page) {
   await page.addInitScript(() => {
     localStorage.setItem('language', 'zh');
     localStorage.setItem('i18nextLng', 'zh');
+    localStorage.setItem('trix_pwa_install_prompt_dismissed_v1', '1');
     sessionStorage.setItem('language', 'zh');
     sessionStorage.setItem('i18nextLng', 'zh');
   });
@@ -156,11 +157,263 @@ export async function mockSession(page: Page, userId = 'test-user-123', email = 
       user: mockUser
     };
 
-    // Store in both localStorage and sessionStorage because runtime auth now
-    // normalizes sessions into sessionStorage for security.
-    const storageKey = `sb-__SUPABASE_PROJECT_REF_REDACTED__-auth-token`;
-    localStorage.setItem(storageKey, JSON.stringify(mockSession));
-    sessionStorage.setItem(storageKey, JSON.stringify(mockSession));
+    // Keep the legacy Supabase key for older tests and the Web API key used by
+    // the current MySQL-backed runtime.
+    const legacyStorageKey = `sb-__SUPABASE_PROJECT_REF_REDACTED__-auth-token`;
+    const webApiStorageKey = 'trix_mysql_auth_session';
+    localStorage.setItem('trix_pwa_install_prompt_dismissed_v1', '1');
+    localStorage.setItem(legacyStorageKey, JSON.stringify(mockSession));
+    sessionStorage.setItem(legacyStorageKey, JSON.stringify(mockSession));
+    localStorage.setItem(webApiStorageKey, JSON.stringify(mockSession));
+    sessionStorage.setItem(webApiStorageKey, JSON.stringify(mockSession));
+
+    const now = new Date().toISOString();
+    const profile = {
+      id: userId,
+      username: 'TestUser',
+      email,
+      avatar_url: 'https://example.com/avatar.png',
+      bio: 'E2E test profile',
+      points: 100,
+      days_active: 7,
+      interaction_count: 42,
+      created_at: now,
+      updated_at: now
+    };
+    const mallItems = [
+      {
+        id: 'item-1',
+        name: '蓝色T恤',
+        description: '舒适的纯棉T恤',
+        image_url: 'https://example.com/item1.png',
+        price: 50,
+        category: 'clothing',
+        is_active: true,
+        display_order: 1,
+        created_at: now
+      },
+      {
+        id: 'item-2',
+        name: '黑色帽子',
+        description: '时尚的棒球帽',
+        image_url: 'https://example.com/item2.png',
+        price: 30,
+        category: 'accessory',
+        is_active: true,
+        display_order: 2,
+        created_at: now
+      },
+      {
+        id: 'item-3',
+        name: '魔法背包',
+        description: '可以装很多道具的背包',
+        image_url: 'https://example.com/item3.png',
+        price: 80,
+        category: 'prop',
+        is_active: true,
+        display_order: 3,
+        created_at: now
+      }
+    ];
+    const outfits = [
+      {
+        id: 'outfit-1',
+        name: '蓝色帽子',
+        category: 'hat',
+        image_url: 'https://example.com/hat1.png',
+        preview_image_url: 'https://example.com/hat1-preview.png',
+        description: '舒适的蓝色帽子',
+        price: 50,
+        is_active: true,
+        created_at: now
+      },
+      {
+        id: 'outfit-2',
+        name: '红色披风',
+        category: 'cape',
+        image_url: 'https://example.com/cape1.png',
+        preview_image_url: 'https://example.com/cape1-preview.png',
+        description: '帅气的红色披风',
+        price: 80,
+        is_active: true,
+        created_at: now
+      },
+      {
+        id: 'outfit-3',
+        name: '魔法魔杖',
+        category: 'wand',
+        image_url: 'https://example.com/wand1.png',
+        preview_image_url: 'https://example.com/wand1-preview.png',
+        description: '神奇的魔法魔杖',
+        price: 100,
+        is_active: true,
+        created_at: now
+      },
+      {
+        id: 'outfit-4',
+        name: '森林背景',
+        category: 'background',
+        image_url: 'https://example.com/bg1.png',
+        preview_image_url: 'https://example.com/bg1-preview.png',
+        description: '美丽的森林背景',
+        price: 30,
+        is_active: true,
+        created_at: now
+      }
+    ];
+    const tableData: Record<string, unknown[]> = {
+      profiles: [profile],
+      friends: [
+        {
+          id: 'friend-link-1',
+          user_id: userId,
+          friend_id: 'friend-1',
+          status: 'accepted',
+          created_at: now,
+          friend: {
+            id: 'friend-1',
+            username: 'TRIX Bot',
+            email: 'bot@trix.app',
+            avatar_url: 'https://example.com/bot.png'
+          }
+        }
+      ],
+      friend_latest_messages: [
+        {
+          user_id: userId,
+          friend_id: 'friend-1',
+          name: 'TRIX Bot',
+          avatar_url: 'https://example.com/bot.png',
+          status: 'online',
+          bio: 'E2E test friend',
+          study_time: 0,
+          is_studying: false,
+          unread_count: 0,
+          last_message: 'Ready to chat',
+          last_message_time: now
+        }
+      ],
+      unread_counts: [{ friend_id: 'friend-1', count: 0 }],
+      chat_messages: [
+        {
+          id: 'msg-1',
+          sender_id: userId,
+          receiver_id: 'friend-1',
+          content: 'Hello TRIX',
+          message_type: 'text',
+          created_at: now
+        }
+      ],
+      user_stats: [{
+        id: userId,
+        user_id: userId,
+        total_study_time: 3600,
+        total_sessions: 10,
+        avg_session_duration: 360,
+        streak_days: 7,
+        created_at: now,
+        updated_at: now
+      }],
+      point_transactions: [
+        {
+          id: '1',
+          user_id: userId,
+          amount: 10,
+          type: 'earned',
+          description: 'Daily login bonus',
+          created_at: now
+        },
+        {
+          id: '2',
+          user_id: userId,
+          amount: -5,
+          type: 'spend',
+          description: 'Purchased item',
+          created_at: now
+        }
+      ],
+      points_transactions: [
+        {
+          id: '1',
+          user_id: userId,
+          amount: 10,
+          type: 'earned',
+          description: 'Daily login bonus',
+          created_at: now
+        }
+      ],
+      mall_items: mallItems,
+      user_points: [{
+        user_id: userId,
+        balance: 100,
+        total_earned: 150,
+        total_spent: 50,
+        updated_at: now
+      }],
+      user_points_overview: [{
+        user_id: userId,
+        balance: 100,
+        total_earned: 150,
+        total_spent: 50,
+        updated_at: now
+      }],
+      user_purchased_items: [],
+      outfits,
+      user_outfits: [
+        {
+          id: 'user-outfit-1',
+          user_id: userId,
+          outfit_id: 'outfit-1',
+          is_equipped: true,
+          purchased_at: now
+        },
+        {
+          id: 'user-outfit-2',
+          user_id: userId,
+          outfit_id: 'outfit-2',
+          is_equipped: false,
+          purchased_at: now
+        }
+      ],
+      places: [
+        {
+          id: 'place-1',
+          name: 'TRIX Cafe',
+          type: 'cafe',
+          latitude: 31.2304,
+          longitude: 121.4737,
+          address: 'Shanghai',
+          created_at: now
+        }
+      ],
+      user_locations: [{
+        id: 'location-1',
+        user_id: userId,
+        latitude: 31.2304,
+        longitude: 121.4737,
+        updated_at: now
+      }],
+      user_favorite_places: [],
+      user_location_settings: [{
+        user_id: userId,
+        share_location: true,
+        updated_at: now
+      }],
+      schedules: [],
+      todos: [],
+      mails: [],
+      notifications: [],
+      user_achievements: [],
+      user_sessions: [],
+      user_settings: [{
+        user_id: userId,
+        theme: 'system',
+        language: 'zh',
+        updated_at: now
+      }],
+      study_sessions: [],
+      feature_flags: []
+    };
 
     // Mock the Supabase client's auth methods
     // @ts-ignore - We're intentionally mocking the window object
@@ -194,6 +447,68 @@ export async function mockSession(page: Page, userId = 'test-user-123', email = 
       // Mock Supabase auth user endpoint
       if (requestUrl.includes('/auth/v1/user')) {
         return new Response(JSON.stringify(mockUser), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
+
+      if (requestUrl.includes('/api/auth/me')) {
+        return new Response(JSON.stringify({ user: mockUser }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
+
+      const dbMatch = requestUrl.match(/\/api\/db\/([^/]+)\/(query|insert|update|upsert|delete)/);
+      if (dbMatch) {
+        const [, table, action] = dbMatch;
+        const tableKey = table ?? '';
+        const rows = tableData[tableKey] ?? [];
+        let payload: { data: unknown; count?: number | null };
+
+        if (action === 'insert' || action === 'upsert') {
+          let values: unknown = null;
+          try {
+            const body = typeof options?.body === 'string' ? JSON.parse(options.body) : {};
+            values = body?.values ?? null;
+          } catch {
+            values = null;
+          }
+          const inserted = Array.isArray(values) ? values : values ? [values] : [];
+          payload = { data: inserted, count: inserted.length };
+        } else if (action === 'update') {
+          payload = { data: rows, count: rows.length };
+        } else if (action === 'delete') {
+          payload = { data: [], count: 0 };
+        } else {
+          payload = { data: rows, count: rows.length };
+        }
+
+        return new Response(JSON.stringify(payload), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
+
+      if (requestUrl.includes('/api/rpc/')) {
+        return new Response(JSON.stringify({ data: [] }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
+
+      // The web E2E suite runs without the local TRIX Native service. Treat
+      // session restore as "not paired yet" so route tests do not leak real
+      // localhost:8788 network failures into unrelated assertions.
+      if (requestUrl.includes('/api/client/session/restore')) {
+        return new Response(JSON.stringify({ error: 'No native session in E2E mock' }), {
+          status: 404,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
+
+      if (requestUrl.includes('/api/client/session/bind')) {
+        return new Response(JSON.stringify({ success: true }), {
           status: 200,
           headers: { 'Content-Type': 'application/json' }
         });

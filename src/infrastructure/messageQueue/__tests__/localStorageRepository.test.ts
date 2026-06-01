@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { LocalStorageMessageQueueRepository } from '../../infrastructure/messageQueue/localStorageRepository';
-import { createPendingMessage, DEFAULT_RETRY_POLICY, markMessageSent } from '../../domain/messageQueue/entities';
+import { LocalStorageMessageQueueRepository } from '../localStorageRepository';
+import { createPendingMessage, DEFAULT_RETRY_POLICY, markMessageSent } from '../../../domain/messageQueue/entities';
 
 describe('Message Queue Infrastructure - LocalStorageRepository', () => {
   let repo: LocalStorageMessageQueueRepository;

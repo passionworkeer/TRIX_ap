@@ -14,7 +14,13 @@ interface PwaInstallPromptProps {
 
 const PwaInstallPrompt: React.FC<PwaInstallPromptProps> = ({ elevated = false }) => {
   const [deferredPrompt, setDeferredPrompt] = useState<DeferredInstallPromptEvent | null>(null);
-  const [dismissed, setDismissed] = useState(false);
+  const [dismissed, setDismissed] = useState(() => {
+    if (typeof window === 'undefined') {
+      return false;
+    }
+
+    return window.localStorage.getItem(DISMISS_KEY) === '1';
+  });
   const [showPrompt, setShowPrompt] = useState(false);
   const [showIosHint, setShowIosHint] = useState(false);
   const [displayModeVersion, setDisplayModeVersion] = useState(0);

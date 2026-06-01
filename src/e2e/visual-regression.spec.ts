@@ -29,23 +29,94 @@ async function stabilizePage(page: import('@playwright/test').Page) {
   await page.waitForLoadState('networkidle');
   // Disable animations
   await page.addStyleTag({
-    content: '*, *::before, *::after { animation: none !important; transition: none !important; }',
+    content: `
+      *, *::before, *::after { animation: none !important; transition: none !important; }
+      [data-hero-background] { background: #1a1a1a !important; }
+      [data-hero-background] video,
+      [data-hero-background] canvas {
+        opacity: 0 !important;
+        visibility: hidden !important;
+      }
+    `,
+  });
+  await page.evaluate(() => {
+    document.querySelectorAll('video').forEach((video) => {
+      video.pause();
+      try {
+        video.currentTime = 0;
+      } catch {
+        // Some browsers reject seeking before metadata is ready; hiding the
+        // element above still keeps the screenshot deterministic.
+      }
+    });
   });
   // Wait a frame
   await page.waitForTimeout(100);
 }
 
-async function gotoPublicPage(page: import('@playwright/test').Page, path: string) {
+async function prepareVisualPage(page: import('@playwright/test').Page) {
   await waitForI18n(page);
+  await page.addInitScript(() => {
+    try {
+      Object.defineProperty(window, 'BarcodeDetector', {
+        configurable: true,
+        value: undefined,
+      });
+    } catch {
+      try {
+        (window as Window & { BarcodeDetector?: unknown }).BarcodeDetector = undefined;
+      } catch {
+        // Ignore if the browser blocks patching the API.
+      }
+    }
+  });
+}
+
+async function waitForPageReady(page: import('@playwright/test').Page, path: string) {
+  if (path === '/#/login') {
+    await expect(page.locator('#email-input')).toBeVisible({ timeout: 15000 });
+  } else if (path === '/') {
+    await expect(page.getByTestId('home-bot-collapsed-trigger')).toBeVisible({ timeout: 15000 });
+  } else if (path === '/#/chat') {
+    await expect(page.getByRole('heading', { name: '聊天' })).toBeVisible({ timeout: 15000 });
+    await expect(page.getByRole('heading', { name: 'TRIX Bot', exact: true })).toBeVisible({ timeout: 15000 });
+  } else if (path === '/#/study') {
+    await expect(page.getByRole('heading', { name: '自习室' })).toBeVisible({ timeout: 15000 });
+    await expect(page.getByRole('button', { name: /开始专注/ })).toBeVisible({ timeout: 15000 });
+  } else if (path === '/#/map') {
+    await expect(page.locator('input[placeholder^="搜索地点"]')).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText('Virtual World')).toBeVisible({ timeout: 15000 });
+  } else if (path === '/#/profile') {
+    await expect(page.getByRole('heading', { name: '个人中心' })).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText('TestUser')).toBeVisible({ timeout: 15000 });
+    await page.waitForFunction(() => {
+      const images = Array.from(document.querySelectorAll<HTMLImageElement>('img'));
+      return images.length >= 3 && images.every((image) => image.complete && image.naturalWidth > 0);
+    }, undefined, { timeout: 15000 });
+  } else if (path === '/#/pairing') {
+    await expect(page.getByRole('heading', { name: '配对 TRIX Native' })).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText('请输入 TRIX Native 上的 6 位配对码')).toBeVisible({ timeout: 15000 });
+    await page.waitForTimeout(4500);
+  }
+
+  await expect(page.getByText('页面加载中...')).toHaveCount(0);
+  await expect(page.getByText('加载中...')).toHaveCount(0);
+  await expect(page.getByText('出错了')).toHaveCount(0);
+}
+
+async function gotoPublicPage(page: import('@playwright/test').Page, path: string) {
+  await prepareVisualPage(page);
   await page.goto(path);
   await stabilizePage(page);
+  await waitForPageReady(page, path);
 }
 
 async function gotoProtectedPage(page: import('@playwright/test').Page, path: string) {
-  await waitForI18n(page);
+  await prepareVisualPage(page);
   await mockSession(page);
   await page.goto(path);
   await stabilizePage(page);
+  await waitForPageReady(page, path);
 }
 
 test.describe('Visual Regression - Login', () => {

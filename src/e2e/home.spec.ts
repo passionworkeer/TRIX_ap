@@ -192,8 +192,10 @@ test.describe('Home Page E2E Tests', () => {
 
     for (const tab of tabs) {
       const tabElement = page.locator(`[aria-label="${tab}"]`);
+      await expect(tabElement).toBeVisible({ timeout: 10000 });
       await tabElement.click();
-      await page.waitForTimeout(200);
+      await expect(page).toHaveURL(new RegExp(`/#/${tab}$`), { timeout: 10000 });
+      await expect(page.locator('[role="navigation"]')).toBeVisible({ timeout: 10000 });
     }
 
     // Finally, verify we can go back to home
@@ -254,19 +256,18 @@ test.describe('Home Page E2E Tests', () => {
     // Note: Using hash router format
     await page.goto('/#/profile');
     await page.waitForLoadState('domcontentloaded');
-    await page.waitForTimeout(1000);
+    await expect(page.getByRole('heading', { name: '个人中心' })).toBeVisible({ timeout: 15000 });
 
     // Navigation dock should be present and visible
     const navDock = page.locator('[role="navigation"]');
-    await expect(navDock).toBeVisible();
+    await expect(navDock).toBeVisible({ timeout: 15000 });
 
     // Navigate to study page
     await page.goto('/#/study');
     await page.waitForLoadState('domcontentloaded');
-    await page.waitForTimeout(1000);
 
     // Navigation dock should still be visible
-    await expect(navDock).toBeVisible();
+    await expect(navDock).toBeVisible({ timeout: 15000 });
 
     // Navigate to home page (dock may be hidden by default)
     await page.goto('/');

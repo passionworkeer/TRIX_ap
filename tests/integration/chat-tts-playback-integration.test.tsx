@@ -36,6 +36,7 @@ const { mockInstance, handlers } = vi.hoisted(() => {
     unpair: vi.fn(),
     getUserId: vi.fn().mockReturnValue('user-123'),
     getOrCreateClientId: vi.fn().mockReturnValue('client-123'),
+    getStoredPairingState: vi.fn().mockReturnValue({ hasSession: false, session: null }),
   };
 
   return { mockInstance: instance, handlers: eventHandlers };

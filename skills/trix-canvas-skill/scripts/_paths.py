@@ -19,6 +19,7 @@ SYNC_TOP_LEVEL_FILES = (
     ".env.example",
     "README.md",
     "canvasSecurity.js",
+    "db.js",
     "package.json",
     "proxy.js",
     "relay.js",

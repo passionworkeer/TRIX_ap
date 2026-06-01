@@ -27,14 +27,8 @@ const TEST_USER = {
 
 test.describe('Authentication E2E Tests', () => {
   test.beforeEach(async ({ page }) => {
-    // Mock Supabase session BEFORE navigation so the app doesn't hang on auth check
     await mockSession(page);
     await waitForI18n(page);
-    await page.goto('/');
-    // Wait for loading spinner (from Supabase auth check) to clear
-    await page.waitForLoadState('networkidle').catch(() => {});
-    // Fallback: wait for form fields to appear (up to 5s)
-    await page.waitForSelector('#email-input', { timeout: 8000 }).catch(() => {});
   });
 
   test('T2.1.0: should display registration page correctly', async ({ page }) => {

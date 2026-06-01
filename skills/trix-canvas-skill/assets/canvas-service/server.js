@@ -14,6 +14,12 @@ import {
 import { isIP } from 'net';
 import { basename, dirname, extname, join, resolve } from 'path';
 import { fileURLToPath } from 'url';
+
+import db from './db.js';
+import { AsyncLocalStorage } from 'async_hooks';
+
+const contextALS = new AsyncLocalStorage();
+
 import { spawn, spawnSync } from 'child_process';
 import { tmpdir } from 'os';
 import { v4 as uuidv4 } from 'uuid';
@@ -163,6 +169,15 @@ app.use((req, res, next) => {
 });
 app.use(express.static(join(__dirname, 'public'), { dotfiles: 'ignore' }));
 
+
+app.use((req, res, next) => {
+  const user_id = req.headers['x-user-id'] || 'default_user';
+  contextALS.run({ user_id }, () => {
+    next();
+  });
+});
+
+
 function isTrustedCanvasOrigin(origin) {
   return !origin || origin === APP_ORIGIN || CANVAS_ALLOWED_ORIGINS.has(origin);
 }
@@ -307,20 +322,83 @@ function recordPath(dir, id) {
   return join(dir, `${assertSafeRecordId(id)}.json`);
 }
 
+
 function readRecord(dir, id) {
-  const file = recordPath(dir, id);
-  if (!existsSync(file)) {
-    return null;
+  const user_id = contextALS.getStore()?.user_id || 'default_user';
+  if (dir === PROJECTS_DIR) {
+    const row = db.prepare('SELECT * FROM projects WHERE id = ? AND user_id = ?').get(id, user_id);
+    if (!row) return null;
+    const node_ids = db.prepare('SELECT id FROM nodes WHERE project_id = ?').all(id).map(r => r.id);
+    const edge_ids = db.prepare('SELECT id FROM edges WHERE project_id = ?').all(id).map(r => r.id);
+    const file_ids = db.prepare('SELECT id FROM files WHERE project_id = ?').all(id).map(r => r.id);
+    const session_ids = db.prepare('SELECT id FROM sessions WHERE project_id = ?').all(id).map(r => r.id);
+    return { ...row, node_ids, edge_ids, file_ids, session_ids };
   }
+  if (dir === NODES_DIR) {
+    return db.prepare('SELECT * FROM nodes WHERE id = ? AND user_id = ?').get(id, user_id) || null;
+  }
+  if (dir === EDGES_DIR) {
+    return db.prepare('SELECT * FROM edges WHERE id = ? AND user_id = ?').get(id, user_id) || null;
+  }
+  if (dir === FILES_DIR) {
+    return db.prepare('SELECT * FROM files WHERE id = ? AND user_id = ?').get(id, user_id) || null;
+  }
+  if (dir === SESSIONS_DIR) {
+    const row = db.prepare('SELECT * FROM sessions WHERE id = ? AND user_id = ?').get(id, user_id);
+    if (!row) return null;
+    return { ...row, result_urls: row.result_urls ? JSON.parse(row.result_urls) : [], messages: row.messages ? JSON.parse(row.messages) : [] };
+  }
+  const file = recordPath(dir, id);
+  if (!existsSync(file)) return null;
   return JSON.parse(readFileSync(file, 'utf8'));
 }
 
 function writeRecord(dir, id, value) {
+  const user_id = contextALS.getStore()?.user_id || 'default_user';
+  if (dir === PROJECTS_DIR) {
+    // Use INSERT ... ON CONFLICT DO UPDATE instead of INSERT OR REPLACE
+    // to avoid DELETE triggering ON DELETE CASCADE foreign keys
+    db.prepare('INSERT INTO projects (id, user_id, name, script_text, created_at, updated_at) VALUES (@id, @user_id, @name, @script_text, @created_at, @updated_at) ON CONFLICT(id) DO UPDATE SET name=excluded.name, script_text=excluded.script_text, updated_at=excluded.updated_at').run({
+      id, user_id, name: value.name || 'Untitled', script_text: value.script_text || null, created_at: value.created_at || nowIso(), updated_at: value.updated_at || nowIso()
+    });
+    return value;
+  }
+  if (dir === NODES_DIR) {
+    db.prepare('INSERT INTO nodes (id, user_id, project_id, session_id, file_id, parent_node_id, scene_id, media_type, x, y, prompt, status, aspect, style, task_id, result_url, error, created_at, updated_at) VALUES (@id, @user_id, @project_id, @session_id, @file_id, @parent_node_id, @scene_id, @media_type, @x, @y, @prompt, @status, @aspect, @style, @task_id, @result_url, @error, @created_at, @updated_at) ON CONFLICT(id) DO UPDATE SET session_id=excluded.session_id, file_id=excluded.file_id, parent_node_id=excluded.parent_node_id, scene_id=excluded.scene_id, media_type=excluded.media_type, x=excluded.x, y=excluded.y, prompt=excluded.prompt, status=excluded.status, aspect=excluded.aspect, style=excluded.style, task_id=excluded.task_id, result_url=excluded.result_url, error=excluded.error, updated_at=excluded.updated_at').run({
+      id, user_id, project_id: value.project_id, session_id: value.session_id || null, file_id: value.file_id || null, parent_node_id: value.parent_node_id || null, scene_id: value.scene_id || null, media_type: value.media_type || 'image', x: value.x || 0, y: value.y || 0, prompt: value.prompt || null, status: value.status || 'queued', aspect: value.aspect || null, style: value.style || null, task_id: value.task_id || null, result_url: value.result_url || null, error: value.error || null, created_at: value.created_at || nowIso(), updated_at: value.updated_at || nowIso()
+    });
+    return value;
+  }
+  if (dir === EDGES_DIR) {
+    db.prepare('INSERT INTO edges (id, user_id, project_id, source_node_id, target_node_id, edge_type, created_at, updated_at) VALUES (@id, @user_id, @project_id, @source_node_id, @target_node_id, @edge_type, @created_at, @updated_at) ON CONFLICT(id) DO UPDATE SET source_node_id=excluded.source_node_id, target_node_id=excluded.target_node_id, edge_type=excluded.edge_type, updated_at=excluded.updated_at').run({
+      id, user_id, project_id: value.project_id, source_node_id: value.source_node_id, target_node_id: value.target_node_id, edge_type: value.edge_type || 'scene_order', created_at: value.created_at || nowIso(), updated_at: value.updated_at || nowIso()
+    });
+    return value;
+  }
+  if (dir === FILES_DIR) {
+    db.prepare('INSERT INTO files (id, user_id, project_id, node_id, filename, stored_filename, mime_type, media_type, prompt, scene_id, size, source_url, url, created_at, updated_at) VALUES (@id, @user_id, @project_id, @node_id, @filename, @stored_filename, @mime_type, @media_type, @prompt, @scene_id, @size, @source_url, @url, @created_at, @updated_at) ON CONFLICT(id) DO UPDATE SET node_id=excluded.node_id, filename=excluded.filename, stored_filename=excluded.stored_filename, mime_type=excluded.mime_type, media_type=excluded.media_type, prompt=excluded.prompt, scene_id=excluded.scene_id, size=excluded.size, source_url=excluded.source_url, url=excluded.url, updated_at=excluded.updated_at').run({
+      id, user_id, project_id: value.project_id, node_id: value.node_id || null, filename: value.filename || null, stored_filename: value.stored_filename || null, mime_type: value.mime_type || value.mimeType || null, media_type: value.media_type || value.mediaType || null, prompt: value.prompt || null, scene_id: value.scene_id || null, size: value.size || null, source_url: value.source_url || value.external_url || null, url: value.url || null, created_at: value.created_at || nowIso(), updated_at: value.updated_at || nowIso()
+    });
+    return value;
+  }
+  if (dir === SESSIONS_DIR) {
+    db.prepare('INSERT INTO sessions (id, user_id, project_id, node_id, parent_node_id, message, media_type, aspect, style, status, task_id, upstream_status, result_urls, messages, error, last_polled_at, created_at, updated_at) VALUES (@id, @user_id, @project_id, @node_id, @parent_node_id, @message, @media_type, @aspect, @style, @status, @task_id, @upstream_status, @result_urls, @messages, @error, @last_polled_at, @created_at, @updated_at) ON CONFLICT(id) DO UPDATE SET node_id=excluded.node_id, parent_node_id=excluded.parent_node_id, message=excluded.message, media_type=excluded.media_type, aspect=excluded.aspect, style=excluded.style, status=excluded.status, task_id=excluded.task_id, upstream_status=excluded.upstream_status, result_urls=excluded.result_urls, messages=excluded.messages, error=excluded.error, last_polled_at=excluded.last_polled_at, updated_at=excluded.updated_at').run({
+      id, user_id, project_id: value.project_id || value.projectId, node_id: value.node_id || value.nodeId || null, parent_node_id: value.parent_node_id || value.parentNodeId || null, message: value.message || null, media_type: value.media_type || value.mediaType || 'image', aspect: value.aspect || null, style: value.style || null, status: value.status || 'queued', task_id: value.task_id || value.taskId || null, upstream_status: value.upstream_status || value.upstreamStatus || null, result_urls: value.result_urls ? JSON.stringify(value.result_urls) : JSON.stringify(value.resultUrls || []), messages: value.messages ? JSON.stringify(value.messages) : JSON.stringify([]), error: value.error || null, last_polled_at: value.last_polled_at || value.lastPolledAt || null, created_at: value.created_at || value.createdAt || nowIso(), updated_at: value.updated_at || value.updatedAt || nowIso()
+    });
+    return value;
+  }
   writeFileSync(recordPath(dir, id), JSON.stringify(value, null, 2));
   return value;
 }
 
 function deleteRecord(dir, id) {
+  const user_id = contextALS.getStore()?.user_id || 'default_user';
+  if (dir === PROJECTS_DIR) return db.prepare('DELETE FROM projects WHERE id = ? AND user_id = ?').run(id, user_id);
+  if (dir === NODES_DIR) return db.prepare('DELETE FROM nodes WHERE id = ? AND user_id = ?').run(id, user_id);
+  if (dir === EDGES_DIR) return db.prepare('DELETE FROM edges WHERE id = ? AND user_id = ?').run(id, user_id);
+  if (dir === FILES_DIR) return db.prepare('DELETE FROM files WHERE id = ? AND user_id = ?').run(id, user_id);
+  if (dir === SESSIONS_DIR) return db.prepare('DELETE FROM sessions WHERE id = ? AND user_id = ?').run(id, user_id);
+
   const file = recordPath(dir, id);
   if (existsSync(file)) {
     rmSync(file, { force: true });
@@ -328,6 +406,23 @@ function deleteRecord(dir, id) {
 }
 
 function listRecords(dir) {
+  const user_id = contextALS.getStore()?.user_id || 'default_user';
+  if (dir === PROJECTS_DIR) {
+    return db.prepare('SELECT * FROM projects WHERE user_id = ?').all(user_id).map(row => {
+      row.node_ids = db.prepare('SELECT id FROM nodes WHERE project_id = ?').all(row.id).map(r => r.id);
+      row.edge_ids = db.prepare('SELECT id FROM edges WHERE project_id = ?').all(row.id).map(r => r.id);
+      row.file_ids = db.prepare('SELECT id FROM files WHERE project_id = ?').all(row.id).map(r => r.id);
+      row.session_ids = db.prepare('SELECT id FROM sessions WHERE project_id = ?').all(row.id).map(r => r.id);
+      return row;
+    });
+  }
+  if (dir === NODES_DIR) return db.prepare('SELECT * FROM nodes WHERE user_id = ?').all(user_id);
+  if (dir === EDGES_DIR) return db.prepare('SELECT * FROM edges WHERE user_id = ?').all(user_id);
+  if (dir === FILES_DIR) return db.prepare('SELECT * FROM files WHERE user_id = ?').all(user_id);
+  if (dir === SESSIONS_DIR) return db.prepare('SELECT * FROM sessions WHERE user_id = ?').all(user_id).map(row => ({
+    ...row, result_urls: row.result_urls ? JSON.parse(row.result_urls) : [], messages: row.messages ? JSON.parse(row.messages) : []
+  }));
+
   return readdirSync(dir)
     .filter((name) => name.endsWith('.json'))
     .map((name) => {
@@ -339,6 +434,7 @@ function listRecords(dir) {
     })
     .filter(Boolean);
 }
+
 
 function clampNumber(value, fallback = 0) {
   const parsed = Number(value);
@@ -1186,6 +1282,9 @@ function buildGeneratePayload(session) {
     parentSourceUrl: parentFile?.source_url || '',
     parent_result_url: absoluteParentResultUrl,
     parentResultUrl: absoluteParentResultUrl,
+    imageSize: session.image_size,
+    thinkingMode: session.thinking_mode,
+    inputImage: session.input_image,
   };
 }
 
@@ -1729,6 +1828,9 @@ async function createGenerationSession({
   aspect = 'origin',
   style = '',
   parent_node_id = null,
+  image_size = null,
+  thinking_mode = null,
+  input_image = null,
 }) {
   const project = requireProject(project_id);
   const timestamp = nowIso();
@@ -1757,6 +1859,9 @@ async function createGenerationSession({
     media_type,
     aspect,
     style,
+    image_size,
+    thinking_mode,
+    input_image,
     status: AI_API_BASE ? 'generating' : 'error',
     task_id: '',
     upstream_status: AI_API_BASE ? 'pending' : 'error',
@@ -2650,6 +2755,9 @@ app.post('/api/session', async (req, res, next) => {
       aspect: body.aspect || 'origin',
       style: body.style || '',
       parent_node_id: body.parent_node_id || body.parentNodeId || null,
+      image_size: body.imageSize || body.image_size || null,
+      thinking_mode: body.thinkingMode || body.thinking_mode || null,
+      input_image: body.inputImage || body.input_image || null,
     });
 
     res.json({

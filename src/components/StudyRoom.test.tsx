@@ -1,5 +1,5 @@
 import React from 'react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 
 const mocks = vi.hoisted(() => ({
@@ -131,6 +131,11 @@ vi.mock('../services/TrixNativeChannelClient', () => ({
 }));
 
 const NOW = Date.now();
+let StudyRoom: any;
+
+beforeAll(async () => {
+  StudyRoom = (await import('./StudyRoom')).default;
+});
 
 function makeRoom(overrides = {}) {
   return {
@@ -157,7 +162,6 @@ function makeRoom(overrides = {}) {
 }
 
 async function renderStudyRoom() {
-  const StudyRoom = (await import('./StudyRoom')).default;
   render(<StudyRoom isOpen={true} onClose={() => {}} />);
 }
 
@@ -189,7 +193,7 @@ describe('StudyRoom', () => {
   it('renders three entry modes when no active room', async () => {
     await renderStudyRoom();
 
-    expect(await screen.findByRole('button', { name: /^自己自习$/ })).toBeDefined();
+    expect(screen.getByRole('button', { name: /^自己自习$/ })).toBeDefined();
     expect(screen.getByRole('button', { name: /加入好友/ })).toBeDefined();
     expect(screen.getAllByRole('button', { name: /房间号加入/ }).length).toBeGreaterThan(0);
     expect(mocks.on).toHaveBeenCalledWith('study_room_state', expect.any(Function));
@@ -401,7 +405,6 @@ describe('StudyRoom', () => {
 
   it('unsubscribes from study_room_state event on close', async () => {
     mocks.getStudyRoomState.mockResolvedValue(null);
-    const StudyRoom = (await import('./StudyRoom')).default;
     const { unmount } = render(<StudyRoom isOpen={true} onClose={() => {}} />);
 
     unmount();

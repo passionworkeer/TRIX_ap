@@ -7,6 +7,11 @@ import { test, expect, mockSession } from './test-config';
 
 async function ensureManualInputMode(page: Page) {
   const codeInput = page.getByPlaceholder('AB12CD');
+  const manualInputButton = page.getByRole('button', { name: /手动输入配对码/ });
+  const modeReady = page.locator('input[placeholder="AB12CD"], button:has-text("手动输入配对码")');
+
+  await expect(modeReady.first()).toBeVisible({ timeout: 10000 });
+
   if (await codeInput.isVisible().catch(() => false)) {
     return {
       codeInput,
@@ -14,7 +19,6 @@ async function ensureManualInputMode(page: Page) {
     };
   }
 
-  const manualInputButton = page.getByRole('button', { name: /手动输入配对码/ });
   await expect(manualInputButton).toBeVisible({ timeout: 10000 });
   await manualInputButton.click();
   await expect(codeInput).toBeVisible({ timeout: 10000 });
@@ -30,7 +34,9 @@ test.describe('Pairing Page E2E Tests', () => {
     await mockSession(page);
     await page.goto('/#/pairing');
     await page.waitForLoadState('domcontentloaded');
-    await page.waitForTimeout(3000);
+    await expect(page.getByRole('heading', { name: /TRIX Native/ }).first()).toBeVisible({
+      timeout: 15000,
+    });
   });
 
   test('T4.1.1 - Load and render pairing page successfully', async ({ page }) => {

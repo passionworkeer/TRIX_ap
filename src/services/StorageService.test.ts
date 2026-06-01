@@ -34,10 +34,11 @@ const createLocalStorageMock = () => {
   };
 };
 
-const localStorageMock = createLocalStorageMock();
+let localStorageMock = createLocalStorageMock();
 
 Object.defineProperty(global, 'localStorage', {
   value: localStorageMock,
+  configurable: true,
 });
 
 // Import after mock
@@ -45,15 +46,11 @@ import storageService from './StorageService';
 
 describe('StorageService', () => {
   beforeEach(() => {
-    // Reset localStorage mock
-    localStorageMock.getItem.mockReset();
-    localStorageMock.setItem.mockReset();
-    localStorageMock.removeItem.mockReset();
-    localStorageMock.clear.mockReset();
-    localStorageMock.key.mockReset();
-
-    // Clear store by calling clear
-    localStorage.clear();
+    localStorageMock = createLocalStorageMock();
+    Object.defineProperty(global, 'localStorage', {
+      value: localStorageMock,
+      configurable: true,
+    });
 
     // Clear service cache
     storageService.clearCache();
@@ -165,12 +162,16 @@ describe('StorageService', () => {
 
   describe('clear', () => {
     it('should clear all localStorage data', async () => {
-      await storageService.set('key1', 'value1');
-      await storageService.set('key2', 'value2');
+      await storageService.set('trix_key1', 'value1', { persistent: true });
+      await storageService.set('clawbot_key2', 'value2', { persistent: true });
+
+      vi.clearAllMocks();
 
       await storageService.clear();
 
-      expect(localStorage.clear).toHaveBeenCalled();
+      expect(localStorage.removeItem).toHaveBeenCalledWith('trix_key1');
+      expect(localStorage.removeItem).toHaveBeenCalledWith('clawbot_key2');
+      expect(localStorage.clear).not.toHaveBeenCalled();
     });
 
     it('should clear cache', async () => {
@@ -293,7 +294,7 @@ describe('StorageService', () => {
 
   describe('clearCache', () => {
     it('should clear only cache without affecting localStorage', async () => {
-      await storageService.set('cached', 'value', { useCache: true });
+      await storageService.set('cached', 'value', { useCache: true, persistent: false });
 
       storageService.clearCache();
 

@@ -17,15 +17,16 @@ const AI_API_BASE = process.env.AI_API_BASE || 'https://api.apiyi.com';
 const AI_API_KEY = process.env.AI_API_KEY || '';
 const AI_GENERATE_PATH = process.env.AI_GENERATE_PATH || '/anthropic/v1/messages';
 const AI_IMAGE_MODEL = process.env.AI_IMAGE_MODEL || 'gemini-3.1-flash-image-preview';
-const AI_IMAGE_PATH = `/v1beta/models/${AI_IMAGE_MODEL}:generateContent`;
+const AI_IMAGE_PATH = process.env.AI_IMAGE_PATH || `/v1beta/models/${AI_IMAGE_MODEL}:generateContent`;
+const AI_IMAGE_TASK_PATH_TEMPLATE = process.env.AI_IMAGE_TASK_PATH_TEMPLATE || '/tasks/{taskId}';
 // VEO 3.1: /v1/videos (async) — model variants: veo-3.1, veo-3.1-fast, veo-3.1-landscape, veo-3.1-fl, etc.
 const AI_VIDEO_PATH = process.env.AI_VIDEO_PATH || '/v1/videos';
 // Default: fast model for speed. Use AI_VIDEO_MODEL to override.
 const AI_VIDEO_MODEL = process.env.AI_VIDEO_MODEL || 'veo-3.1-fast';
 // Frame-to-video (首尾帧) requires -fl variant and multipart/form-data
 const AI_VIDEO_I2V_MODEL = process.env.AI_VIDEO_I2V_MODEL || 'veo-3.1-fast-fl';
-// Polling: /v1/videos/{video_id}
-const AI_VIDEO_TASK_PATH_TEMPLATE = '/v1/videos/{taskId}';
+// Polling: /v1/videos/{video_id} — video_id is the id returned from creation
+const AI_VIDEO_TASK_PATH_TEMPLATE = process.env.AI_VIDEO_TASK_PATH_TEMPLATE || '/v1/videos/{taskId}';
 const MAX_BODY_BYTES = Number(process.env.PROXY_MAX_BODY_BYTES || 256 * 1024);
 const REQUEST_TIMEOUT_MS = Number(process.env.PROXY_REQUEST_TIMEOUT_MS || 120000);
 const TASK_TTL_MS = Number(process.env.PROXY_TASK_TTL_MS || 60 * 60 * 1000);
@@ -446,18 +447,25 @@ function isLandscapeAspect(aspect) {
 }
 
 // 根据 aspect 和是否使用首帧，自动选择 VEO 3.1 模型名称
+// VEO 3.1 模型命名：基础名 -landscape? -fast? -fl?
+// -fl = Frame-to-Video 模式，需要配合 firstFrameImage
 function selectVideoModel(usesFirstFrame, resolvedAspect) {
   const landscape = isLandscapeAspect(resolvedAspect);
+  // 从环境变量读取基础名（默认 veo-3.1-fast）
   const baseModel = usesFirstFrame
     ? (process.env.AI_VIDEO_I2V_MODEL || 'veo-3.1-fast-fl')
     : (process.env.AI_VIDEO_MODEL || 'veo-3.1-fast');
+
+  // 如果用户已经自己指定了带 -landscape/--fast 等完整后缀，直接用
   if (baseModel.includes('-landscape') || baseModel.includes('-fl')) {
     return baseModel;
   }
+  // 自动加上 -landscape 后缀
   return landscape ? `${baseModel}-landscape` : baseModel;
 }
 
 // 发送 multipart/form-data 请求（用于 VEO 3.1 帧转视频）
+// fields: { [name]: string | Buffer }
 function apiRequestMultipart(pathOrUrl, fields) {
   return new Promise((resolve, reject) => {
     const url = /^https?:\/\//i.test(pathOrUrl)
@@ -465,13 +473,15 @@ function apiRequestMultipart(pathOrUrl, fields) {
       : new URL(pathOrUrl, AI_API_BASE);
     const isHttps = url.protocol === 'https:';
     const mod = isHttps ? https : http;
+
+    // Build multipart body manually (no external deps)
     const boundary = `----FormBoundary${Date.now()}`;
     const parts = [];
     for (const [name, value] of Object.entries(fields)) {
       const header = Buffer.from(
         `--${boundary}\r\nContent-Disposition: form-data; name="${name}"` +
         (Buffer.isBuffer(value)
-          ? '; filename="input_reference"\r\nContent-Type: application/octet-stream'
+          ? `; filename="input_reference"\r\nContent-Type: application/octet-stream`
           : '') +
         `\r\n\r\n`,
         'utf8',
@@ -480,7 +490,8 @@ function apiRequestMultipart(pathOrUrl, fields) {
       parts.push(header, body);
     }
     parts.push(Buffer.from(`\r\n--${boundary}--\r\n`, 'utf8'));
-    const reqBody = Buffer.concat(parts);
+    const body = Buffer.concat(parts);
+
     const options = {
       hostname: url.hostname,
       port: url.port || (isHttps ? 443 : 80),
@@ -489,10 +500,11 @@ function apiRequestMultipart(pathOrUrl, fields) {
       headers: {
         'User-Agent': 'TRIX-Canvas-Proxy/1.0',
         'Content-Type': `multipart/form-data; boundary=${boundary}`,
-        'Content-Length': reqBody.length,
+        'Content-Length': body.length,
         ...(AI_API_KEY ? { Authorization: `Bearer ${AI_API_KEY}` } : {}),
       },
     };
+
     const req = mod.request(options, (res) => {
       let data = '';
       res.on('data', (chunk) => { data += chunk; });
@@ -507,7 +519,7 @@ function apiRequestMultipart(pathOrUrl, fields) {
       reject(err);
     });
     req.setTimeout(REQUEST_TIMEOUT_MS, () => { req.destroy(); reject(new Error('timeout')); });
-    req.write(reqBody);
+    req.write(body);
     req.end();
   });
 }
@@ -894,6 +906,13 @@ async function callAi(canvasPayload) {
       return { ok: false, error };
     }
     const body = result.body;
+    if (body?.status === 'completed') {
+      const directUrls = extractUrls(body);
+      if (directUrls.length > 0) {
+        updateMediaCapabilityFromSuccess(mediaType, { usesFirstFrameImage: false });
+        return { ok: true, status: 'completed', urls: directUrls };
+      }
+    }
     let b64 = null;
     try {
       const candParts = body?.candidates?.[0]?.content?.parts || [];
@@ -909,6 +928,19 @@ async function callAi(canvasPayload) {
       updateMediaCapabilityFromSuccess(mediaType, { usesFirstFrameImage: false });
       return { ok: true, status: 'completed', urls: [`data:${mimeType};base64,${b64}`] };
     }
+    const taskId = extractTaskId(body);
+    const statusUrl = extractStatusUrl(body);
+    if (taskId || statusUrl) {
+      const pollPath = statusUrl || buildTaskPath(AI_IMAGE_TASK_PATH_TEMPLATE, taskId);
+      updateMediaCapabilityFromSuccess(mediaType, { usesFirstFrameImage: false });
+      return {
+        ok: true,
+        status: normalizeStatus(body?.status || body?.state || body?.progress) === 'completed' ? 'completed' : 'processing',
+        upstreamTaskId: taskId,
+        upstreamPollPath: pollPath,
+        urls: extractUrls(body),
+      };
+    }
     const finishReason = body?.candidates?.[0]?.finishReason;
     if (finishReason && finishReason !== 'STOP') {
       const error = `Image generation blocked: ${finishReason}`;
@@ -921,6 +953,8 @@ async function callAi(canvasPayload) {
 
   if (AI_VIDEO_PATH) {
     // ── VEO 3.1 异步 API (/v1/videos) ──
+    // 模型根据 aspect（横屏/竖屏）和是否使用首帧自动选择
+    // 帧转视频使用 multipart/form-data 格式
     const usesFirstFrame = Boolean(firstFrameImage);
     const videoModel = selectVideoModel(usesFirstFrame, aspect);
     const videoCapabilityContext = { usesFirstFrameImage: usesFirstFrame };
@@ -935,6 +969,7 @@ async function callAi(canvasPayload) {
         mimeType = firstFrameImage.slice(5, commaIdx).replace(/;.*/, '');
         imageData = firstFrameImage.slice(commaIdx + 1);
       }
+      // input_reference 需要原始二进制，先 base64 decode
       const imageBuffer = Buffer.from(imageData, 'base64');
       result = await apiRequestMultipart(AI_VIDEO_PATH, {
         prompt,
@@ -942,6 +977,7 @@ async function callAi(canvasPayload) {
         input_reference: imageBuffer,
       });
     } else {
+      // 文生视频：普通 JSON
       result = await apiRequest('POST', AI_VIDEO_PATH, {
         prompt,
         model: videoModel,
@@ -955,6 +991,7 @@ async function callAi(canvasPayload) {
     }
 
     const body = result.body;
+    // VEO 3.1 异步返回: { id: "video_xxx", status: "queued" }
     if (body?.status === 'completed') {
       const videoUrl = body?.url || body?.video_url;
       if (videoUrl) {
@@ -962,10 +999,10 @@ async function callAi(canvasPayload) {
         return { ok: true, status: 'completed', urls: [videoUrl] };
       }
     }
-    // Async — extract video_id for polling
-    const videoId = body?.id || '';
+    // Async — extract video_id/task_id for polling
+    const videoId = extractTaskId(body);
     if (videoId) {
-      const pollPath = buildTaskPath(AI_VIDEO_TASK_PATH_TEMPLATE, videoId);
+      const pollPath = extractStatusUrl(body) || buildTaskPath(AI_VIDEO_TASK_PATH_TEMPLATE, videoId);
       return {
         ok: true,
         status: 'processing',
@@ -974,7 +1011,7 @@ async function callAi(canvasPayload) {
         urls: [],
       };
     }
-    // Fallback: check for direct URL
+    // Fallback: check for direct URL in response
     const urls = extractUrls(body);
     if (urls.length > 0) {
       updateMediaCapabilityFromSuccess(mediaType, videoCapabilityContext);
@@ -1204,7 +1241,7 @@ srv.listen(PORT, HOST, () => {
     console.log(`  Video:    ${videoUrl}`);
   }
   console.log(`  Provider: apiyi  (${describeProvider(AI_API_BASE)})`);
-  console.log(`  Image:    ${AI_IMAGE_MODEL}`);
+  console.log(`  Image:    ${AI_IMAGE_MODEL}  (gemini)`);
   console.log(`  Video:    ${AI_VIDEO_MODEL}  (i2v: ${AI_VIDEO_I2V_MODEL})`);
   console.log(`  Key:      ${AI_API_KEY ? '✓' : '✗'}`);
   if (!isLoopbackHost(HOST)) {

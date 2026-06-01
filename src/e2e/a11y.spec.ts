@@ -46,7 +46,7 @@ test.describe('Accessibility - Keyboard Navigation', () => {
 test.describe('Accessibility - ARIA Attributes', () => {
   test('modals have proper ARIA roles', async ({ page }) => {
     await page.goto('/');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Check if any modals exist and have proper roles
     const modals = await page.locator('[role="dialog"], [role="alertdialog"]').all();
@@ -60,7 +60,7 @@ test.describe('Accessibility - ARIA Attributes', () => {
 
   test('buttons have accessible names', async ({ page }) => {
     await page.goto('/');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     const buttons = await page.locator('button').all();
     for (const button of buttons) {
@@ -73,7 +73,7 @@ test.describe('Accessibility - ARIA Attributes', () => {
 
   test('navigation has proper ARIA landmarks', async ({ page }) => {
     await page.goto('/');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Page should have at least one landmark
     await page.locator('nav, main, [role="navigation"], [role="main"]').first().waitFor({ state: 'attached', timeout: 3000 }).catch(() => {});
@@ -85,7 +85,7 @@ test.describe('Accessibility - ARIA Attributes', () => {
 test.describe('Accessibility - Images', () => {
   test('images have alt text or are marked decorative', async ({ page }) => {
     await page.goto('/');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     const images = await page.locator('img').all();
     for (const img of images) {
@@ -104,7 +104,7 @@ test.describe('Accessibility - Images', () => {
 test.describe('Accessibility - Focus Management', () => {
   test('focus is visible on interactive elements', async ({ page }) => {
     await page.goto('/');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');
 
     // Tab to first interactive element
     await page.keyboard.press('Tab');
