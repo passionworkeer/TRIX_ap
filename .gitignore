@@ -27,6 +27,9 @@ dist-ssr
 # Claude Skills (local development - deployed via .agents/)
 .agents/
 .claude/skills/
+.claude/worktrees/
+.claude/scheduled_tasks.lock
+.claude/scheduled_tasks.json
 
 # Playwright test reports
 playwright-report/

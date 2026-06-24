@@ -1,23 +1,30 @@
 #!/usr/bin/env bash
-# pre-commit hook: block known leaked secrets from re-entering the repo.
+# pre-commit hook: block leaked secrets from re-entering the repo.
+# Uses GENERIC format patterns — no real secret values are stored in this file.
 # Install with: git config core.hooksPath .githooks
 set -euo pipefail
 
-# Patterns that must never be committed (real values from the 2026-06 cleanup).
+# Generic secret formats (NOT actual secrets). Matches real keys by shape.
 PATTERNS=(
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9\.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhtYnVranZy'   # Supabase anon JWT (project __REDACTED__...)
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9\.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJxemp1bXhm'   # Supabase anon JWT (project __REDACTED__...)
-  '__SUPABASE_PUBLISHABLE_KEY_REDACTED__'                                         # Supabase publishable key
-  '__ALIYUN_ACCESS_KEY_ID_REDACTED__'                                                                # Aliyun OSS AccessKey ID
-  '__ALIYUN_ACCESS_KEY_SECRET_REDACTED__'                                                          # Aliyun OSS AccessKey Secret
-  '__PC_AUTH_TOKEN_REDACTED__'                                        # VITE_PC_AUTH_TOKEN
-  '__PC_AUTH_TOKEN_REDACTED__'                                        # VITE_PC_AUTH_TOKEN
-  '__GATEWAY_AUTH_TOKEN_REDACTED__'                                        # VITE_GATEWAY_AUTH_TOKEN
-  '__SUPABASE_PROJECT_REF_REDACTED__'                                                                    # Supabase project ref
-  '__SUPABASE_PROJECT_REF_REDACTED__'                                                                    # Supabase project ref
+  'eyJhbGciOi[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]{20,}'   # JWT (3-part, long signature)
+  'sb_publishable_[A-Za-z0-9_]{20,}'                                # Supabase publishable key
+  'sb_secret_[A-Za-z0-9_]{20,}'                                     # Supabase secret key
+  'LTAI[A-Za-z0-9]{16,}'                                            # Aliyun AccessKey ID
+  'AKIA[0-9A-Z]{16}'                                                # AWS AccessKey ID
+  'ghp_[A-Za-z0-9]{36}'                                             # GitHub PAT
+  'github_pat_[A-Za-z0-9_]{20,}'                                    # GitHub fine-grained PAT
+  'sk_live_[A-Za-z0-9]{20,}'                                        # Stripe live key
+  'sk_test_[A-Za-z0-9]{20,}'                                        # Stripe test key
+  'AIza[0-9A-Za-z_-]{35}'                                           # Google API key
+  'xox[baprs]-[A-Za-z0-9-]{20,}'                                    # Slack token
+  '-----BEGIN [A-Z ]*PRIVATE KEY-----'                              # PEM private key
 )
 
-# Only scan staged files that look text-based.
+# Known-safe values allowed through (public test fixtures / placeholders only).
+ALLOWLIST=(
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c'  # jwt.io public demo JWT
+)
+
 STAGED=$(git diff --cached --name-only --diff-filter=ACM | grep -iE '\.(ts|tsx|js|jsx|swift|py|json|yml|yaml|env|sh|plist|md|toml|conf|cfg|ini)$' || true)
 
 if [ -z "$STAGED" ]; then
@@ -26,9 +33,15 @@ fi
 
 HITS=0
 for file in $STAGED; do
+  diff=$(git diff --cached -- "$file" | grep -E '^\+' | grep -v '^\+\+\+')
+  [ -z "$diff" ] && continue
+  # Strip allowlisted safe values before checking.
+  for safe in "${ALLOWLIST[@]}"; do
+    diff=${diff//"$safe"/}
+  done
   for pat in "${PATTERNS[@]}"; do
-    if git grep -nIE "$pat" "$file" >/dev/null 2>&1 || git diff --cached -- "$file" | grep -E "^\+.*$pat" >/dev/null 2>&1; then
-      echo "❌ pre-commit: leaked secret pattern '$pat' found in $file" >&2
+    if echo "$diff" | grep -E "$pat" >/dev/null 2>&1; then
+      echo "❌ pre-commit: secret pattern '$pat' found in $file" >&2
       HITS=$((HITS+1))
     fi
   done
@@ -36,7 +49,7 @@ done
 
 if [ "$HITS" -gt 0 ]; then
   echo "" >&2
-  echo "Commit blocked: $HITS secret pattern(s) detected." >&2
+  echo "Commit blocked: $HITS secret pattern(s) detected in staged changes." >&2
   echo "Rotate the key in its source system and never commit the real value." >&2
   echo "To bypass (NOT recommended for real secrets): git commit --no-verify" >&2
   exit 1
