@@ -1,0 +1,79 @@
+#!/usr/bin/env bash
+# pre-push hook: scan the FULL push diff for leaked secrets.
+# Defense in depth — pre-commit only sees staged changes; this catches
+# secrets that slip through (e.g. --no-verify bypass, force-pushed amend).
+# Install with: git config core.hooksPath .githooks
+set -euo pipefail
+
+# Same generic patterns + safe allowlist as pre-commit.
+PATTERNS=(
+  'eyJhbGciOi[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]{20,}'
+  'sb_publishable_[A-Za-z0-9_]{20,}'
+  'sb_secret_[A-Za-z0-9_]{20,}'
+  'LTAI[A-Za-z0-9]{16,}'
+  'AKIA[0-9A-Z]{16}'
+  'ghp_[A-Za-z0-9]{36}'
+  'github_pat_[A-Za-z0-9_]{20,}'
+  'sk_live_[A-Za-z0-9]{20,}'
+  'sk_test_[A-Za-z0-9]{20,}'
+  'AIza[0-9A-Za-z_-]{35}'
+  'xox[baprs]-[A-Za-z0-9-]{20,}'
+  '-----BEGIN [A-Z ]*PRIVATE KEY-----'
+)
+
+ALLOWLIST=(
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c'
+)
+
+# Read push info: <local_ref> <local_sha> <remote_ref> <remote_sha>
+while read -r local_ref local_sha remote_ref remote_sha; do
+  # Determine the range being pushed.
+  if [ -z "$remote_sha" ] || [ "$remote_sha" = "0000000000000000000000000000000000000000" ]; then
+    # New branch: scan the local commit and its tree.
+    range="$local_sha"
+  else
+    range="$remote_sha..$local_sha"
+  fi
+
+  # Collect candidate blobs from the push range, excluding binary paths.
+  files=$(git rev-list --objects "$range" 2>/dev/null \
+    | awk '{print $1}' \
+    | while read -r obj; do
+        type=$(git cat-file -t "$obj" 2>/dev/null || true)
+        if [ "$type" = "blob" ]; then
+          path=$(git rev-list --objects "$range" 2>/dev/null \
+            | grep "^$obj " | head -1 | awk '{print $2}')
+          case "$path" in
+            *.ts|*.tsx|*.js|*.jsx|*.swift|*.py|*.json|*.yml|*.yaml|\
+            *.env|*.env.*|*.sh|*.plist|*.md|*.toml|*.conf|*.cfg|*.ini|*.cjs)
+              echo "$obj";;
+          esac
+        fi
+      done | sort -u)
+
+  HITS=0
+  for blob in $files; do
+    content=$(git cat-file -p "$blob" 2>/dev/null || true)
+    [ -z "$content" ] && continue
+    # Strip allowlisted safe values.
+    for safe in "${ALLOWLIST[@]}"; do
+      content=${content//"$safe"/}
+    done
+    for pat in "${PATTERNS[@]}"; do
+      if echo "$content" | grep -E "$pat" >/dev/null 2>&1; then
+        echo "❌ pre-push: secret pattern '$pat' found in push range ($local_ref)" >&2
+        HITS=$((HITS+1))
+      fi
+    done
+  done
+
+  if [ "$HITS" -gt 0 ]; then
+    echo "" >&2
+    echo "Push blocked: $HITS secret pattern(s) detected." >&2
+    echo "Rotate the key in its source system before pushing." >&2
+    echo "To bypass (NOT recommended for real secrets): git push --no-verify" >&2
+    exit 1
+  fi
+done
+
+exit 0
