@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+# pre-commit hook: block known leaked secrets from re-entering the repo.
+# Install with: git config core.hooksPath .githooks
+set -euo pipefail
+
+# Patterns that must never be committed (real values from the 2026-06 cleanup).
+PATTERNS=(
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9\.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhtYnVranZy'   # Supabase anon JWT (project __REDACTED__...)
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9\.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJxemp1bXhm'   # Supabase anon JWT (project __REDACTED__...)
+  '__SUPABASE_PUBLISHABLE_KEY_REDACTED__'                                         # Supabase publishable key
+  '__ALIYUN_ACCESS_KEY_ID_REDACTED__'                                                                # Aliyun OSS AccessKey ID
+  '__ALIYUN_ACCESS_KEY_SECRET_REDACTED__'                                                          # Aliyun OSS AccessKey Secret
+  '__PC_AUTH_TOKEN_REDACTED__'                                        # VITE_PC_AUTH_TOKEN
+  '__PC_AUTH_TOKEN_REDACTED__'                                        # VITE_PC_AUTH_TOKEN
+  '__GATEWAY_AUTH_TOKEN_REDACTED__'                                        # VITE_GATEWAY_AUTH_TOKEN
+  '__SUPABASE_PROJECT_REF_REDACTED__'                                                                    # Supabase project ref
+  '__SUPABASE_PROJECT_REF_REDACTED__'                                                                    # Supabase project ref
+)
+
+# Only scan staged files that look text-based.
+STAGED=$(git diff --cached --name-only --diff-filter=ACM | grep -iE '\.(ts|tsx|js|jsx|swift|py|json|yml|yaml|env|sh|plist|md|toml|conf|cfg|ini)$' || true)
+
+if [ -z "$STAGED" ]; then
+  exit 0
+fi
+
+HITS=0
+for file in $STAGED; do
+  for pat in "${PATTERNS[@]}"; do
+    if git grep -nIE "$pat" "$file" >/dev/null 2>&1 || git diff --cached -- "$file" | grep -E "^\+.*$pat" >/dev/null 2>&1; then
+      echo "❌ pre-commit: leaked secret pattern '$pat' found in $file" >&2
+      HITS=$((HITS+1))
+    fi
+  done
+done
+
+if [ "$HITS" -gt 0 ]; then
+  echo "" >&2
+  echo "Commit blocked: $HITS secret pattern(s) detected." >&2
+  echo "Rotate the key in its source system and never commit the real value." >&2
+  echo "To bypass (NOT recommended for real secrets): git commit --no-verify" >&2
+  exit 1
+fi
+
+exit 0
