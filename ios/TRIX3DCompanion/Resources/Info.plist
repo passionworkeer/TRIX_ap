@@ -108,8 +108,8 @@
 	<key>WECHAT_UNIVERSAL_LINK</key>
 	<string>https://trix.love/wechat/</string>
 	<key>SUPABASE_URL</key>
-	<string>https://__SUPABASE_PROJECT_REF_REDACTED__.supabase.co</string>
+	<string>__SUPABASE_URL_PLACEHOLDER__</string>
 	<key>SUPABASE_ANON_KEY</key>
-	<string>__SUPABASE_ANON_KEY_REDACTED__</string>
+	<string>__SUPABASE_ANON_KEY_PLACEHOLDER__</string>
 </dict>
 </plist>
