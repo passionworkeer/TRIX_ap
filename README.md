@@ -1,5 +1,7 @@
 # TRIX 3D Companion
 
+> **项目状态（2026-09-21）：公开归档。** 本项目作为 Web、iOS 与桌面端 AI 伴侣的历史工程案例保留，停止主动维护。不再接收本仓库的 Issue 或 Pull Request，也不承诺功能更新与依赖兼容性修复；欢迎 fork 后继续开发。
+
 > 三端一体的 AI 伴侣 — OpenClaw 原生插件 + 多模态实时收发 + 自习室学习陪伴
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
